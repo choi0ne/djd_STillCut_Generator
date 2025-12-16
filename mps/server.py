@@ -33,7 +33,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 app.mount("/output", StaticFiles(directory=OUTPUT_DIR), name="output")
 
 @app.post("/process-image")
-async def process_image(
+def process_image(
     file: UploadFile = File(...),
     remove_watermark: bool = Form(True),
     optimize_blog: bool = Form(True),
@@ -87,7 +87,7 @@ async def process_image(
         return {"success": False, "error": str(e)}
 
 @app.post("/process-pdf")
-async def process_pdf(
+def process_pdf(
     file: UploadFile = File(...),
     merge_pages: bool = Form(True),
     target_width: int = Form(1200),
