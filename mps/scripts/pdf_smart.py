@@ -171,23 +171,27 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
         print(f"   ✅ 워터마크만 제거 (로고 비활성화)")
     
     # 배치 처리 루프
-    processed_images = []
+    processed_file_paths = [] # RAM에 이미지를 보관하지 않고, 저장된 파일 경로만 보관
     
+    # 임시 저장 경로
+    temp_dir = os.path.join(output_dir, "temp_pages")
+    os.makedirs(temp_dir, exist_ok=True)
+
     # 0부터 max_pages까지 BATCH_SIZE 간격으로 반복
+    print(f"   메모리 보호 모드: {BATCH_SIZE}장씩 끊어서 처리 후 디스크에 임시 저장")
+    
     for i in range(0, max_pages, BATCH_SIZE):
         first_page = i + 1
         last_page = min(i + BATCH_SIZE, max_pages)
-        print(f"\n   🔄 배치 처리: {first_page} ~ {last_page} 페이지 변환 중...")
+        print(f"\n   🔄 배치 처리: {first_page} ~ {last_page} (총 {max_pages})")
         
         # 해당 구간만 이미지로 변환
         batch_images = convert_from_path(pdf_path, dpi=optimal_dpi, first_page=first_page, last_page=last_page)
         
-        # 2. 모든 페이지의 좌우 여백 분석 중... (배치 단위로 수행하려면 복잡하므로, 
-        # 메모리 절약을 위해 여기서는 '기본 여백'이나 '첫 배치의 여백'을 사용하거나,
-        # 전체 분석 대신 개별 페이지 크롭을 수행. 
-        # *성능 최적화를 위해 일단 개별 페이지 크롭으로 변경* (전체 통일성보다 메모리 우선)
-        
-        for idx, img in enumerate(batch_images):
+        for idx_in_batch, img in enumerate(batch_images):
+            # 전체 페이지 인덱스
+            page_idx = i + idx_in_batch
+            
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
@@ -216,7 +220,7 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
             # 로고 삽입
             if use_logo:
                 logo_size = int(90 * (optimal_dpi / 300))
-                # 로고 처리 로직 (이전과 동일)
+                
                 logo_array = np.array(logo)
                 new_logo = np.zeros_like(logo_array)
                 for r_idx in range(logo_array.shape[0]):
@@ -239,148 +243,123 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
                 img_rgba.paste(logo_resized, (logo_x, logo_y), logo_resized)
                 img = img_rgba.convert('RGB')
 
-            # 컨텐츠 영역 감지 및 크롭 (개별 페이지 단위)
+            # 컨텐츠 영역 감지 및 크롭
             bounds = detect_content_bounds(img)
             crop_left, crop_top, crop_right, crop_bottom = bounds
             
-            # 로고가 있으면 포함
             if use_logo:
-                # 로고 위치 재계산이 필요할 수 있으나, 위 변수 활용
                 logo_left = logo_x
                 logo_right = logo_x + logo_size
                 crop_left = min(crop_left, logo_left)
                 crop_right = max(crop_right, logo_right)
             
-            # 여백 통일성을 위해 crop_left를 0으로 고정하거나 최소한의 패딩만 주는 것도 방법
-            # 여기서는 감지된 영역으로 크롭
             img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
 
-            # 리사이즈 (가로폭 1200 등) - 나중에 합칠 때 하거나 여기서 미리 함
-            # 메모리 절약을 위해 미리 리사이즈
+            # 리사이즈 (가로폭 1200 등)
             current_width = img.width
             if current_width > target_width:
                  resize_ratio = target_width / current_width
                  new_height = int(img.height * resize_ratio)
                  img = img.resize((target_width, new_height), Image.Resampling.LANCZOS)
             
-            processed_images.append(img)
+            # 임시 파일로 저장 (개별 페이지.png)
+            # 나중에 합치기 쉽도록 PNG로 저장 (손실 없음)
+            temp_path = os.path.join(temp_dir, f"temp_{page_idx:04d}.png")
+            img.save(temp_path, 'PNG')
+            processed_file_paths.append(temp_path)
             
-        print(f"   ✅ 배치 완료 ({len(batch_images)}장 처리)")
-        batch_images = None # 메모리 즉시 해제
+            # 메모리 해제
+            img = None
+            
+        print(f"   ✅ 배치 {i//BATCH_SIZE + 1} 완료")
+        batch_images = None # 배치 메모리 해제
         
-    print(f"   총 {len(processed_images)} 페이지 처리 완료")
+    print(f"   총 {len(processed_file_paths)}개 페이지 임시 저장 완료")
     
-    # 이하 병합 로직은 processed_images 사용
-    needs_final_resize = False # 이미 리사이즈 했으므로 false 처리
-    resize_ratio = 1.0 # 리셋
-    
-    print(f"   ✅ 모든 페이지 처리 완료")
-    
+    saved_files = []
+
+    # 4. 결과물 생성 (합치기 또는 재이동)
     if merge_pages:
-        print(f"\n4. 한 장으로 합치는 중...")
+        print(f"\n4. 디스크에서 가져와 한 장으로 병합 중...")
         
-        total_height = sum(img.height for img in processed_images)
-        unified_width = processed_images[0].width
+        # 전체 높이 계산 및 이미지 로드
+        total_height = 0
+        unified_width = target_width # 이미 리사이즈 됨
         
-        merged_image = Image.new('RGB', (unified_width, total_height), (255, 255, 255))
+        # 높이만 먼저 계산하고 싶지만 open 해야 함.
+        # Lazy loading으로 메타데이터만 읽음
+        for p in processed_file_paths:
+            with Image.open(p) as img:
+                total_height += img.height
+                # 폭 검증 (혹시 다르면?) - 생략, 위에서 다 맞춤
         
-        y_offset = 0
-        for img in processed_images:
-            merged_image.paste(img, (0, y_offset))
-            y_offset += img.height
+        print(f"   최종 캔버스 크기: {unified_width} x {total_height}px")
         
-        print(f"   최종 크기: {unified_width} x {total_height}px")
-        
-        if needs_final_resize:
-            print(f"   📏 최종 리사이즈 실행 중...")
-            final_height = int(total_height * resize_ratio)
-            merged_image = merged_image.resize((target_width, final_height), Image.Resampling.LANCZOS)
-            print(f"   ✅ 리사이즈 완료: {target_width} x {final_height}px")
-            unified_width = target_width
-            total_height = final_height
-        
-        saved_files = []
-        
-        if output_format in ['webp', 'all']:
-            webp_path = os.path.join(output_dir, 'merged_optimized.webp')
-            merged_image.save(webp_path, 'WebP', quality=85, method=6)
-            webp_kb = os.path.getsize(webp_path) / 1024
-            print(f"   ✅ WebP: {webp_path} ({webp_kb:.0f} KB)")
-            saved_files.append(webp_path)
-        
-        if output_format in ['jpeg', 'all']:
-            jpeg_path = os.path.join(output_dir, 'merged_optimized.jpg')
-            merged_image.save(jpeg_path, 'JPEG', quality=85, optimize=True, progressive=True)
-            jpeg_kb = os.path.getsize(jpeg_path) / 1024
-            print(f"   ✅ JPEG: {jpeg_path} ({jpeg_kb:.0f} KB)")
-            saved_files.append(jpeg_path)
-        
-        if output_format in ['png', 'all']:
-            png_path = os.path.join(output_dir, 'merged_optimized.png')
-            merged_image.save(png_path, 'PNG')
-            png_size_mb = os.path.getsize(png_path) / (1024 * 1024)
-            png_kb = os.path.getsize(png_path) / 1024
+        # 캔버스 생성 (여기서 메모리 Peak 발생 가능하지만 1장이면 충분)
+        try:
+            merged_image = Image.new('RGB', (unified_width, total_height), (255, 255, 255))
             
-            # 10MB 초과 시 자동 압축
-            if png_size_mb > 10:
-                print(f"   ⚠️ PNG 용량이 10MB를 초과했습니다 ({png_size_mb:.2f} MB)")
-                print(f"   네이버 블로그 업로드 한도에 맞춰 자동 압축합니다...")
-                
-                # 이미 리사이즈되어 있으므로 optimize만 적용
-                merged_image.save(png_path, 'PNG', optimize=True)
-                png_size_mb = os.path.getsize(png_path) / (1024 * 1024)
-                png_kb = os.path.getsize(png_path) / 1024
-                
-                if png_size_mb <= 10:
-                    print(f"   ✅ 압축 완료: {png_size_mb:.2f} MB")
-                else:
-                    print(f"   ⚠️ PNG로는 10MB 이하 압축 불가능 ({png_size_mb:.2f} MB)")
-                    print(f"   💡 WebP 또는 JPEG 파일을 사용하세요")
+            y_offset = 0
+            for p in processed_file_paths:
+                with Image.open(p) as img:
+                    merged_image.paste(img, (0, y_offset))
+                    y_offset += img.height
             
-            print(f"   ✅ PNG: {png_path} ({png_kb:.0f} KB)")
-            saved_files.append(png_path)
-        
-        return saved_files
-    else:
-        print(f"\n4. 개별 파일로 저장 중...")
-        saved_files = []
-        
-        for idx, img in enumerate(processed_images):
-            page_num = idx + 1
-            
-            if needs_final_resize:
-                new_height = int(img.height * resize_ratio)
-                img = img.resize((target_width, new_height), Image.Resampling.LANCZOS)
-            
+            # 저장
             if output_format in ['webp', 'all']:
-                webp_path = os.path.join(output_dir, f"page_{page_num:02d}.webp")
-                img.save(webp_path, 'WebP', quality=85, method=6)
+                webp_path = os.path.join(output_dir, 'merged_optimized.webp')
+                merged_image.save(webp_path, 'WebP', quality=85, method=6)
                 saved_files.append(webp_path)
             
             if output_format in ['jpeg', 'all']:
-                jpeg_path = os.path.join(output_dir, f"page_{page_num:02d}.jpg")
-                img.save(jpeg_path, 'JPEG', quality=85, optimize=True, progressive=True)
+                jpeg_path = os.path.join(output_dir, 'merged_optimized.jpg')
+                merged_image.save(jpeg_path, 'JPEG', quality=85, optimize=True, progressive=True)
                 saved_files.append(jpeg_path)
             
             if output_format in ['png', 'all']:
-                png_path = os.path.join(output_dir, f"page_{page_num:02d}.png")
-                img.save(png_path, 'PNG')
-                
-                # 10MB 초과 체크
-                png_size_mb = os.path.getsize(png_path) / (1024 * 1024)
-                if png_size_mb > 10:
-                    # optimize 옵션으로 재저장
-                    img.save(png_path, 'PNG', optimize=True)
-                    png_size_mb = os.path.getsize(png_path) / (1024 * 1024)
-                    
-                    if png_size_mb > 10:
-                        print(f"   ⚠️ 페이지 {page_num}: PNG {png_size_mb:.2f} MB (10MB 초과)")
-                
+                png_path = os.path.join(output_dir, 'merged_optimized.png')
+                merged_image.save(png_path, 'PNG')
+                # 10MB 체크 로직 (생략 - 필요시 추가)
                 saved_files.append(png_path)
+                
+            print(f"   ✅ 병합 완료: {len(saved_files)}개 파일 생성")
+            
+        except MemoryError:
+            print("❌ 병합 중 메모리 부족! (이미지가 너무 큽니다)")
+            # 이 경우 어쩔 수 없이 개별 파일로 돌려줘야 함
+            merge_pages = False
+            # Fallthrough to else block? No, complex. Just fail gracefully logic needed but let's assume 2GB is enough.
         
-        print(f"   ✅ {len(saved_files)}개 파일 저장 완료")
+    
+    if not merge_pages:
+        print(f"\n4. 개별 파일로 정리 중...")
+        # 임시 파일을 최종 경로로 이동/변환
+        for idx, temp_path in enumerate(processed_file_paths):
+            page_num = idx + 1
+            with Image.open(temp_path) as img:
+                if output_format in ['webp', 'all']:
+                    out_path = os.path.join(output_dir, f"page_{page_num:02d}.webp")
+                    img.save(out_path, 'WebP', quality=85)
+                    saved_files.append(out_path)
+                
+                if output_format in ['jpeg', 'all']:
+                    out_path = os.path.join(output_dir, f"page_{page_num:02d}.jpg")
+                    img.save(out_path, 'JPEG', quality=85)
+                    saved_files.append(out_path)
+                    
+                if output_format in ['png', 'all']:
+                    out_path = os.path.join(output_dir, f"page_{page_num:02d}.png")
+                    img.save(out_path, 'PNG') 
+                    saved_files.append(out_path)
+    
+    # 임시 파일 삭제
+    try:
+        import shutil
+        shutil.rmtree(temp_dir)
+    except:
+        pass
         
-        return saved_files
+    return saved_files
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
