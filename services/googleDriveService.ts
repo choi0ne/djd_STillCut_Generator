@@ -1,12 +1,25 @@
-// Helper to convert base64 to Blob
-const base64ToBlob = (base64: string, mimeType: string): Blob => {
-    const byteCharacters = atob(base64.split(',')[1]);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+// Helper to convert input (Blob URL or Data URL) to Blob
+const inputToBlob = async (input: string, mimeType: string): Promise<Blob> => {
+    // Blob URL인 경우 (blob:http://... 형태)
+    if (input.startsWith('blob:')) {
+        const response = await fetch(input);
+        return await response.blob();
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: mimeType });
+
+    // Data URL인 경우 (data:image/png;base64,... 형태)
+    if (input.startsWith('data:')) {
+        const byteCharacters = atob(input.split(',')[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+    }
+
+    // 그 외의 경우 (일반 URL) - fetch로 처리
+    const response = await fetch(input);
+    return await response.blob();
 };
 
 // Function to get keys from local storage
@@ -104,7 +117,7 @@ export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
     initTokenClient(clientId);
     await requestAccessToken();
 
-    const blob = base64ToBlob(base64Image, 'image/png');
+    const blob = await inputToBlob(base64Image, 'image/png');
     const metadata = {
         name: `djd-image-${Date.now()}.png`,
         mimeType: 'image/png',

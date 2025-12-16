@@ -10,7 +10,7 @@ import GenerationResultPanel from './GenerationResultPanel';
 import Panel from './common/Panel';
 import { SparklesIcon, XIcon, LibraryIcon, PlusIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
-import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
+
 
 interface CodeEditorProps {
   isApiKeyReady: boolean;
@@ -36,10 +36,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
 
-  // Google Drive 상태
-  const [showDriveFiles, setShowDriveFiles] = useState(false);
-  const [driveFiles, setDriveFiles] = useState<any[]>([]);
-  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+
 
   // JSON 설정을 저장하는 라이브러리
   const [storedConfigs, setStoredConfigs] = useLocalStorage<StoredPrompt[]>('jsonConfigsLibrary', []);
@@ -93,45 +90,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     return () => window.removeEventListener('paste', handlePaste);
   }, [handleImageUpload]);
 
-  // Google Drive에서 이미지 가져오기
-  const handleOpenGoogleDrive = async () => {
-    setIsLoadingDrive(true);
-    try {
-      const files = await listImagesFromGoogleDrive();
-      setDriveFiles(files);
-      setShowDriveFiles(true);
-    } catch (error: any) {
-      setJsonError(error.message || 'Google Drive 파일을 불러올 수 없습니다.');
-    } finally {
-      setIsLoadingDrive(false);
-    }
-  };
 
-  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
-    setIsLoadingDrive(true);
-    try {
-      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
-      const response = await fetch(imageData.base64);
-      const blob = await response.blob();
-      const file = new File([blob], fileName, { type: mimeType });
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          handleImageUpload({
-            base64: event.target.result as string,
-            mimeType: mimeType,
-          });
-        }
-      };
-      reader.readAsDataURL(blob);
-      setShowDriveFiles(false);
-    } catch (error: any) {
-      setJsonError(error.message || '파일을 다운로드할 수 없습니다.');
-    } finally {
-      setIsLoadingDrive(false);
-    }
-  };
 
   const clearImage = () => {
     setImage(null);
@@ -296,30 +255,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className="flex flex-col gap-4 h-full">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">📸 이미지 → JSON</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedProvider('gemini')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'gemini'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                    }`}
-                >
-                  🔷 Gemini
-                </button>
-                <button
-                  onClick={() => setSelectedProvider('openai')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'openai'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                    }`}
-                >
-                  💚 ChatGPT
-                </button>
-              </div>
             </div>
 
             {/* 이미지 업로드 영역 */}
-            <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-lg p-4">
+            <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-lg p-4 flex-1">
               {image ? (
                 <div className="space-y-3">
                   <div className="relative group rounded-lg overflow-hidden">
@@ -349,82 +288,75 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                       </>
                     )}
                   </button>
-                  {analysisResult && !analysisResult.startsWith('❌') && (
-                    <div className="bg-gray-900/50 rounded p-3 max-h-40 overflow-auto relative group">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(analysisResult);
-                          const btn = document.getElementById('copy-analysis-btn');
-                          if (btn) {
-                            btn.textContent = '✓ 복사됨';
-                            setTimeout(() => { btn.textContent = '📋 복사'; }, 2000);
-                          }
-                        }}
-                        id="copy-analysis-btn"
-                        className="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                        title="JSON 복사"
-                      >
-                        📋 복사
-                      </button>
-                      <pre className="text-xs text-green-300 font-mono pr-16">{analysisResult}</pre>
-                    </div>
-                  )}
-                  {analysisResult && analysisResult.startsWith('❌') && (
-                    <p className="text-xs text-red-400">{analysisResult}</p>
-                  )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="h-40">
-                    <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" />
-                  </div>
-                  <button
-                    onClick={handleOpenGoogleDrive}
-                    disabled={isLoadingDrive}
-                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    <span>☁️</span>
-                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
-                  </button>
+                <div className="h-48">
+                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" />
                 </div>
               )}
+            </div>
 
-              {/* Google Drive 파일 선택 모달 */}
-              {showDriveFiles && (
-                <div className="mt-3 p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
-                    <button
-                      onClick={() => setShowDriveFiles(false)}
-                      className="text-gray-400 hover:text-white text-sm"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {driveFiles.length > 0 ? (
-                    <div className="max-h-48 overflow-y-auto grid grid-cols-4 gap-2">
-                      {driveFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
-                          className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
-                        >
-                          {file.thumbnailLink ? (
-                            <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="text-center p-1">
-                              <span className="text-xl">🖼️</span>
-                              <p className="text-xs text-gray-400 truncate">{file.name}</p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-400 text-sm py-4">파일 없음</div>
-                  )}
+            {/* JSON 변환 결과 출력 */}
+            <div className="flex-1 flex flex-col">
+              <label className="text-sm font-semibold text-gray-300 mb-2">변환된 JSON 코드</label>
+              {analysisResult && !analysisResult.startsWith('❌') ? (
+                <div className="bg-gray-900/50 rounded-lg p-4 flex-1 relative group border border-gray-600">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(analysisResult);
+                      setJsonCode(analysisResult); // 우측 패널로 복사
+                      const btn = document.getElementById('copy-analysis-btn');
+                      if (btn) {
+                        btn.textContent = '✓ 복사됨';
+                        setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
+                      }
+                    }}
+                    id="copy-analysis-btn"
+                    className="absolute top-2 right-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
+                    title="JSON 복사 후 우측에 적용"
+                  >
+                    📋 복사 & 적용
+                  </button>
+                  <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap pr-24 overflow-auto max-h-[200px]">{analysisResult}</pre>
+                </div>
+              ) : analysisResult && analysisResult.startsWith('❌') ? (
+                <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 flex-1">
+                  <p className="text-sm text-red-400">{analysisResult}</p>
+                </div>
+              ) : (
+                <div className="bg-gray-900/50 border border-gray-600 rounded-lg p-4 flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-500">이미지를 업로드하고 변환하면 JSON 코드가 여기에 표시됩니다</p>
                 </div>
               )}
+            </div>
+          </div>
+        </Panel>
+
+        {/* 우측: JSON → 이미지 생성 */}
+        <Panel>
+          <div className="flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">✨ JSON → 이미지</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedProvider('gemini')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'gemini'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    }`}
+                >
+                  🔷 Gemini
+                </button>
+                <button
+                  onClick={() => setSelectedProvider('openai')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'openai'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    }`}
+                >
+                  💚 ChatGPT
+                </button>
+              </div>
             </div>
 
             {/* JSON 코드 입력 */}
@@ -475,19 +407,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               )}
               <span>{isLoading ? '생성 중...' : '이미지 생성'}</span>
             </button>
+
+            {/* 생성된 이미지 결과 */}
+            <div className="flex-1">
+              <GenerationResultPanel
+                isLoading={isLoading}
+                error={error || jsonError}
+                generatedImages={generatedImages}
+                selectedImage={selectedImage}
+                onSelectImage={setSelectedImage}
+                onRegenerate={regenerate}
+                canRegenerate={canRegenerate}
+              />
+            </div>
           </div>
         </Panel>
-
-        {/* 우측: 이미지 생성 결과 */}
-        <GenerationResultPanel
-          isLoading={isLoading}
-          error={error || jsonError}
-          generatedImages={generatedImages}
-          selectedImage={selectedImage}
-          onSelectImage={setSelectedImage}
-          onRegenerate={regenerate}
-          canRegenerate={canRegenerate}
-        />
       </div>
 
       <PromptLibraryModal

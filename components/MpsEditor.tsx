@@ -11,8 +11,8 @@ import {
 } from '../services/mpsService';
 import { saveToGoogleDrive, listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 
-// PDF.js worker 설정
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// PDF.js worker 설정 (ES Module 호환)
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.mjs`;
 
 interface PdfPagePreview {
     pageNum: number;

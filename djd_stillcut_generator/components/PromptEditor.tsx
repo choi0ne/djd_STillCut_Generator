@@ -270,33 +270,35 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   return '첨부한 파일의 인물의 얼굴은 그대로 유지하면서, 의상과 배경을 어떻게 바꿀지 설명해주세요.';
                 })()}
               </p>
-              <div className="flex gap-2">
-                <input
+              <div className="flex flex-col gap-2">
+                <textarea
                   id="prompt-input"
-                  type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={selectedPrompts.length > 0 ? "라이브러리 프롬프트 사용 중" : "예: 미래형 우주복을 입고, 화성에서"}
                   disabled={selectedPrompts.length > 0}
-                  className="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  rows={6}
+                  className="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed resize-none"
                 />
-                <button
-                  onClick={handleSaveCurrentPrompt}
-                  className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                  title="현재 프롬프트 저장"
-                  aria-label="현재 프롬프트 라이브러리에 저장"
-                  disabled={!prompt.trim() || selectedPrompts.length > 0}
-                >
-                  <PlusIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setIsLibraryOpen(true)}
-                  className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                  title="프롬프트 라이브러리"
-                  aria-label="프롬프트 라이브러리 열기"
-                >
-                  <LibraryIcon className="w-5 h-5" />
-                </button>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleSaveCurrentPrompt}
+                    className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
+                    title="현재 프롬프트 저장"
+                    aria-label="현재 프롬프트 라이브러리에 저장"
+                    disabled={!prompt.trim() || selectedPrompts.length > 0}
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsLibraryOpen(true)}
+                    className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
+                    title="프롬프트 라이브러리"
+                    aria-label="프롬프트 라이브러리 열기"
+                  >
+                    <LibraryIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               {promptError && <p className="text-sm text-red-400 mt-2">{promptError}</p>}
             </div>
