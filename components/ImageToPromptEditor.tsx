@@ -8,6 +8,7 @@ import { generatePromptFromImage, generateJsonFromImage } from '../services/gemi
 import useLocalStorage from '../hooks/useLocalStorage';
 import { XIcon, SparklesIcon, ClipboardIcon, LibraryIcon, PlusIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
+import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 
 interface ImageToPromptEditorProps {
     isApiKeyReady: boolean;
@@ -32,6 +33,11 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
     const [outputMode, setOutputMode] = useState<'text' | 'json'>('text');
+
+    // Google Drive 상태
+    const [showDriveFiles, setShowDriveFiles] = useState(false);
+    const [driveFiles, setDriveFiles] = useState<any[]>([]);
+    const [isLoadingDrive, setIsLoadingDrive] = useState(false);
 
     const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('generatedPromptsLibrary', []);
 
@@ -77,6 +83,36 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
             window.removeEventListener('paste', handlePaste);
         };
     }, [handleImageUpload]);
+
+    // Google Drive에서 이미지 가져오기
+    const handleOpenGoogleDrive = async () => {
+        setIsLoadingDrive(true);
+        try {
+            const files = await listImagesFromGoogleDrive();
+            setDriveFiles(files);
+            setShowDriveFiles(true);
+        } catch (err: any) {
+            setError(err.message || 'Google Drive 파일을 불러올 수 없습니다.');
+        } finally {
+            setIsLoadingDrive(false);
+        }
+    };
+
+    const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+        setIsLoadingDrive(true);
+        try {
+            const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+            handleImageUpload({
+                base64: imageData.base64,
+                mimeType: mimeType,
+            });
+            setShowDriveFiles(false);
+        } catch (err: any) {
+            setError(err.message || '파일을 다운로드할 수 없습니다.');
+        } finally {
+            setIsLoadingDrive(false);
+        }
+    };
 
     const clearImage = () => {
         setImage(null);
@@ -218,8 +254,55 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                                     </button>
                                 </div>
                             ) : (
-                                <div className="h-full min-h-64">
-                                    <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG)" />
+                                <div className="space-y-3">
+                                    <div className="h-full min-h-48">
+                                        <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG) - Ctrl+V 붙여넣기 지원" />
+                                    </div>
+                                    <button
+                                        onClick={handleOpenGoogleDrive}
+                                        disabled={isLoadingDrive}
+                                        className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        <span>☁️</span>
+                                        <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                                    </button>
+
+                                    {/* Google Drive 파일 선택 모달 */}
+                                    {showDriveFiles && (
+                                        <div className="p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
+                                                <button
+                                                    onClick={() => setShowDriveFiles(false)}
+                                                    className="text-gray-400 hover:text-white text-sm"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                            {driveFiles.length > 0 ? (
+                                                <div className="max-h-48 overflow-y-auto grid grid-cols-4 gap-2">
+                                                    {driveFiles.map((file) => (
+                                                        <div
+                                                            key={file.id}
+                                                            onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
+                                                            className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
+                                                        >
+                                                            {file.thumbnailLink ? (
+                                                                <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="text-center p-1">
+                                                                    <span className="text-xl">🖼️</span>
+                                                                    <p className="text-xs text-gray-400 truncate">{file.name}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center text-gray-400 text-sm py-4">파일 없음</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

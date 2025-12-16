@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
@@ -10,6 +10,7 @@ import GenerationResultPanel from './GenerationResultPanel';
 import Panel from './common/Panel';
 import { SparklesIcon, XIcon, LibraryIcon, PlusIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
+import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 
 interface CodeEditorProps {
   isApiKeyReady: boolean;
@@ -35,6 +36,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
 
+  // Google Drive 상태
+  const [showDriveFiles, setShowDriveFiles] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+
   // JSON 설정을 저장하는 라이브러리
   const [storedConfigs, setStoredConfigs] = useLocalStorage<StoredPrompt[]>('jsonConfigsLibrary', []);
 
@@ -50,10 +56,81 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     canRegenerate,
   } = useImageGenerator({ generationFn: generateImageWithCode });
 
-  const handleImageUpload = (file: ImageFile) => {
+  const handleImageUpload = useCallback((file: ImageFile) => {
     setImage(file);
     setAnalysisResult('');
     clearResults();
+  }, [clearResults]);
+
+  // Ctrl+V 붙여넣기 지원
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              if (event.target?.result) {
+                handleImageUpload({
+                  base64: event.target.result as string,
+                  mimeType: file.type,
+                });
+              }
+            };
+            reader.readAsDataURL(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [handleImageUpload]);
+
+  // Google Drive에서 이미지 가져오기
+  const handleOpenGoogleDrive = async () => {
+    setIsLoadingDrive(true);
+    try {
+      const files = await listImagesFromGoogleDrive();
+      setDriveFiles(files);
+      setShowDriveFiles(true);
+    } catch (error: any) {
+      setJsonError(error.message || 'Google Drive 파일을 불러올 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
+
+  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    setIsLoadingDrive(true);
+    try {
+      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      const response = await fetch(imageData.base64);
+      const blob = await response.blob();
+      const file = new File([blob], fileName, { type: mimeType });
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          handleImageUpload({
+            base64: event.target.result as string,
+            mimeType: mimeType,
+          });
+        }
+      };
+      reader.readAsDataURL(blob);
+      setShowDriveFiles(false);
+    } catch (error: any) {
+      setJsonError(error.message || '파일을 다운로드할 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
   };
 
   const clearImage = () => {
@@ -208,17 +285,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       return;
     }
 
-    generate(null, jsonCode); // 참조이미지 없이 JSON만 전달
+    generate(null, jsonCode);
   };
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        {/* 좌측: 이미지 → JSON 변환 */}
         <Panel>
-          <div className="flex flex-col gap-6 flex-grow">
-            {/* 제목 + AI 제공자 선택 */}
+          <div className="flex flex-col gap-4 h-full">
             <div className="flex items-center justify-between">
-              <label className="block text-lg font-semibold text-gray-300">JSON 생성</label>
+              <h2 className="text-lg font-semibold text-white">📸 이미지 → JSON</h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelectedProvider('gemini')}
@@ -241,13 +318,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               </div>
             </div>
 
-            {/* 1. 이미지 → JSON 변환 */}
+            {/* 이미지 업로드 영역 */}
             <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-purple-300 mb-2">📸 이미지 → JSON 변환</h3>
               {image ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="relative group rounded-lg overflow-hidden">
-                    <img src={image.base64} alt="업로드된 이미지" className="w-full max-h-32 object-contain bg-black/50" />
+                    <img src={image.base64} alt="업로드된 이미지" className="w-full max-h-48 object-contain bg-black/50" />
                     <button
                       onClick={clearImage}
                       className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
@@ -259,7 +335,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                   <button
                     onClick={handleAnalyzeImage}
                     disabled={isAnalyzing}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     {isAnalyzing ? (
                       <>
@@ -274,8 +350,23 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                     )}
                   </button>
                   {analysisResult && !analysisResult.startsWith('❌') && (
-                    <div className="bg-gray-900/50 rounded p-2 max-h-32 overflow-auto">
-                      <pre className="text-xs text-green-300 font-mono">{analysisResult}</pre>
+                    <div className="bg-gray-900/50 rounded p-3 max-h-40 overflow-auto relative group">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(analysisResult);
+                          const btn = document.getElementById('copy-analysis-btn');
+                          if (btn) {
+                            btn.textContent = '✓ 복사됨';
+                            setTimeout(() => { btn.textContent = '📋 복사'; }, 2000);
+                          }
+                        }}
+                        id="copy-analysis-btn"
+                        className="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                        title="JSON 복사"
+                      >
+                        📋 복사
+                      </button>
+                      <pre className="text-xs text-green-300 font-mono pr-16">{analysisResult}</pre>
                     </div>
                   )}
                   {analysisResult && analysisResult.startsWith('❌') && (
@@ -283,33 +374,80 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="h-32">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환" />
+                <div className="space-y-3">
+                  <div className="h-40">
+                    <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" />
+                  </div>
+                  <button
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <span>☁️</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Google Drive 파일 선택 모달 */}
+              {showDriveFiles && (
+                <div className="mt-3 p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
+                    <button
+                      onClick={() => setShowDriveFiles(false)}
+                      className="text-gray-400 hover:text-white text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {driveFiles.length > 0 ? (
+                    <div className="max-h-48 overflow-y-auto grid grid-cols-4 gap-2">
+                      {driveFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
+                          className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
+                        >
+                          {file.thumbnailLink ? (
+                            <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-center p-1">
+                              <span className="text-xl">🖼️</span>
+                              <p className="text-xs text-gray-400 truncate">{file.name}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-400 text-sm py-4">파일 없음</div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* 2. JSON 코드 입력 */}
+            {/* JSON 코드 입력 */}
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-center mb-2">
-                <label htmlFor="json-input" className="block text-lg font-semibold text-gray-300">JSON 코드 입력</label>
+                <label htmlFor="json-input" className="text-sm font-semibold text-gray-300">JSON 코드 입력</label>
                 <div className="flex gap-2">
                   <button
                     onClick={handleSaveCurrentConfig}
                     disabled={!jsonCode.trim()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     title="현재 설정 저장"
                   >
-                    <PlusIcon className="w-4 h-4" />
-                    <span>저장</span>
+                    <PlusIcon className="w-3 h-3" />
+                    저장
                   </button>
                   <button
                     onClick={() => setIsLibraryOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-500 transition-colors"
                     title="저장된 설정 라이브러리"
                   >
-                    <LibraryIcon className="w-4 h-4" />
-                    <span>라이브러리 ({storedConfigs.length})</span>
+                    <LibraryIcon className="w-3 h-3" />
+                    라이브러리 ({storedConfigs.length})
                   </button>
                 </div>
               </div>
@@ -318,8 +456,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 value={jsonCode}
                 onChange={handleJsonChange}
                 onBlur={formatJson}
-                placeholder={`{\n  "subject": "a majestic lion",\n  "style": "synthwave",\n  "setting": "in front of a neon pyramid"\n}`}
-                className="w-full flex-grow bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow font-mono text-sm"
+                placeholder={`{\n  "subject": "a majestic lion",\n  "style": "synthwave",\n  "setting": "neon city"\n}`}
+                className="w-full flex-grow min-h-[150px] bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow font-mono text-sm"
               />
               {jsonError && <p className="text-sm text-red-400 mt-2">{jsonError}</p>}
             </div>
@@ -340,6 +478,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           </div>
         </Panel>
 
+        {/* 우측: 이미지 생성 결과 */}
         <GenerationResultPanel
           isLoading={isLoading}
           error={error || jsonError}

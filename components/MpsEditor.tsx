@@ -19,12 +19,6 @@ interface PdfPagePreview {
     imageUrl: string;
 }
 
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-}
-
 const MpsEditor: React.FC = () => {
     // 파일 상태
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -37,6 +31,7 @@ const MpsEditor: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState<MpsResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
     // 이미지 옵션
     const [imageOptions, setImageOptions] = useState<MpsImageOptions>({
@@ -55,26 +50,17 @@ const MpsEditor: React.FC = () => {
         pageOrder: []
     });
 
-    // 채팅 상태
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-    const [chatInput, setChatInput] = useState('');
-    const [isChatting, setIsChatting] = useState(false);
+    // 저장 상태
     const [isSaving, setIsSaving] = useState(false);
 
     // 구글 드라이브 상태
     const [showDriveFiles, setShowDriveFiles] = useState(false);
     const [driveFiles, setDriveFiles] = useState<any[]>([]);
     const [isLoadingDrive, setIsLoadingDrive] = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
 
     // PDF 미리보기 상태
     const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
     const [isParsing, setIsParsing] = useState(false);
-
-    // 채팅 스크롤
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages]);
 
     // PDF 페이지 파싱 및 미리보기 생성
     const parsePdfPages = async (file: File) => {
@@ -90,7 +76,7 @@ const MpsEditor: React.FC = () => {
 
             for (let i = 1; i <= totalPages; i++) {
                 const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 0.3 }); // 작은 썸네일
+                const viewport = page.getViewport({ scale: 0.3 });
 
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
@@ -121,18 +107,10 @@ const MpsEditor: React.FC = () => {
                 pageOrder: allPages
             }));
 
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `📄 PDF 분석 완료: ${totalPages}페이지 감지됨\n\n아래에서 제외할 페이지를 선택하세요.`,
-                timestamp: new Date()
-            }]);
+            setStatusMessage(`📄 PDF 분석 완료: ${totalPages}페이지 감지됨`);
         } catch (err) {
             console.error('PDF 파싱 오류:', err);
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `❌ PDF 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
-                timestamp: new Date()
-            }]);
+            setError(`PDF 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         } finally {
             setIsParsing(false);
         }
@@ -145,6 +123,7 @@ const MpsEditor: React.FC = () => {
         setFileType(type);
         setResult(null);
         setError(null);
+        setStatusMessage(`파일 "${file.name}" 업로드됨 (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
 
         // 이미지 미리보기
         if (type === 'image') {
@@ -158,13 +137,6 @@ const MpsEditor: React.FC = () => {
         if (type === 'pdf') {
             parsePdfPages(file);
         }
-
-        // 파일 업로드 알림 메시지
-        setChatMessages(prev => [...prev, {
-            role: 'assistant',
-            content: `파일 "${file.name}"이 업로드되었습니다. (${(file.size / 1024 / 1024).toFixed(2)} MB)\n\n처리 옵션을 설정하거나, 좌표 수정 등 필요한 사항을 말씀해주세요.`,
-            timestamp: new Date()
-        }]);
     }, []);
 
     // 클립보드 붙여넣기 (Ctrl+V) 지원
@@ -223,16 +195,10 @@ const MpsEditor: React.FC = () => {
         setIsLoadingDrive(true);
         try {
             const files = await listImagesFromGoogleDrive();
-            // PDF도 포함하도록 필터링 (이미지 + PDF)
             setDriveFiles(files);
             setShowDriveFiles(true);
         } catch (error: any) {
-            alert(error.message || 'Google Drive 파일 목록을 불러올 수 없습니다.');
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `⚠️ Google Drive 연결 오류: ${error.message}`,
-                timestamp: new Date()
-            }]);
+            setError(error.message || 'Google Drive 파일 목록을 불러올 수 없습니다.');
         } finally {
             setIsLoadingDrive(false);
         }
@@ -242,106 +208,16 @@ const MpsEditor: React.FC = () => {
     const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
         setIsLoadingDrive(true);
         try {
-            if (mimeType.includes('pdf')) {
-                // PDF는 다운로드 후 File 객체로 변환
-                const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
-                // base64를 blob으로 변환
-                const response = await fetch(imageData.base64);
-                const blob = await response.blob();
-                const file = new File([blob], fileName, { type: mimeType });
-                handleFileUpload(file);
-            } else {
-                // 이미지는 기존 방식대로
-                const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
-                const response = await fetch(imageData.base64);
-                const blob = await response.blob();
-                const file = new File([blob], fileName, { type: mimeType });
-                handleFileUpload(file);
-            }
+            const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+            const response = await fetch(imageData.base64);
+            const blob = await response.blob();
+            const file = new File([blob], fileName, { type: mimeType });
+            handleFileUpload(file);
             setShowDriveFiles(false);
         } catch (error: any) {
-            alert(error.message || '파일을 다운로드할 수 없습니다.');
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `⚠️ 다운로드 오류: ${error.message}`,
-                timestamp: new Date()
-            }]);
+            setError(error.message || '파일을 다운로드할 수 없습니다.');
         } finally {
             setIsLoadingDrive(false);
-        }
-    };
-
-    // Gemini 채팅 전송
-    const handleSendChat = async () => {
-        if (!chatInput.trim()) return;
-
-        const userMessage: ChatMessage = {
-            role: 'user',
-            content: chatInput,
-            timestamp: new Date()
-        };
-        setChatMessages(prev => [...prev, userMessage]);
-        setChatInput('');
-        setIsChatting(true);
-
-        try {
-            // API 키 가져오기
-            let apiKey: string | undefined;
-            try {
-                const item = window.localStorage.getItem('gemini-api-key');
-                if (item) {
-                    apiKey = JSON.parse(item);
-                }
-            } catch (e) {
-                console.error('API 키 파싱 오류:', e);
-            }
-
-            if (!apiKey) {
-                setChatMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: '⚠️ API 키가 설정되지 않았습니다. 설정에서 Gemini API 키를 입력해주세요.',
-                    timestamp: new Date()
-                }]);
-                return;
-            }
-
-            // Gemini API 호출 (텍스트 전용)
-            const { GoogleGenAI } = await import('@google/genai');
-            const ai = new GoogleGenAI({ apiKey });
-
-            const contextMessage = uploadedFile
-                ? `현재 업로드된 파일: ${uploadedFile.name} (${fileType})\n현재 옵션: ${JSON.stringify(fileType === 'image' ? imageOptions : pdfOptions, null, 2)}\n\n사용자 요청: ${userMessage.content}`
-                : userMessage.content;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
-                contents: {
-                    parts: [{ text: `당신은 이미지/PDF 후처리 도우미입니다. 워터마크 제거, 좌표 수정, 블로그 최적화, 크롭, 리사이즈 등의 작업을 도와줍니다. 한국어로 답변하세요.\n\n${contextMessage}` }]
-                }
-            });
-
-            const assistantMessage: ChatMessage = {
-                role: 'assistant',
-                content: response.text || '응답을 받지 못했습니다.',
-                timestamp: new Date()
-            };
-            setChatMessages(prev => [...prev, assistantMessage]);
-        } catch (err) {
-            console.error('채팅 오류:', err);
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `❌ 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
-                timestamp: new Date()
-            }]);
-        } finally {
-            setIsChatting(false);
-        }
-    };
-
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendChat();
         }
     };
 
@@ -352,6 +228,7 @@ const MpsEditor: React.FC = () => {
         setIsProcessing(true);
         setError(null);
         setResult(null);
+        setStatusMessage('처리 중...');
 
         try {
             let processResult: MpsResult;
@@ -365,17 +242,12 @@ const MpsEditor: React.FC = () => {
             }
 
             setResult(processResult);
-
-            // 채팅에 처리 결과 알림
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: processResult.success
-                    ? `✅ 처리가 완료되었습니다!\n출력 파일: ${processResult.outputFiles?.join(', ') || '없음'}`
-                    : `❌ 처리 실패: ${processResult.error}`,
-                timestamp: new Date()
-            }]);
+            setStatusMessage(processResult.success
+                ? `✅ 처리 완료! 출력: ${processResult.outputFiles?.join(', ') || '없음'}`
+                : `❌ 처리 실패: ${processResult.error}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.');
+            setStatusMessage(null);
         } finally {
             setIsProcessing(false);
         }
@@ -388,6 +260,8 @@ const MpsEditor: React.FC = () => {
         setPreviewUrl(null);
         setResult(null);
         setError(null);
+        setStatusMessage(null);
+        setPdfPagePreviews([]);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -399,9 +273,6 @@ const MpsEditor: React.FC = () => {
 
         setIsSaving(true);
         try {
-            // 결과 데이터 (현재는 placeholder, 실제 구현 시 result에서 base64 가져오기)
-            const outputData = result.outputFiles?.[0] || 'output.webp';
-
             // 로컬 다운로드
             if (previewUrl) {
                 const link = document.createElement('a');
@@ -417,28 +288,19 @@ const MpsEditor: React.FC = () => {
                 await saveToGoogleDrive(previewUrl);
             }
 
-            // 성공 메시지
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '✅ 저장 완료! 로컬에 다운로드되었으며 Google Drive에도 저장되었습니다.',
-                timestamp: new Date()
-            }]);
+            setStatusMessage('✅ 저장 완료! 로컬 + Google Drive');
         } catch (err) {
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `⚠️ 저장 중 오류: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
-                timestamp: new Date()
-            }]);
+            setError(`저장 중 오류: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         } finally {
             setIsSaving(false);
         }
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-            {/* 왼쪽: 파일 업로드 및 옵션 */}
-            <div className="bg-[#111827] rounded-xl border border-white/5 p-5 space-y-5 overflow-auto max-h-[calc(100vh-200px)]">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+        <div className="max-w-4xl mx-auto space-y-6">
+            {/* 헤더 */}
+            <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
                     <span>🔧</span> MPS 후처리
                 </h2>
 
@@ -448,7 +310,7 @@ const MpsEditor: React.FC = () => {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isDragging
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${isDragging
                         ? 'border-blue-500 bg-blue-500/10'
                         : uploadedFile
                             ? 'border-green-500/50 bg-green-500/5'
@@ -465,7 +327,7 @@ const MpsEditor: React.FC = () => {
 
                     {uploadedFile ? (
                         <div className="space-y-2">
-                            <span className="text-3xl">{fileType === 'pdf' ? '📄' : '🖼️'}</span>
+                            <span className="text-4xl">{fileType === 'pdf' ? '📄' : '🖼️'}</span>
                             <p className="text-white font-medium">{uploadedFile.name}</p>
                             <p className="text-gray-400 text-sm">
                                 {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
@@ -482,14 +344,10 @@ const MpsEditor: React.FC = () => {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            <span className="text-3xl">📁</span>
-                            <p className="text-gray-400 text-sm">
-                                클릭 또는 드래그
-                            </p>
-                            <p className="text-gray-500 text-xs">Ctrl+V 붙여넣기</p>
-                            <p className="text-gray-500 text-xs">
-                                PNG, JPG, WebP, PDF
-                            </p>
+                            <span className="text-4xl">📁</span>
+                            <p className="text-gray-400">클릭 또는 드래그하여 파일 업로드</p>
+                            <p className="text-gray-500 text-xs">Ctrl+V로 붙여넣기 가능</p>
+                            <p className="text-gray-500 text-xs">PNG, JPG, WebP, PDF 지원</p>
                         </div>
                     )}
                 </div>
@@ -498,10 +356,10 @@ const MpsEditor: React.FC = () => {
                 <button
                     onClick={handleOpenGoogleDrive}
                     disabled={isLoadingDrive}
-                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="mt-4 w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     <span>☁️</span>
-                    <span>{isLoadingDrive ? '로딩...' : 'Drive에서 가져오기'}</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
                 </button>
 
                 {/* Google Drive 파일 선택 모달 */}
@@ -517,7 +375,7 @@ const MpsEditor: React.FC = () => {
                             </button>
                         </div>
                         {driveFiles.length > 0 ? (
-                            <div className="max-h-64 overflow-y-auto grid grid-cols-3 gap-2">
+                            <div className="max-h-64 overflow-y-auto grid grid-cols-4 gap-2">
                                 {driveFiles.map((file) => (
                                     <div
                                         key={file.id}
@@ -542,35 +400,58 @@ const MpsEditor: React.FC = () => {
                         )}
                     </div>
                 )}
+            </div>
 
-                {/* 미리보기 */}
-                {previewUrl && (
+            {/* 미리보기 */}
+            {previewUrl && (
+                <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
+                    <h3 className="text-sm font-semibold text-gray-300 mb-3">🖼️ 미리보기</h3>
                     <div className="rounded-lg overflow-hidden border border-white/10">
-                        <img src={previewUrl} alt="Preview" className="w-full max-h-48 object-contain bg-black/50" />
+                        <img src={previewUrl} alt="Preview" className="w-full max-h-64 object-contain bg-black/50" />
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* 이미지 옵션 */}
-                {fileType === 'image' && (
+            {/* 이미지 옵션 */}
+            {fileType === 'image' && (
+                <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
                     <ImageOptionsPanel options={imageOptions} onChange={setImageOptions} />
-                )}
+                </div>
+            )}
 
-                {/* PDF 옵션 */}
-                {fileType === 'pdf' && (
+            {/* PDF 옵션 */}
+            {fileType === 'pdf' && (
+                <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
                     <PdfOptionsPanel
                         options={pdfOptions}
                         onChange={setPdfOptions}
                         pagePreviews={pdfPagePreviews}
                         isParsing={isParsing}
                     />
-                )}
+                </div>
+            )}
 
-                {/* 처리 버튼 */}
-                {uploadedFile && fileType !== 'unknown' && (
+            {/* 상태 메시지 */}
+            {statusMessage && (
+                <div className="bg-[#111827] rounded-xl border border-white/5 p-4">
+                    <p className="text-sm text-gray-300">{statusMessage}</p>
+                </div>
+            )}
+
+            {/* 에러 메시지 */}
+            {error && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                    <p className="text-red-400 text-sm">❌ {error}</p>
+                </div>
+            )}
+
+            {/* 처리 버튼 */}
+            {uploadedFile && fileType !== 'unknown' && (
+                <div className="flex gap-3">
                     <button
                         onClick={handleProcess}
                         disabled={isProcessing}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                         {isProcessing ? (
                             <>
@@ -584,91 +465,30 @@ const MpsEditor: React.FC = () => {
                             </>
                         )}
                     </button>
-                )}
-
-                {/* 에러 메시지 */}
-                {error && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                        <p className="text-red-400 text-sm">{error}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* 오른쪽: 채팅 영역 */}
-            <div className="bg-[#111827] rounded-xl border border-white/5 p-5 flex flex-col h-[calc(100vh-200px)]">
-                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <span>💬</span> Gemini 어시스턴트
-                </h2>
-
-                {/* 채팅 메시지 */}
-                <div className="flex-1 overflow-auto space-y-3 mb-4 pr-2">
-                    {chatMessages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-500 text-sm space-y-2">
-                            <span className="text-4xl">💡</span>
-                            <p>파일을 업로드하고 질문하세요!</p>
-                            <p className="text-xs text-gray-600">예: "워터마크 좌표 수정해줘", "1200px로 리사이즈"</p>
-                        </div>
-                    ) : (
-                        chatMessages.map((msg, idx) => (
-                            <div
-                                key={idx}
-                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div
-                                    className={`max-w-[85%] rounded-lg px-4 py-2 ${msg.role === 'user'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 text-gray-100'
-                                        }`}
-                                >
-                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                    <p className="text-xs opacity-50 mt-1">
-                                        {msg.timestamp.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                    {isChatting && (
-                        <div className="flex justify-start">
-                            <div className="bg-gray-700 rounded-lg px-4 py-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="animate-spin">⏳</span>
-                                    <span className="text-sm text-gray-300">생각 중...</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <div ref={chatEndRef} />
-                </div>
-
-                {/* 채팅 입력 */}
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="좌표 수정, 크롭, 리사이즈 등 요청하세요..."
-                        className="flex-1 bg-gray-800 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isChatting}
-                    />
-                    <button
-                        onClick={handleSendChat}
-                        disabled={isChatting || !chatInput.trim()}
-                        className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-                    >
-                        {isChatting ? '⏳' : '📤'}
-                    </button>
                     <button
                         onClick={handleSave}
                         disabled={!result || !result.success || isSaving}
-                        title="저장 (로컬 + Drive)"
-                        className="px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                        className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                     >
-                        {isSaving ? '⏳' : '💾'}
+                        {isSaving ? '⏳' : '💾'} 저장
                     </button>
                 </div>
-            </div>
+            )}
+
+            {/* 처리 결과 */}
+            {result && result.success && (
+                <div className="bg-[#111827] rounded-xl border border-green-500/30 p-5">
+                    <h3 className="text-sm font-semibold text-green-400 mb-3">✅ 처리 결과</h3>
+                    <div className="space-y-2">
+                        {result.outputFiles?.map((file, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm text-gray-300">
+                                <span>📄</span>
+                                <span>{file}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -805,7 +625,7 @@ const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange, pa
                 </div>
             </div>
 
-            {/* 페이지 선택 - 미리보기 그리드 */}
+            {/* 페이지 선택 */}
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-400">
@@ -840,8 +660,8 @@ const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange, pa
                                 key={preview.pageNum}
                                 onClick={() => togglePage(preview.pageNum)}
                                 className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${options.selectedPages.includes(preview.pageNum)
-                                        ? 'border-blue-500 ring-2 ring-blue-500/30'
-                                        : 'border-gray-600 opacity-50 grayscale'
+                                    ? 'border-blue-500 ring-2 ring-blue-500/30'
+                                    : 'border-gray-600 opacity-50 grayscale'
                                     }`}
                             >
                                 <img
@@ -850,8 +670,8 @@ const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange, pa
                                     className="w-full h-auto"
                                 />
                                 <div className={`absolute bottom-0 left-0 right-0 text-center text-xs py-0.5 ${options.selectedPages.includes(preview.pageNum)
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 text-gray-400'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-700 text-gray-400'
                                     }`}>
                                     {preview.pageNum}
                                 </div>
@@ -884,7 +704,7 @@ const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange, pa
                     선택: {options.selectedPages.length}개 / 제외: {totalPages - options.selectedPages.length}개
                 </p>
                 <p className="text-xs text-gray-400 italic">
-                    ℹ️ 클릭하여 포함/제외 토글. 제외된 페이지는 처리되지 않습니다.
+                    ℹ️ 클릭하여 포함/제외 토글
                 </p>
             </div>
         </div>
