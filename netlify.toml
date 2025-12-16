@@ -1,0 +1,29 @@
+# Netlify 배포 설정
+[build]
+  # 빌드 명령어
+  command = "npm run build"
+  # 빌드 결과물 디렉토리
+  publish = "dist"
+  # Node.js 버전 지정
+  environment = { NODE_VERSION = "20" }
+
+# 리다이렉트 규칙 - SPA(Single Page Application) 라우팅 지원
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 헤더 설정 - 보안 강화
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# 정적 파일 캐싱
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
