@@ -85,6 +85,17 @@ def process_image(
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+    
+    finally:
+        # Cloud Run 메모리 확보를 위해 원본 파일 즉시 삭제
+        if 'input_path' in locals() and os.path.exists(input_path):
+            try:
+                os.remove(input_path)
+                print(f"🗑️ 메모리 확보: 원본 삭제 완료 ({input_path})")
+            except:
+                pass
+        # 중간 생성된 _clean 파일 등도 삭제 필요하면 추가 가능하지만, 
+        # current_path가 덮어씌워져서 복잡함. 일단 원본이 가장 큼.
 
 @app.post("/process-pdf")
 def process_pdf(
