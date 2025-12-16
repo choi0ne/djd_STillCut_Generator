@@ -140,13 +140,33 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
     
     from pdf2image import pdfinfo_from_path
     
-    # PDF 정보 가져오기 (페이지 수 확인)
+    # PDF 정보 가져오기 (페이지 수 및 크기)
     info = pdfinfo_from_path(pdf_path)
     max_pages = info["Pages"]
-    print(f"\n1. PDF 분석 완료: 총 {max_pages} 페이지")
     
-    # 배치 크기 설정 (메모리 절약을 위해 한 번에 처리할 페이지 수)
-    BATCH_SIZE = 5
+    # PDF 크기 기반 최적 DPI 계산 (가이드 참조)
+    # 예: "595.28 x 841.89 pts" -> width_pt 파싱
+    try:
+        # pdf2image의 info는 딕셔너리지만 Page size는 문자열일 수 있음.
+        # size key가 없으면 기본값 사용
+        # 보통 'Page size' 키에 '612 x 792 pts' 형식으로 들어옴
+        page_size_str = info.get("Page size", "595 x 842 pts") 
+        width_pt = float(page_size_str.split('x')[0].strip())
+        
+        # 가이드 공식: dpi = int((1200 / (pdf_width / 72)) * 72)
+        # width_inch = width_pt / 72
+        # dpi = 1200 / width_inch
+        optimal_dpi = int(target_width / (width_pt / 72))
+        
+        # 너무 낮거나 높으면 조정 (최소 72, 최대 300)
+        optimal_dpi = max(72, min(300, optimal_dpi))
+        print(f"1. PDF 분석 완료: 총 {max_pages} 페이지, 너비 {width_pt}pts -> DPI {optimal_dpi}")
+    except Exception as e:
+        print(f"⚠️ DPI 계산 실패, 기본값 사용: {e}")
+        optimal_dpi = 150 # 안전한 기본값
+
+    # 배치 크기 설정 (메모리 절약을 위해 3장으로 더 보수적으로 잡음)
+    BATCH_SIZE = 3
     images = []
     
     print(f"2. PDF 변환 및 처리 시작 (배치 크기: {BATCH_SIZE}페이지)...")
