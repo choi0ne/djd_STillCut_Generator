@@ -267,28 +267,122 @@ const MpsEditor: React.FC = () => {
         }
     };
 
-    // 저장 기능 (로컬 + Google Drive)
-    const handleSave = async () => {
-        if (!result || !result.success) return;
+    // PDF 페이지들을 하나의 이미지로 병합
+    const mergePagePreviewsToDataUrl = async (): Promise<string | null> => {
+        const selectedPreviews = pdfPagePreviews.filter(p => pdfOptions.selectedPages.includes(p.pageNum));
+        if (selectedPreviews.length === 0) return null;
 
+        // 모든 이미지 로드
+        const loadedImages = await Promise.all(
+            selectedPreviews.map(preview => {
+                return new Promise<HTMLImageElement>((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = preview.imageUrl;
+                });
+            })
+        );
+
+        if (loadedImages.length === 0) return null;
+
+        // 캔버스 크기 계산 (세로로 병합)
+        const maxWidth = Math.max(...loadedImages.map(img => img.width));
+        const totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = maxWidth;
+        canvas.height = totalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        // 배경을 흰색으로
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 이미지들을 세로로 배치
+        let currentY = 0;
+        for (const img of loadedImages) {
+            const x = (maxWidth - img.width) / 2; // 가운데 정렬
+            ctx.drawImage(img, x, currentY);
+            currentY += img.height;
+        }
+
+        return canvas.toDataURL('image/png');
+    };
+
+    // 저장할 이미지 URL 가져오기 (처리 결과 또는 원본)
+    const getImageToSave = async (): Promise<string | null> => {
+        // 처리된 결과가 있으면 사용
+        if (result?.processedImageUrl) {
+            return result.processedImageUrl;
+        }
+
+        // PDF의 경우 선택된 페이지들을 병합
+        if (fileType === 'pdf' && pdfPagePreviews.length > 0) {
+            return await mergePagePreviewsToDataUrl();
+        }
+
+        // 이미지의 경우 원본 미리보기 사용
+        return previewUrl;
+    };
+
+    // 저장 기능 (로컬 + Google Drive 동시 저장)
+    const handleSave = async () => {
         setIsSaving(true);
+        setStatusMessage('💾 저장 중...');
+        setError(null);
+
+        const errors: string[] = [];
+        let localSuccess = false;
+        let driveSuccess = false;
+
         try {
-            // 로컬 다운로드
-            if (previewUrl) {
+            const imageToSave = await getImageToSave();
+
+            if (!imageToSave) {
+                setError('저장할 이미지가 없습니다. 파일을 업로드하고 처리해주세요.');
+                setIsSaving(false);
+                setStatusMessage(null);
+                return;
+            }
+
+            // 1. 로컬 다운로드
+            try {
                 const link = document.createElement('a');
-                link.href = previewUrl;
-                link.download = `mps-${Date.now()}.png`;
+                link.href = imageToSave;
+                const fileName = uploadedFile?.name || 'mps-output';
+                const ext = imageOptions.outputFormat === 'jpg' ? 'jpg' : 'webp';
+                link.download = `${fileName.replace(/\.[^/.]+$/, '')}_processed.${ext}`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                localSuccess = true;
+            } catch (localErr) {
+                errors.push(`로컬: ${localErr instanceof Error ? localErr.message : '다운로드 실패'}`);
             }
 
-            // Google Drive 저장
-            if (previewUrl) {
-                await saveToGoogleDrive(previewUrl);
+            // 2. Google Drive 저장
+            try {
+                await saveToGoogleDrive(imageToSave);
+                driveSuccess = true;
+            } catch (driveErr) {
+                errors.push(`Google Drive: ${driveErr instanceof Error ? driveErr.message : '업로드 실패'}`);
             }
 
-            setStatusMessage('✅ 저장 완료! 로컬 + Google Drive');
+            // 결과 메시지
+            if (localSuccess && driveSuccess) {
+                setStatusMessage('✅ 저장 완료! (로컬 + Google Drive)');
+            } else if (localSuccess) {
+                setStatusMessage('✅ 로컬 저장 완료! (Google Drive 실패)');
+                if (errors.length > 0) setError(errors.join(' | '));
+            } else if (driveSuccess) {
+                setStatusMessage('✅ Google Drive 저장 완료! (로컬 실패)');
+                if (errors.length > 0) setError(errors.join(' | '));
+            } else {
+                setError(`저장 실패: ${errors.join(' | ')}`);
+                setStatusMessage(null);
+            }
         } catch (err) {
             setError(`저장 중 오류: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         } finally {
@@ -467,7 +561,7 @@ const MpsEditor: React.FC = () => {
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={!result || !result.success || isSaving}
+                        disabled={(!previewUrl && !result?.processedImageUrl && pdfPagePreviews.length === 0) || isSaving}
                         className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                     >
                         {isSaving ? '⏳' : '💾'} 저장

@@ -142,3 +142,68 @@ export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
 
     return await res.json();
 };
+
+// List image files from Google Drive
+export const listImagesFromGoogleDrive = async (): Promise<any[]> => {
+    const { apiKey, clientId } = getGoogleKeys();
+
+    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+        throw new Error('Google API 스크립트를 로드하지 못했습니다.');
+    }
+
+    await initGapiClient(apiKey);
+    initTokenClient(clientId);
+    await requestAccessToken();
+
+    const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='1JFZP6kNztGmplyBWRjaADxwsp-9YbJbn' in parents and mimeType contains 'image/'&fields=files(id,name,mimeType,thumbnailLink,webContentLink)&pageSize=30`,
+        {
+            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+        }
+    );
+
+    if (!res.ok) {
+        throw new Error('Google Drive에서 이미지 목록을 가져오지 못했습니다.');
+    }
+
+    const data = await res.json();
+    return data.files || [];
+};
+
+// Download image from Google Drive and convert to base64
+export const downloadImageFromGoogleDrive = async (fileId: string, mimeType: string): Promise<{ base64: string; mimeType: string }> => {
+    const { apiKey, clientId } = getGoogleKeys();
+
+    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+        throw new Error('Google API 스크립트를 로드하지 못했습니다.');
+    }
+
+    await initGapiClient(apiKey);
+    initTokenClient(clientId);
+    await requestAccessToken();
+
+    const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+        }
+    );
+
+    if (!res.ok) {
+        throw new Error('Google Drive에서 이미지를 다운로드하지 못했습니다.');
+    }
+
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                resolve({ base64: reader.result, mimeType });
+            } else {
+                reject(new Error('이미지 변환에 실패했습니다.'));
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};

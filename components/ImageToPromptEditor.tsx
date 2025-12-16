@@ -256,7 +256,7 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                             ) : (
                                 <div className="space-y-3">
                                     <div className="h-full min-h-48">
-                                        <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG) - Ctrl+V 붙여넣기 지원" />
+                                        <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG) - Ctrl+V 붙여넣기 지원" showDriveButton={false} />
                                     </div>
                                     <button
                                         onClick={handleOpenGoogleDrive}

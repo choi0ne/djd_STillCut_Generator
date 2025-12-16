@@ -10,6 +10,7 @@ import GenerationResultPanel from './GenerationResultPanel';
 import Panel from './common/Panel';
 import { SparklesIcon, XIcon, LibraryIcon, PlusIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
+import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 
 
 interface CodeEditorProps {
@@ -35,6 +36,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
+  const [isEditingAnalysis, setIsEditingAnalysis] = useState(false);
+
+  // Google Drive 상태
+  const [showDriveFiles, setShowDriveFiles] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
 
 
 
@@ -96,6 +103,37 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     setImage(null);
     setAnalysisResult('');
     clearResults();
+  };
+
+  // Google Drive에서 이미지 목록 가져오기
+  const handleOpenGoogleDrive = async () => {
+    setIsLoadingDrive(true);
+    try {
+      const files = await listImagesFromGoogleDrive();
+      setDriveFiles(files);
+      setShowDriveFiles(true);
+    } catch (error: any) {
+      alert(error.message || 'Google Drive 파일을 불러올 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
+
+  // Google Drive에서 선택한 이미지 다운로드
+  const handleSelectDriveFile = async (fileId: string, mimeType: string) => {
+    setIsLoadingDrive(true);
+    try {
+      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      handleImageUpload({
+        base64: imageData.base64,
+        mimeType: mimeType,
+      });
+      setShowDriveFiles(false);
+    } catch (error: any) {
+      alert(error.message || '이미지를 다운로드할 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
   };
 
   // 이미지 → JSON 분석
@@ -290,8 +328,55 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                   </button>
                 </div>
               ) : (
-                <div className="h-48">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" />
+                <div className="space-y-3">
+                  <div className="h-48">
+                    <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" showDriveButton={false} />
+                  </div>
+                  <button
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <span>☁️</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                  </button>
+
+                  {/* Google Drive 파일 선택 모달 */}
+                  {showDriveFiles && (
+                    <div className="p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
+                        <button
+                          onClick={() => setShowDriveFiles(false)}
+                          className="text-gray-400 hover:text-white text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {driveFiles.length > 0 ? (
+                        <div className="max-h-48 overflow-y-auto grid grid-cols-3 gap-2">
+                          {driveFiles.map((file) => (
+                            <div
+                              key={file.id}
+                              onClick={() => handleSelectDriveFile(file.id, file.mimeType)}
+                              className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
+                            >
+                              {file.thumbnailLink ? (
+                                <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-center p-1">
+                                  <span className="text-xl">🖼️</span>
+                                  <p className="text-xs text-gray-400 truncate">{file.name}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-400 text-sm py-4">파일 없음</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -301,23 +386,41 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               <label className="text-sm font-semibold text-gray-300 mb-2">변환된 JSON 코드</label>
               {analysisResult && !analysisResult.startsWith('❌') ? (
                 <div className="bg-gray-900/50 rounded-lg p-4 flex-1 relative group border border-gray-600">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(analysisResult);
-                      setJsonCode(analysisResult); // 우측 패널로 복사
-                      const btn = document.getElementById('copy-analysis-btn');
-                      if (btn) {
-                        btn.textContent = '✓ 복사됨';
-                        setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
-                      }
-                    }}
-                    id="copy-analysis-btn"
-                    className="absolute top-2 right-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
-                    title="JSON 복사 후 우측에 적용"
-                  >
-                    📋 복사 & 적용
-                  </button>
-                  <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap pr-24 overflow-auto max-h-[200px]">{analysisResult}</pre>
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={() => setIsEditingAnalysis(!isEditingAnalysis)}
+                      className={`px-2 py-1 text-white text-xs rounded transition-colors ${isEditingAnalysis ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}
+                      title={isEditingAnalysis ? "수정 완료" : "직접 수정"}
+                    >
+                      {isEditingAnalysis ? '✓ 완료' : '✏️ 수정'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(analysisResult);
+                        setJsonCode(analysisResult); // 우측 패널로 복사
+                        const btn = document.getElementById('copy-analysis-btn');
+                        if (btn) {
+                          btn.textContent = '✓ 복사됨';
+                          setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
+                        }
+                      }}
+                      id="copy-analysis-btn"
+                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
+                      title="JSON 복사 후 우측에 적용"
+                    >
+                      📋 복사 & 적용
+                    </button>
+                  </div>
+                  {isEditingAnalysis ? (
+                    <textarea
+                      value={analysisResult}
+                      onChange={(e) => setAnalysisResult(e.target.value)}
+                      className="w-full h-[200px] bg-gray-800 text-green-300 font-mono text-sm p-2 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mt-8"
+                      placeholder="JSON 코드를 수정하세요..."
+                    />
+                  ) : (
+                    <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap pr-24 overflow-auto max-h-[200px]">{analysisResult}</pre>
+                  )}
                 </div>
               ) : analysisResult && analysisResult.startsWith('❌') ? (
                 <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 flex-1">
