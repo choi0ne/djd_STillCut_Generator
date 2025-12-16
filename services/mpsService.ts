@@ -84,43 +84,95 @@ export function buildPdfCommand(
  * 
  * 실제 구현은 Electron의 child_process 또는 백엔드 API 호출이 필요합니다.
  */
+/**
+ * 이미지 처리 (백엔드 서버 호출)
+ */
 export async function processImage(
     file: File,
     options: MpsImageOptions
 ): Promise<MpsResult> {
-    // 브라우저 환경에서는 직접 Python 실행 불가
-    // 시뮬레이션용 지연
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // API URL 설정 (환경 변수 또는 기본값)
+    // Cloud Run 배포 주소를 기본값으로 설정하여 별도 환경변수 없이도 작동하도록 함
+    const API_URL = import.meta.env.VITE_MPS_API_URL || 'https://mps-backend-595259465274.us-west2.run.app';
 
-    const command = buildImageCommand(file.name, options);
-    console.log('[MPS] Image processing command:', command);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('remove_watermark', String(options.removeWatermark));
+    formData.append('optimize_blog', String(options.optimizeForBlog));
+    formData.append('output_format', options.outputFormat);
 
-    return {
-        success: true,
-        outputFiles: [`processed_${file.name}`],
-        timestamp: Date.now()
-    };
+    try {
+        const response = await fetch(`${API_URL}/process-image`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Server processing failed');
+        }
+
+        const data = await response.json();
+
+        // 서버에서 반환된 상대 경로를 전체 URL로 변환 (필요시)
+        // 현재 로컬호스트 환경이므로 그대로 사용 가능하거나,
+        // 이미지를 보여주기 위해 blob으로 가져오는 로직 추가 가능
+        // 여기서는 파일명 목록만 반환
+
+        return {
+            success: true,
+            outputFiles: data.outputFiles, // 예: ["/output/optimized.webp"]
+            timestamp: Date.now()
+        };
+    } catch (error: any) {
+        console.error('[MPS] Image processing error:', error);
+        return {
+            success: false,
+            error: error.message,
+            timestamp: Date.now()
+        };
+    }
 }
 
 /**
- * PDF 처리 (플레이스홀더)
+ * PDF 처리 (백엔드 서버 호출)
  */
 export async function processPdf(
     file: File,
     options: MpsPdfOptions
 ): Promise<MpsResult> {
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('merge_pages', String(options.mergePages));
+    formData.append('target_width', '1200'); // 기본값
+    formData.append('output_format', options.outputFormat);
+    // Note: selectedPages, pageOrder are not fully supported in the simple server example yet
+    // without more complex logic, but basic flow is here.
 
-    const command = buildPdfCommand(file.name, options);
-    console.log('[MPS] PDF processing command:', command);
+    try {
+        const response = await fetch('http://localhost:8000/process-pdf', {
+            method: 'POST',
+            body: formData,
+        });
 
-    const outputFiles = options.mergePages
-        ? ['merged_optimized.webp', 'merged_optimized.jpg']
-        : options.selectedPages.map(p => `page_${p}.webp`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Server processing failed');
+        }
 
-    return {
-        success: true,
-        outputFiles,
-        timestamp: Date.now()
-    };
+        const data = await response.json();
+
+        return {
+            success: true,
+            outputFiles: data.outputFiles,
+            timestamp: Date.now()
+        };
+    } catch (error: any) {
+        console.error('[MPS] PDF processing error:', error);
+        return {
+            success: false,
+            error: error.message,
+            timestamp: Date.now()
+        };
+    }
 }
