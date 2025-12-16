@@ -4,6 +4,8 @@ import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
 import { ImageFile, StoredPrompt } from '../types';
 import { generateImageWithPrompt } from '../services/geminiService';
+import { downloadImageFromGoogleDrive } from '../services/googleDriveService';
+import GoogleDrivePickerModal from './GoogleDrivePickerModal';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useImageGenerator } from '../hooks/useImageGenerator';
 import GenerationResultPanel from './GenerationResultPanel';
@@ -83,6 +85,27 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   const [promptError, setPromptError] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
+
+  // Google Drive State
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+
+  const handleOpenGoogleDrive = () => {
+    setIsDriveModalOpen(true);
+  };
+
+  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    setIsDriveModalOpen(false);
+    setIsLoadingDrive(true);
+    try {
+      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      handleImageUpload(imageData);
+    } catch (err: any) {
+      alert(err.message || '이미지를 다운로드할 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
 
   const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('storedPrompts', defaultPrompts);
 
@@ -236,11 +259,27 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   </button>
                 </div>
               ) : (
-                <div className="h-64">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" />
+                <div className="h-64 flex flex-col gap-2">
+                  <div className="flex-1">
+                    <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" showDriveButton={false} />
+                  </div>
+                  <button
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <span>☁️</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                  </button>
                 </div>
               )}
             </div>
+
+            <GoogleDrivePickerModal
+              isOpen={isDriveModalOpen}
+              onClose={() => setIsDriveModalOpen(false)}
+              onSelect={handleSelectDriveFile}
+            />
 
             <div>
               <label htmlFor="prompt-input" className="block text-lg font-semibold mb-2 text-gray-300">2. 변경사항 설명</label>
