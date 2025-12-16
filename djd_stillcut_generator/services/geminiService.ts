@@ -216,3 +216,53 @@ export const generatePromptFromImage = async (
         throw handleApiError(error);
     }
 };
+
+export const generateJsonFromImage = async (
+    image: ImageFile,
+): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
+
+        const prompt = `Analyze this image and create a structured JSON object for image generation. The JSON should include:
+- "subject": main subject/person in the image
+- "style": artistic style, photography style, or rendering style
+- "setting": background, location, environment
+- "colors": dominant color palette
+- "mood": overall mood or atmosphere
+- "composition": framing, angle, perspective
+- "details": other notable details
+
+Provide ONLY the JSON object, no markdown formatting, no explanations. Use English for all values.`;
+
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [
+                    base64ToPart(image.base64, image.mimeType),
+                    { text: prompt },
+                ],
+            },
+        });
+
+        let text = response.text;
+        if (!text) {
+            throw new Error("API가 텍스트 응답을 반환하지 않았습니다.");
+        }
+
+        // Remove markdown code blocks if present
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        // Validate JSON
+        try {
+            JSON.parse(text);
+        } catch (e) {
+            throw new Error("생성된 JSON이 유효하지 않습니다.");
+        }
+
+        return text;
+
+    } catch (error) {
+        throw handleApiError(error);
+    }
+};

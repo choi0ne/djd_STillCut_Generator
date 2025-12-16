@@ -23,6 +23,7 @@ interface CodeEditorProps {
 const CodeEditor: React.FC<CodeEditorProps> = ({
   isApiKeyReady,
   openSettings,
+  geminiApiKey,
   selectedProvider,
   setSelectedProvider
 }) => {
@@ -31,6 +32,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState('');
 
   // JSON 설정을 저장하는 라이브러리
   const [storedConfigs, setStoredConfigs] = useLocalStorage<StoredPrompt[]>('jsonConfigsLibrary', []);
@@ -49,12 +52,75 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const handleImageUpload = (file: ImageFile) => {
     setImage(file);
+    setAnalysisResult('');
     clearResults();
   };
 
   const clearImage = () => {
     setImage(null);
+    setAnalysisResult('');
     clearResults();
+  };
+
+  // 이미지 → JSON 분석
+  const handleAnalyzeImage = async () => {
+    if (!image) return;
+    if (!geminiApiKey) {
+      openSettings();
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisResult('');
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: image.mimeType,
+                data: image.base64.split(',')[1]
+              }
+            },
+            {
+              text: `이 이미지를 분석하여 Gemini 이미지 생성 API에 사용할 수 있는 JSON 코드를 생성하세요.
+
+다음 형식으로 출력하세요:
+{
+  "subject": "주요 피사체 (영어)",
+  "style": "스타일 (예: photorealistic, cartoon, watercolor 등)",
+  "setting": "배경/장소 (영어)",
+  "lighting": "조명 (예: natural light, dramatic, soft 등)",
+  "mood": "분위기 (예: peaceful, energetic, mysterious 등)"
+}
+
+반드시 유효한 JSON 형식으로만 출력하고, 다른 설명은 하지 마세요.`
+            }
+          ]
+        }
+      });
+
+      let result = response.text || '';
+
+      // 마크다운 코드블록 제거
+      const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        result = jsonMatch[1].trim();
+      }
+
+      // JSON 유효성 검증
+      JSON.parse(result);
+      setAnalysisResult(result);
+      setJsonCode(result);
+    } catch (err) {
+      setAnalysisResult(`❌ 분석 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -70,8 +136,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         setJsonError(null);
       }
     } catch (e) {
-      // JSON이 아니면 포맷팅 무시 (일반 텍스트 프롬프트로 처리)
-      setJsonError(null);
+      setJsonError(null); // 일반 텍스트는 허용
     }
   };
 
@@ -84,17 +149,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     return true;
   };
 
-  // JSON 여부 확인 함수
-  const isJsonInput = (input: string): boolean => {
-    try {
-      JSON.parse(input.trim());
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  // 라이브러리 관련 함수
   const handleAddConfig = (title: string, text: string) => {
     if (title.trim() && text.trim()) {
       const newConfig = { id: uuidv4(), title, text };
@@ -111,7 +165,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const handleUseConfig = (configs: StoredPrompt[]) => {
-    // 라이브러리에서 선택한 설정을 에디터에 적용
     if (configs.length > 0) {
       setJsonCode(configs[0].text);
       setJsonError(null);
@@ -132,7 +185,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     });
   };
 
-  // 현재 설정을 라이브러리에 저장
   const handleSaveCurrentConfig = () => {
     if (!jsonCode.trim()) {
       alert("저장할 내용이 없습니다.");
@@ -156,24 +208,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       return;
     }
 
-    generate(image, jsonCode);
-  };
-
-  const renderGenerateButton = () => {
-    return (
-      <button
-        onClick={handleSubmit}
-        disabled={isLoading || !jsonCode.trim() || !!jsonError || !isApiKeyReady}
-        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg mt-6"
-      >
-        {isLoading ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-        ) : (
-          <SparklesIcon className="w-6 h-6" />
-        )}
-        <span>{isLoading ? '생성 중...' : '이미지 생성'}</span>
-      </button>
-    );
+    generate(null, jsonCode); // 참조이미지 없이 JSON만 전달
   };
 
   return (
@@ -183,7 +218,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className="flex flex-col gap-6 flex-grow">
             {/* 제목 + AI 제공자 선택 */}
             <div className="flex items-center justify-between">
-              <label className="block text-lg font-semibold text-gray-300">1. 참조 이미지 (선택)</label>
+              <label className="block text-lg font-semibold text-gray-300">JSON 생성</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelectedProvider('gemini')}
@@ -205,29 +240,59 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex flex-col -mt-4">
+
+            {/* 1. 이미지 → JSON 변환 */}
+            <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-purple-300 mb-2">📸 이미지 → JSON 변환</h3>
               {image ? (
-                <div className="relative group h-64 rounded-lg overflow-hidden">
-                  <img src={image.base64} alt="업로드된 참조 이미지" className="w-full h-full object-contain" />
+                <div className="space-y-2">
+                  <div className="relative group rounded-lg overflow-hidden">
+                    <img src={image.base64} alt="업로드된 이미지" className="w-full max-h-32 object-contain bg-black/50" />
+                    <button
+                      onClick={clearImage}
+                      className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
+                      title="이미지 제거"
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                   <button
-                    onClick={clearImage}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
-                    title="이미지 제거"
-                    aria-label="이미지 제거"
+                    onClick={handleAnalyzeImage}
+                    disabled={isAnalyzing}
+                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    <XIcon className="w-5 h-5" />
+                    {isAnalyzing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        분석 중...
+                      </>
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        JSON으로 변환
+                      </>
+                    )}
                   </button>
+                  {analysisResult && !analysisResult.startsWith('❌') && (
+                    <div className="bg-gray-900/50 rounded p-2 max-h-32 overflow-auto">
+                      <pre className="text-xs text-green-300 font-mono">{analysisResult}</pre>
+                    </div>
+                  )}
+                  {analysisResult && analysisResult.startsWith('❌') && (
+                    <p className="text-xs text-red-400">{analysisResult}</p>
+                  )}
                 </div>
               ) : (
-                <div className="h-64">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="참조 스타일 (선택 사항)" />
+                <div className="h-32">
+                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환" />
                 </div>
               )}
             </div>
 
+            {/* 2. JSON 코드 입력 */}
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-center mb-2">
-                <label htmlFor="json-input" className="block text-lg font-semibold text-gray-300">2. JSON 코드 입력</label>
+                <label htmlFor="json-input" className="block text-lg font-semibold text-gray-300">JSON 코드 입력</label>
                 <div className="flex gap-2">
                   <button
                     onClick={handleSaveCurrentConfig}
@@ -258,9 +323,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               />
               {jsonError && <p className="text-sm text-red-400 mt-2">{jsonError}</p>}
             </div>
-          </div>
 
-          {renderGenerateButton()}
+            {/* 이미지 생성 버튼 */}
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading || !jsonCode.trim() || !!jsonError || !isApiKeyReady}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                <SparklesIcon className="w-6 h-6" />
+              )}
+              <span>{isLoading ? '생성 중...' : '이미지 생성'}</span>
+            </button>
+          </div>
         </Panel>
 
         <GenerationResultPanel

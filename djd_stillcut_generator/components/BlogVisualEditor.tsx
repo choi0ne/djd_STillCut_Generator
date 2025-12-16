@@ -35,7 +35,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [content, setContent] = useState('');
     const [selectedPalette, setSelectedPalette] = useState<'medical' | 'calm' | 'warm'>('medical');
     const [generatedPrompt, setGeneratedPrompt] = useState('');
-    const [isPromptLoading, setIsPromptLoading] = useState(false);
+
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
 
     // 이미지 생성 훅
@@ -73,8 +73,9 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         }
     };
 
-    // 프롬프트 생성
-    const handleGeneratePrompt = async () => {
+
+    // 이미지 생성 (프롬프트 자동 생성 포함)
+    const handleGenerateImage = async () => {
         if (!selectedStyle || !topic.trim()) return;
         const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
         if (!apiKey) {
@@ -82,7 +83,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
             return;
         }
 
-        setIsPromptLoading(true);
+        // 프롬프트 자동 생성
         try {
             const palette = COLOR_PALETTES[selectedPalette];
             const basePrompt = selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
@@ -109,8 +110,7 @@ ${negatives}
 
 위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 스타일 키워드와 색상 지침을 포함하세요.`;
 
-            let result = '';
-
+            let prompt = '';
             if (selectedProvider === 'gemini') {
                 const { GoogleGenAI } = await import('@google/genai');
                 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -118,7 +118,7 @@ ${negatives}
                     model: 'gemini-2.0-flash',
                     contents: { parts: [{ text: systemPrompt }] }
                 });
-                result = response.text || '';
+                prompt = response.text || '';
             } else {
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
@@ -133,21 +133,18 @@ ${negatives}
                     })
                 });
                 const data = await response.json();
-                result = data.choices?.[0]?.message?.content || '';
+                prompt = data.choices?.[0]?.message?.content || '';
             }
 
-            setGeneratedPrompt(result);
+            setGeneratedPrompt(prompt);
+
+            // 생성된 프롬프트로 바로 이미지 생성
+            if (prompt && !prompt.startsWith('❌')) {
+                generateImage(null, prompt);
+            }
         } catch (error: any) {
             setGeneratedPrompt(`❌ 오류: ${error.message}`);
-        } finally {
-            setIsPromptLoading(false);
         }
-    };
-
-    // 이미지 생성
-    const handleGenerateImage = () => {
-        if (!generatedPrompt || generatedPrompt.startsWith('❌')) return;
-        generateImage(null, generatedPrompt);
     };
 
     const hasConceptCards = initialContext && initialContext.concepts.length > 0;
@@ -291,33 +288,24 @@ ${negatives}
                         </div>
                     )}
 
-                    {/* 액션 버튼들 */}
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleGeneratePrompt}
-                            disabled={isPromptLoading || !selectedStyle || !topic.trim() || !isApiKeyReady}
-                            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isPromptLoading ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            ) : (
-                                <SparklesIcon className="w-4 h-4" />
-                            )}
-                            <span>{isPromptLoading ? '생성 중...' : '프롬프트 생성'}</span>
-                        </button>
-                        <button
-                            onClick={handleGenerateImage}
-                            disabled={isImageLoading || !generatedPrompt || generatedPrompt.startsWith('❌')}
-                            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isImageLoading ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            ) : (
-                                <span>🖼️</span>
-                            )}
-                            <span>{isImageLoading ? '이미지 생성 중...' : '이미지 생성'}</span>
-                        </button>
-                    </div>
+                    {/* 이미지 생성 버튼 */}
+                    <button
+                        onClick={handleGenerateImage}
+                        disabled={isImageLoading || !selectedStyle || !topic.trim() || !isApiKeyReady}
+                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-indigo-600 to-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isImageLoading ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                <span>이미지 생성 중...</span>
+                            </>
+                        ) : (
+                            <>
+                                <SparklesIcon className="w-5 h-5" />
+                                <span>🖼️ 이미지 생성</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </Panel>
 

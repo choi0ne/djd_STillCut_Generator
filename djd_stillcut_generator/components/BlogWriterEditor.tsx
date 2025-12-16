@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Panel from './common/Panel';
 import { SparklesIcon, ClipboardIcon, EditIcon, PlusIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -18,6 +20,8 @@ type WorkflowStage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 interface StageData {
     ideation: string[];        // Stage 0
     selectedTopic: string;     // Stage 0.5
+    scoredTopics: Array<{ title: string; score: number; summary: string }>;  // Stage 0.5
+    selectedTopicIndex: number; // Stage 0.5
     keywords: string[];        // Stage 1
     references: string[];      // Stage 2
     outline: string;           // Stage 3
@@ -69,6 +73,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     const [stageData, setStageData] = useState<StageData>({
         ideation: [],
         selectedTopic: '',
+        scoredTopics: [],
+        selectedTopicIndex: 0,
         keywords: [],
         references: [],
         outline: '',
@@ -116,7 +122,14 @@ ${stageData.ideation.join('\n')}
 3. 진료 연관성 (Relevancy / 5점)
 4. 긴급성/차별성 (Urgency / 5점)
 
-총점이 가장 높은 주제 1개를 선정하고 이유를 설명하세요.`;
+반드시 JSON 배열 형식으로 출력하세요 (점수 높은 순으로 정렬):
+[
+  {
+    "title": "주제명",
+    "score": 18,
+    "summary": "핵심 질문이나 요약 한 줄"
+  }
+]`;
 
             case 1:
                 return `${WORKFLOW_PROMPT}
@@ -293,7 +306,32 @@ ${stageData.finalDraft}
                     setStageData(prev => ({ ...prev, ideation: result.split('\n').filter(l => l.trim()) }));
                     break;
                 case 0.5:
-                    setStageData(prev => ({ ...prev, selectedTopic: result }));
+                    try {
+                        // JSON 파싱 시도
+                        let jsonStr = result;
+                        const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+                        if (jsonMatch) {
+                            jsonStr = jsonMatch[1].trim();
+                        } else {
+                            const arrayStart = result.indexOf('[');
+                            const arrayEnd = result.lastIndexOf(']');
+                            if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+                                jsonStr = result.substring(arrayStart, arrayEnd + 1);
+                            }
+                        }
+                        const scoredTopics = JSON.parse(jsonStr);
+                        if (Array.isArray(scoredTopics) && scoredTopics.length > 0) {
+                            setStageData(prev => ({
+                                ...prev,
+                                scoredTopics,
+                                selectedTopicIndex: 0,
+                                selectedTopic: scoredTopics[0].title
+                            }));
+                        }
+                    } catch {
+                        // JSON 파싱 실패 시 결과 그대로 저장
+                        setStageData(prev => ({ ...prev, selectedTopic: result }));
+                    }
                     break;
                 case 1:
                     setStageData(prev => ({ ...prev, keywords: result.split('\n').filter(l => l.trim()) }));
@@ -399,6 +437,14 @@ ${stageData.finalDraft}
         }
     };
 
+    const handleSelectTopic = (index: number) => {
+        setStageData(prev => ({
+            ...prev,
+            selectedTopicIndex: index,
+            selectedTopic: prev.scoredTopics[index].title
+        }));
+    };
+
     const stageInfo = STAGE_INFO[currentStage];
     const stages: WorkflowStage[] = [0, 0.5, 1, 2, 3, 4, 5, 6, 7];
 
@@ -469,8 +515,39 @@ ${stageData.finalDraft}
                         </div>
                     )}
 
+                    {/* Stage 0.5: Topic Selection Cards */}
+                    {currentStage === 0.5 && stageData.scoredTopics.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-sm text-gray-400">평가된 주제 ({stageData.scoredTopics.length}개):</p>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {stageData.scoredTopics.map((topic, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => handleSelectTopic(idx)}
+                                        className={`cursor-pointer p-3 rounded-lg border transition-all ${stageData.selectedTopicIndex === idx
+                                            ? 'border-green-500 bg-green-900/30 shadow-lg'
+                                            : 'border-gray-600 bg-gray-800/30 hover:border-indigo-500 hover:bg-indigo-900/20'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="font-semibold text-white flex-1">{topic.title}</span>
+                                            <span className="text-yellow-400 font-bold ml-2">{topic.score}점</span>
+                                        </div>
+                                        <p className="text-sm text-gray-400">{topic.summary}</p>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            {idx === 0 && <span className="text-xs text-green-400">🥇 AI 추천</span>}
+                                            {stageData.selectedTopicIndex === idx && (
+                                                <span className="text-xs text-green-300">✅ 선택됨</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Stage Data Summary */}
-                    {currentStage > 0 && currentStage !== 7 && stageData.selectedTopic && (
+                    {currentStage > 0.5 && currentStage !== 7 && stageData.selectedTopic && (
                         <div className="bg-gray-800/50 rounded-lg p-3 text-sm">
                             <p className="text-gray-400">선정된 주제:</p>
                             <p className="text-white truncate">{stageData.selectedTopic.substring(0, 100)}...</p>
@@ -585,6 +662,35 @@ ${stageData.finalDraft}
                                     onChange={(e) => setCurrentOutput(e.target.value)}
                                     className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
                                 />
+                            ) : currentStage === 6 ? (
+                                <div className="notion-style-output prose prose-invert max-w-none">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-white border-b border-gray-700 pb-2">{children}</h1>,
+                                            h2: ({ children }) => <h2 className="text-xl font-semibold mb-3 text-gray-100 mt-6">{children}</h2>,
+                                            h3: ({ children }) => <h3 className="text-lg font-medium mb-2 text-gray-200 mt-4">{children}</h3>,
+                                            p: ({ children }) => <p className="text-base text-gray-300 mb-3 leading-relaxed">{children}</p>,
+                                            ul: ({ children }) => <ul className="list-disc pl-6 mb-3 text-gray-300 space-y-1">{children}</ul>,
+                                            ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 text-gray-300 space-y-1">{children}</ol>,
+                                            li: ({ children }) => <li className="text-gray-300">{children}</li>,
+                                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                            em: ({ children }) => <em className="italic text-gray-200">{children}</em>,
+                                            blockquote: ({ children }) => (
+                                                <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-3 bg-gray-800/50 text-gray-300 italic rounded-r">{children}</blockquote>
+                                            ),
+                                            code: ({ children, className }) => {
+                                                const isInline = !className;
+                                                return isInline
+                                                    ? <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm text-indigo-300">{children}</code>
+                                                    : <code className="block bg-gray-800 p-3 rounded my-2 text-sm text-gray-200 overflow-x-auto">{children}</code>;
+                                            },
+                                            hr: () => <hr className="my-6 border-gray-700" />,
+                                        }}
+                                    >
+                                        {currentOutput}
+                                    </ReactMarkdown>
+                                </div>
                             ) : (
                                 <pre className="text-sm text-gray-200 whitespace-pre-wrap font-mono">
                                     {currentOutput}

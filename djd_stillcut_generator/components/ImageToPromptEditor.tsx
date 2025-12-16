@@ -1,33 +1,138 @@
-
-import React, { useState } from 'react';
-import { ImageFile } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { ImageFile, StoredPrompt } from '../types';
 import Panel from './common/Panel';
 import ImageDropzone from './ImageDropzone';
-import { generatePromptFromImage } from '../services/geminiService';
-import { XIcon, SparklesIcon, ClipboardIcon } from './Icons';
+import PromptLibraryModal from './PromptLibraryModal';
+import { generatePromptFromImage, generateJsonFromImage } from '../services/geminiService';
+import useLocalStorage from '../hooks/useLocalStorage';
+import { XIcon, SparklesIcon, ClipboardIcon, LibraryIcon, PlusIcon } from './Icons';
+import type { ImageProvider } from '../services/types';
 
 interface ImageToPromptEditorProps {
     isApiKeyReady: boolean;
     openSettings: () => void;
+    geminiApiKey: string;
+    openaiApiKey: string;
+    selectedProvider: ImageProvider;
+    setSelectedProvider: (provider: ImageProvider) => void;
 }
 
-const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({ isApiKeyReady, openSettings }) => {
+const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
+    isApiKeyReady,
+    openSettings,
+    selectedProvider,
+    setSelectedProvider
+}) => {
     const [image, setImage] = useState<ImageFile | null>(null);
     const [generatedPrompt, setGeneratedPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+    const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
+    const [outputMode, setOutputMode] = useState<'text' | 'json'>('text');
 
-    const handleImageUpload = (file: ImageFile) => {
+    const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('generatedPromptsLibrary', []);
+
+    const handleImageUpload = useCallback((file: ImageFile) => {
         setImage(file);
         setGeneratedPrompt('');
         setError(null);
-    };
+    }, []);
+
+    // 클립보드 붙여넣기 (Ctrl+V) 지원
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    // 이미지 발견 즉시 기본 동작 방지
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        // File을 ImageFile 형식으로 변환
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            if (typeof event.target?.result === 'string') {
+                                handleImageUpload({
+                                    base64: event.target.result,
+                                    mimeType: file.type
+                                });
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [handleImageUpload]);
 
     const clearImage = () => {
         setImage(null);
         setGeneratedPrompt('');
         setError(null);
+    };
+
+    const handleAddPrompt = (title: string, text: string) => {
+        if (title.trim() && text.trim()) {
+            const newPrompt = { id: uuidv4(), title, text };
+            setStoredPrompts(prev => [newPrompt, ...prev]);
+        }
+    };
+
+    const handleUpdatePrompt = (id: string, title: string, text: string) => {
+        setStoredPrompts(prompts => prompts.map(p => p.id === id ? { ...p, title, text } : p));
+    };
+
+    const handleDeletePrompt = (id: string) => {
+        setStoredPrompts(prompts => prompts.filter(p => p.id !== id));
+    };
+
+    const handleUsePrompt = (prompts: StoredPrompt[]) => {
+        if (prompts.length > 0) {
+            const combinedText = prompts.map(p => p.text).join('\n\n---\n\n');
+            navigator.clipboard.writeText(combinedText);
+            alert(`${prompts.length}개의 프롬프트를 클립보드에 복사했습니다.`);
+        }
+        setIsLibraryOpen(false);
+    };
+
+    const handleImportPrompts = (importedPrompts: StoredPrompt[]) => {
+        setStoredPrompts(currentPrompts => {
+            const currentIds = new Set(currentPrompts.map(p => p.id));
+            const newPrompts = importedPrompts.filter(p => !currentIds.has(p.id));
+            if (newPrompts.length === 0) {
+                alert("새로운 프롬프트가 없습니다.");
+                return currentPrompts;
+            }
+            alert(`${newPrompts.length}개의 새로운 프롬프트를 추가했습니다.`);
+            return [...newPrompts, ...currentPrompts];
+        });
+    };
+
+    const handleSaveGeneratedPrompt = () => {
+        if (!generatedPrompt.trim()) {
+            alert("저장할 프롬프트가 없습니다.");
+            return;
+        }
+        setLibraryInitialText(generatedPrompt);
+        setIsLibraryOpen(true);
+    };
+
+    const handleCloseLibrary = () => {
+        setIsLibraryOpen(false);
+        setLibraryInitialText(null);
     };
 
     const handleGenerate = async () => {
@@ -39,21 +144,24 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({ isApiKeyReady
             setError('먼저 이미지를 업로드해주세요.');
             return;
         }
-        
+
         setIsLoading(true);
         setError(null);
         setGeneratedPrompt('');
-        
+
         try {
-            const promptText = await generatePromptFromImage(image);
+            // TODO: Use selectedProvider to choose between Gemini and OpenAI
+            const promptText = outputMode === 'json'
+                ? await generateJsonFromImage(image)
+                : await generatePromptFromImage(image);
             setGeneratedPrompt(promptText);
         } catch (e: any) {
-            setError(e.message || '프롬프트 생성 중 오류가 발생했습니다.');
+            setError(e.message || '생성 중 오류가 발생했습니다.');
         } finally {
             setIsLoading(false);
         }
     };
-    
+
     const handleCopy = () => {
         if (!generatedPrompt) return;
         navigator.clipboard.writeText(generatedPrompt).then(() => {
@@ -61,81 +169,176 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({ isApiKeyReady
             setTimeout(() => setCopySuccess(false), 2000);
         });
     };
-    
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <Panel>
-                <div className="flex flex-col gap-6 flex-grow">
-                    <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-300">1. 이미지 업로드</h3>
-                        <p className="text-sm text-gray-400 mb-3">
-                            내용을 분석하여 프롬프트를 생성할 이미지를 업로드하세요.
-                        </p>
-                    </div>
-                    
-                    <div className="flex flex-col flex-grow">
-                        {image ? (
-                            <div className="relative group h-full min-h-64 rounded-lg overflow-hidden">
-                                <img src={image.base64} alt="프롬프트 생성용 이미지" className="w-full h-full object-contain" />
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <Panel>
+                    <div className="flex flex-col gap-6 flex-grow">
+                        {/* 제목 + AI 제공자 선택 */}
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-300">1. 이미지 업로드</h3>
+                            <div className="flex gap-2">
                                 <button
-                                    onClick={clearImage}
-                                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
-                                    title="이미지 제거"
-                                    aria-label="이미지 제거"
+                                    onClick={() => setSelectedProvider('gemini')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'gemini'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
                                 >
-                                    <XIcon className="w-5 h-5" />
+                                    🔷 Gemini
+                                </button>
+                                <button
+                                    onClick={() => setSelectedProvider('openai')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'openai'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    💚 ChatGPT
                                 </button>
                             </div>
+                        </div>
+                        <p className="text-sm text-gray-400 -mt-4">
+                            내용을 분석하여 프롬프트를 생성할 이미지를 업로드하세요.
+                        </p>
+
+                        {/* 이미지 업로드 영역 */}
+                        <div className="flex flex-col flex-grow">
+                            {image ? (
+                                <div className="relative group h-full min-h-64 rounded-lg overflow-hidden">
+                                    <img src={image.base64} alt="프롬프트 생성용 이미지" className="w-full h-full object-contain" />
+                                    <button
+                                        onClick={clearImage}
+                                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
+                                        title="이미지 제거"
+                                        aria-label="이미지 제거"
+                                    >
+                                        <XIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="h-full min-h-64">
+                                    <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG)" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading || !image || !isApiKeyReady}
+                        className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                    >
+                        {isLoading ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                         ) : (
-                            <div className="h-full min-h-64">
-                                <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG)" />
+                            <SparklesIcon className="w-5 h-5" />
+                        )}
+                        <span>{isLoading ? '분석 중...' : '프롬프트 생성'}</span>
+                    </button>
+                </Panel>
+
+                <Panel>
+                    <div className="flex flex-col gap-4 flex-grow h-full">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-300">2. 생성된 {outputMode === 'json' ? 'JSON 코드' : '프롬프트'}</h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setOutputMode('text')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${outputMode === 'text'
+                                        ? 'bg-teal-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    📝 텍스트
+                                </button>
+                                <button
+                                    onClick={() => setOutputMode('json')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${outputMode === 'json'
+                                        ? 'bg-teal-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    { } JSON
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between" style={{ marginTop: '-0.5rem' }}>
+                            <p className="text-xs text-gray-500">
+                                {outputMode === 'json' ? '이미지를 구조화된 JSON으로 변환합니다' : '이미지를 텍스트 프롬프트로 변환합니다'}
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleSaveGeneratedPrompt}
+                                    disabled={!generatedPrompt.trim()}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    title="현재 프롬프트 저장"
+                                >
+                                    <PlusIcon className="w-4 h-4" />
+                                    <span>저장</span>
+                                </button>
+                                <button
+                                    onClick={() => setIsLibraryOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors"
+                                    title="저장된 프롬프트 라이브러리"
+                                >
+                                    <LibraryIcon className="w-4 h-4" />
+                                    <span>라이브러리 ({storedPrompts.length})</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="w-full flex-grow flex flex-col bg-gray-900/50 rounded-lg relative overflow-hidden p-4">
+                            {isLoading && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900/50">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400 mb-2"></div>
+                                    <span>{outputMode === 'json' ? 'JSON을 생성하고 있습니다...' : '프롬프트를 생성하고 있습니다...'}</span>
+                                </div>
+                            )}
+                            {error && <div className="text-red-400 p-4 text-center m-auto">{error}</div>}
+
+                            <textarea
+                                id="generated-prompt-output"
+                                value={generatedPrompt}
+                                readOnly
+                                placeholder={!isLoading && !error ? (outputMode === 'json' ? "이곳에 생성된 JSON 코드가 표시됩니다..." : "이곳에 생성된 프롬프트가 표시됩니다...") : ""}
+                                className="w-full flex-grow bg-transparent text-white placeholder-gray-500 border-none focus:outline-none focus:ring-0 font-mono text-sm resize-none"
+                            />
+                        </div>
+                        {generatedPrompt && !isLoading && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCopy}
+                                    className="flex-1 flex items-center justify-center gap-2 bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-500 transition-colors"
+                                >
+                                    <ClipboardIcon className="w-4 h-4" />
+                                    <span>{copySuccess ? '복사됨!' : '클립보드 복사'}</span>
+                                </button>
+                                <button
+                                    onClick={handleSaveGeneratedPrompt}
+                                    className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-500 transition-colors"
+                                >
+                                    <PlusIcon className="w-4 h-4" />
+                                    <span>라이브러리에 저장</span>
+                                </button>
                             </div>
                         )}
                     </div>
-                </div>
-                 <button
-                    onClick={handleGenerate}
-                    disabled={isLoading || !image || !isApiKeyReady}
-                    className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-                >
-                    {isLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    ) : (
-                        <SparklesIcon className="w-5 h-5" />
-                    )}
-                    <span>{isLoading ? '생성 중...' : '프롬프트 생성'}</span>
-                </button>
-            </Panel>
-            
-            <Panel>
-                <div className="flex flex-col gap-4 flex-grow h-full">
-                     <h3 className="text-lg font-semibold text-gray-300">2. 생성된 프롬프트</h3>
-                     <div className="w-full flex-grow flex flex-col bg-gray-900/50 rounded-lg relative overflow-hidden p-4">
-                        {isLoading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900/50">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mb-2"></div>
-                                <span>프롬프트를 생성하고 있습니다...</span>
-                            </div>
-                        )}
-                        {error && <div className="text-red-400 p-4 text-center m-auto">{error}</div>}
-                        
-                         <textarea
-                            id="generated-prompt-output"
-                            value={generatedPrompt}
-                            readOnly
-                            placeholder={!isLoading && !error ? "이곳에 생성된 프롬프트가 표시됩니다..." : ""}
-                            className="w-full flex-grow bg-transparent text-white placeholder-gray-500 border-none focus:outline-none focus:ring-0 font-mono text-sm resize-none"
-                         />
-                     </div>
-                     {generatedPrompt && !isLoading && (
-                        <button onClick={handleCopy} className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-500 transition-colors">
-                            <ClipboardIcon className="w-4 h-4" />
-                            <span>{copySuccess ? '복사됨!' : '프롬프트 복사'}</span>
-                        </button>
-                     )}
-                </div>
-            </Panel>
-        </div>
+                </Panel>
+            </div>
+
+            <PromptLibraryModal
+                isOpen={isLibraryOpen}
+                onClose={handleCloseLibrary}
+                prompts={storedPrompts}
+                onAddPrompt={handleAddPrompt}
+                onUpdatePrompt={handleUpdatePrompt}
+                onDeletePrompt={handleDeletePrompt}
+                onUsePrompt={handleUsePrompt}
+                onImport={handleImportPrompts}
+                initialText={libraryInitialText}
+            />
+        </>
     );
 };
 

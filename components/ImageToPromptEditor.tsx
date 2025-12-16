@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ImageFile, StoredPrompt } from '../types';
 import Panel from './common/Panel';
 import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
-import { generatePromptFromImage } from '../services/geminiService';
+import { generatePromptFromImage, generateJsonFromImage } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { XIcon, SparklesIcon, ClipboardIcon, LibraryIcon, PlusIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
@@ -31,14 +31,52 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
     const [copySuccess, setCopySuccess] = useState(false);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
+    const [outputMode, setOutputMode] = useState<'text' | 'json'>('text');
 
     const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('generatedPromptsLibrary', []);
 
-    const handleImageUpload = (file: ImageFile) => {
+    const handleImageUpload = useCallback((file: ImageFile) => {
         setImage(file);
         setGeneratedPrompt('');
         setError(null);
-    };
+    }, []);
+
+    // 클립보드 붙여넣기 (Ctrl+V) 지원
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    // 이미지 발견 즉시 기본 동작 방지
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        // File을 ImageFile 형식으로 변환
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            if (typeof event.target?.result === 'string') {
+                                handleImageUpload({
+                                    base64: event.target.result,
+                                    mimeType: file.type
+                                });
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [handleImageUpload]);
 
     const clearImage = () => {
         setImage(null);
@@ -113,10 +151,12 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
 
         try {
             // TODO: Use selectedProvider to choose between Gemini and OpenAI
-            const promptText = await generatePromptFromImage(image);
+            const promptText = outputMode === 'json'
+                ? await generateJsonFromImage(image)
+                : await generatePromptFromImage(image);
             setGeneratedPrompt(promptText);
         } catch (e: any) {
-            setError(e.message || '프롬프트 생성 중 오류가 발생했습니다.');
+            setError(e.message || '생성 중 오류가 발생했습니다.');
         } finally {
             setIsLoading(false);
         }
@@ -202,7 +242,32 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                 <Panel>
                     <div className="flex flex-col gap-4 flex-grow h-full">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-gray-300">2. 생성된 프롬프트</h3>
+                            <h3 className="text-lg font-semibold text-gray-300">2. 생성된 {outputMode === 'json' ? 'JSON 코드' : '프롬프트'}</h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setOutputMode('text')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${outputMode === 'text'
+                                        ? 'bg-teal-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    📝 텍스트
+                                </button>
+                                <button
+                                    onClick={() => setOutputMode('json')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${outputMode === 'json'
+                                        ? 'bg-teal-600 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    { } JSON
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between" style={{ marginTop: '-0.5rem' }}>
+                            <p className="text-xs text-gray-500">
+                                {outputMode === 'json' ? '이미지를 구조화된 JSON으로 변환합니다' : '이미지를 텍스트 프롬프트로 변환합니다'}
+                            </p>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleSaveGeneratedPrompt}
@@ -226,8 +291,8 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                         <div className="w-full flex-grow flex flex-col bg-gray-900/50 rounded-lg relative overflow-hidden p-4">
                             {isLoading && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900/50">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mb-2"></div>
-                                    <span>프롬프트를 생성하고 있습니다...</span>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400 mb-2"></div>
+                                    <span>{outputMode === 'json' ? 'JSON을 생성하고 있습니다...' : '프롬프트를 생성하고 있습니다...'}</span>
                                 </div>
                             )}
                             {error && <div className="text-red-400 p-4 text-center m-auto">{error}</div>}
@@ -236,7 +301,7 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                                 id="generated-prompt-output"
                                 value={generatedPrompt}
                                 readOnly
-                                placeholder={!isLoading && !error ? "이곳에 생성된 프롬프트가 표시됩니다..." : ""}
+                                placeholder={!isLoading && !error ? (outputMode === 'json' ? "이곳에 생성된 JSON 코드가 표시됩니다..." : "이곳에 생성된 프롬프트가 표시됩니다...") : ""}
                                 className="w-full flex-grow bg-transparent text-white placeholder-gray-500 border-none focus:outline-none focus:ring-0 font-mono text-sm resize-none"
                             />
                         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import * as pdfjs from 'pdfjs-dist';
 import {
     detectFileType,
     processImage,
@@ -8,6 +9,15 @@ import {
     type FileType,
     type MpsResult
 } from '../services/mpsService';
+import { saveToGoogleDrive, listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
+
+// PDF.js worker 설정
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+interface PdfPagePreview {
+    pageNum: number;
+    imageUrl: string;
+}
 
 interface ChatMessage {
     role: 'user' | 'assistant';
@@ -49,13 +59,84 @@ const MpsEditor: React.FC = () => {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [isChatting, setIsChatting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 구글 드라이브 상태
+    const [showDriveFiles, setShowDriveFiles] = useState(false);
+    const [driveFiles, setDriveFiles] = useState<any[]>([]);
+    const [isLoadingDrive, setIsLoadingDrive] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
+
+    // PDF 미리보기 상태
+    const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
+    const [isParsing, setIsParsing] = useState(false);
 
     // 채팅 스크롤
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages]);
 
+    // PDF 페이지 파싱 및 미리보기 생성
+    const parsePdfPages = async (file: File) => {
+        setIsParsing(true);
+        setPdfPagePreviews([]);
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            const totalPages = pdf.numPages;
+
+            const previews: PdfPagePreview[] = [];
+
+            for (let i = 1; i <= totalPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 0.3 }); // 작은 썸네일
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                if (!context) continue;
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    canvas: canvas
+                } as any).promise;
+
+                previews.push({
+                    pageNum: i,
+                    imageUrl: canvas.toDataURL('image/png')
+                });
+            }
+
+            setPdfPagePreviews(previews);
+
+            // 모든 페이지를 기본 선택
+            const allPages = previews.map(p => p.pageNum);
+            setPdfOptions(prev => ({
+                ...prev,
+                selectedPages: allPages,
+                pageOrder: allPages
+            }));
+
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `📄 PDF 분석 완료: ${totalPages}페이지 감지됨\n\n아래에서 제외할 페이지를 선택하세요.`,
+                timestamp: new Date()
+            }]);
+        } catch (err) {
+            console.error('PDF 파싱 오류:', err);
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `❌ PDF 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
+                timestamp: new Date()
+            }]);
+        } finally {
+            setIsParsing(false);
+        }
+    };
 
     // 파일 업로드 처리
     const handleFileUpload = useCallback((file: File) => {
@@ -73,14 +154,9 @@ const MpsEditor: React.FC = () => {
             setPreviewUrl(null);
         }
 
-        // PDF의 경우 페이지 수 추정
+        // PDF의 경우 페이지 파싱
         if (type === 'pdf') {
-            const pages = [1, 2, 3, 4, 5];
-            setPdfOptions(prev => ({
-                ...prev,
-                selectedPages: pages,
-                pageOrder: pages
-            }));
+            parsePdfPages(file);
         }
 
         // 파일 업로드 알림 메시지
@@ -141,6 +217,59 @@ const MpsEditor: React.FC = () => {
             handleFileUpload(file);
         }
     }, [handleFileUpload]);
+
+    // 구글 드라이브에서 파일 목록 가져오기
+    const handleOpenGoogleDrive = async () => {
+        setIsLoadingDrive(true);
+        try {
+            const files = await listImagesFromGoogleDrive();
+            // PDF도 포함하도록 필터링 (이미지 + PDF)
+            setDriveFiles(files);
+            setShowDriveFiles(true);
+        } catch (error: any) {
+            alert(error.message || 'Google Drive 파일 목록을 불러올 수 없습니다.');
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `⚠️ Google Drive 연결 오류: ${error.message}`,
+                timestamp: new Date()
+            }]);
+        } finally {
+            setIsLoadingDrive(false);
+        }
+    };
+
+    // 구글 드라이브에서 선택한 파일 다운로드
+    const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+        setIsLoadingDrive(true);
+        try {
+            if (mimeType.includes('pdf')) {
+                // PDF는 다운로드 후 File 객체로 변환
+                const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+                // base64를 blob으로 변환
+                const response = await fetch(imageData.base64);
+                const blob = await response.blob();
+                const file = new File([blob], fileName, { type: mimeType });
+                handleFileUpload(file);
+            } else {
+                // 이미지는 기존 방식대로
+                const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+                const response = await fetch(imageData.base64);
+                const blob = await response.blob();
+                const file = new File([blob], fileName, { type: mimeType });
+                handleFileUpload(file);
+            }
+            setShowDriveFiles(false);
+        } catch (error: any) {
+            alert(error.message || '파일을 다운로드할 수 없습니다.');
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `⚠️ 다운로드 오류: ${error.message}`,
+                timestamp: new Date()
+            }]);
+        } finally {
+            setIsLoadingDrive(false);
+        }
+    };
 
     // Gemini 채팅 전송
     const handleSendChat = async () => {
@@ -264,6 +393,47 @@ const MpsEditor: React.FC = () => {
         }
     };
 
+    // 저장 기능 (로컬 + Google Drive)
+    const handleSave = async () => {
+        if (!result || !result.success) return;
+
+        setIsSaving(true);
+        try {
+            // 결과 데이터 (현재는 placeholder, 실제 구현 시 result에서 base64 가져오기)
+            const outputData = result.outputFiles?.[0] || 'output.webp';
+
+            // 로컬 다운로드
+            if (previewUrl) {
+                const link = document.createElement('a');
+                link.href = previewUrl;
+                link.download = `mps-${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // Google Drive 저장
+            if (previewUrl) {
+                await saveToGoogleDrive(previewUrl);
+            }
+
+            // 성공 메시지
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: '✅ 저장 완료! 로컬에 다운로드되었으며 Google Drive에도 저장되었습니다.',
+                timestamp: new Date()
+            }]);
+        } catch (err) {
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `⚠️ 저장 중 오류: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
+                timestamp: new Date()
+            }]);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* 왼쪽: 파일 업로드 및 옵션 */}
@@ -326,11 +496,52 @@ const MpsEditor: React.FC = () => {
 
                 {/* Google Drive 가져오기 버튼 */}
                 <button
-                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2"
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     <span>☁️</span>
-                    <span>Drive에서 가져오기</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Drive에서 가져오기'}</span>
                 </button>
+
+                {/* Google Drive 파일 선택 모달 */}
+                {showDriveFiles && (
+                    <div className="mt-3 p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
+                            <button
+                                onClick={() => setShowDriveFiles(false)}
+                                className="text-gray-400 hover:text-white text-sm"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        {driveFiles.length > 0 ? (
+                            <div className="max-h-64 overflow-y-auto grid grid-cols-3 gap-2">
+                                {driveFiles.map((file) => (
+                                    <div
+                                        key={file.id}
+                                        onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
+                                        className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
+                                    >
+                                        {file.thumbnailLink ? (
+                                            <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center p-2">
+                                                <span className="text-2xl">{file.mimeType?.includes('pdf') ? '📄' : '🖼️'}</span>
+                                                <p className="text-xs text-gray-400 mt-1 truncate">{file.name}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-400 text-sm py-4">
+                                파일 없음
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* 미리보기 */}
                 {previewUrl && (
@@ -346,7 +557,12 @@ const MpsEditor: React.FC = () => {
 
                 {/* PDF 옵션 */}
                 {fileType === 'pdf' && (
-                    <PdfOptionsPanel options={pdfOptions} onChange={setPdfOptions} />
+                    <PdfOptionsPanel
+                        options={pdfOptions}
+                        onChange={setPdfOptions}
+                        pagePreviews={pdfPagePreviews}
+                        isParsing={isParsing}
+                    />
                 )}
 
                 {/* 처리 버튼 */}
@@ -444,11 +660,12 @@ const MpsEditor: React.FC = () => {
                         {isChatting ? '⏳' : '📤'}
                     </button>
                     <button
-                        disabled={!result}
+                        onClick={handleSave}
+                        disabled={!result || !result.success || isSaving}
                         title="저장 (로컬 + Drive)"
                         className="px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                     >
-                        💾
+                        {isSaving ? '⏳' : '💾'}
                     </button>
                 </div>
             </div>
@@ -512,15 +729,19 @@ const ImageOptionsPanel: React.FC<ImageOptionsPanelProps> = ({ options, onChange
 interface PdfOptionsPanelProps {
     options: MpsPdfOptions;
     onChange: (options: MpsPdfOptions) => void;
+    pagePreviews?: PdfPagePreview[];
+    isParsing?: boolean;
 }
 
-const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange }) => {
+const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange, pagePreviews = [], isParsing = false }) => {
     const togglePage = (page: number) => {
         const newSelected = options.selectedPages.includes(page)
             ? options.selectedPages.filter(p => p !== page)
             : [...options.selectedPages, page].sort((a, b) => a - b);
         onChange({ ...options, selectedPages: newSelected, pageOrder: newSelected });
     };
+
+    const totalPages = pagePreviews.length > 0 ? pagePreviews.length : 10;
 
     return (
         <div className="space-y-4">
@@ -584,24 +805,86 @@ const PdfOptionsPanel: React.FC<PdfOptionsPanelProps> = ({ options, onChange }) 
                 </div>
             </div>
 
+            {/* 페이지 선택 - 미리보기 그리드 */}
             <div className="space-y-2">
-                <p className="text-sm text-gray-400">페이지 선택</p>
-                <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5].map((page) => (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-400">
+                        페이지 선택 {isParsing && <span className="animate-pulse">분석 중...</span>}
+                    </p>
+                    <div className="flex gap-1">
                         <button
-                            key={page}
-                            onClick={() => togglePage(page)}
-                            className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${options.selectedPages.includes(page)
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                }`}
+                            onClick={() => {
+                                const allPages = pagePreviews.length > 0
+                                    ? pagePreviews.map(p => p.pageNum)
+                                    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                                onChange({ ...options, selectedPages: allPages, pageOrder: allPages });
+                            }}
+                            className="text-xs px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 rounded"
                         >
-                            {page}
+                            모두 선택
                         </button>
-                    ))}
+                        <button
+                            onClick={() => onChange({ ...options, selectedPages: [], pageOrder: [] })}
+                            className="text-xs px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 rounded"
+                        >
+                            모두 해제
+                        </button>
+                    </div>
                 </div>
+
+                {/* 미리보기 이미지 그리드 */}
+                {pagePreviews.length > 0 ? (
+                    <div className="grid grid-cols-5 gap-2 max-h-64 overflow-y-auto">
+                        {pagePreviews.map((preview) => (
+                            <div
+                                key={preview.pageNum}
+                                onClick={() => togglePage(preview.pageNum)}
+                                className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${options.selectedPages.includes(preview.pageNum)
+                                        ? 'border-blue-500 ring-2 ring-blue-500/30'
+                                        : 'border-gray-600 opacity-50 grayscale'
+                                    }`}
+                            >
+                                <img
+                                    src={preview.imageUrl}
+                                    alt={`Page ${preview.pageNum}`}
+                                    className="w-full h-auto"
+                                />
+                                <div className={`absolute bottom-0 left-0 right-0 text-center text-xs py-0.5 ${options.selectedPages.includes(preview.pageNum)
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-700 text-gray-400'
+                                    }`}>
+                                    {preview.pageNum}
+                                </div>
+                                {!options.selectedPages.includes(preview.pageNum) && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                        <span className="text-red-400 text-xl">✕</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <button
+                                key={page}
+                                onClick={() => togglePage(page)}
+                                className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${options.selectedPages.includes(page)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 <p className="text-xs text-gray-500">
-                    선택된 페이지: {options.selectedPages.join(', ') || '없음'}
+                    선택: {options.selectedPages.length}개 / 제외: {totalPages - options.selectedPages.length}개
+                </p>
+                <p className="text-xs text-gray-400 italic">
+                    ℹ️ 클릭하여 포함/제외 토글. 제외된 페이지는 처리되지 않습니다.
                 </p>
             </div>
         </div>
