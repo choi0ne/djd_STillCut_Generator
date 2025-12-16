@@ -423,7 +423,7 @@ ${stageData.finalDraft}
                                         : 'bg-gray-700 text-gray-400'
                                     }`}
                             >
-                                {STAGE_INFO[stage].icon} {idx}
+                                {STAGE_INFO[stage].icon} {stage}
                             </button>
                         ))}
                     </div>
@@ -496,7 +496,7 @@ ${stageData.finalDraft}
                         </button>
                         <button
                             onClick={handleExecuteStage}
-                            disabled={isLoading || !isApiKeyReady || (currentStage === 0 && !userInput.trim()) || currentStage === 7}
+                            disabled={isLoading || !isApiKeyReady || (currentStage === 0 && !userInput.trim())}
                             className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
