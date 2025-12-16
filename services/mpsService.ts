@@ -144,8 +144,12 @@ export async function processPdf(
     formData.append('merge_pages', String(options.mergePages));
     formData.append('target_width', '1200'); // 기본값
     formData.append('output_format', options.outputFormat);
-    // Note: selectedPages, pageOrder are not fully supported in the simple server example yet
-    // without more complex logic, but basic flow is here.
+
+    // 선택된 페이지가 있으면 전송 (예: "[1, 3, 5]" 또는 "1,3,5")
+    if (options.selectedPages && options.selectedPages.length > 0) {
+        // 백엔드에서 파싱하기 쉽도록 JSON 문자열로 전송
+        formData.append('selected_pages', JSON.stringify(options.selectedPages));
+    }
 
     try {
         const response = await fetch('http://localhost:8000/process-pdf', {

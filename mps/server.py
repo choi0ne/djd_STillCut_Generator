@@ -91,7 +91,8 @@ def process_pdf(
     file: UploadFile = File(...),
     merge_pages: bool = Form(True),
     target_width: int = Form(1200),
-    output_format: str = Form('webp')
+    output_format: str = Form('webp'),
+    selected_pages: str = Form(None) # JSON String "[1, 2, 3]" or None
 ):
     try:
         file_id = str(uuid.uuid4())
@@ -113,6 +114,17 @@ def process_pdf(
             str(target_width),
             output_format
         ]
+        
+        # 선택된 페이지가 있으면 인자로 추가
+        if selected_pages:
+            try:
+                # JSON 파싱 검증
+                pages_list = json.loads(selected_pages)
+                if isinstance(pages_list, list) and len(pages_list) > 0:
+                    cmd.append("--pages")
+                    cmd.append(",".join(map(str, pages_list)))
+            except:
+                pass # 파싱 실패 시 전체 처리
         
         subprocess.run(cmd, check=True)
         

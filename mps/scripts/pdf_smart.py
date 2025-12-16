@@ -203,14 +203,28 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
     for i in range(0, max_pages, BATCH_SIZE):
         first_page = i + 1
         last_page = min(i + BATCH_SIZE, max_pages)
+        
+        # 선택된 페이지 필터링: 이 배치에 처리할 페이지가 없으면 스킵
+        if selected_pages is not None:
+            pages_in_batch = [p for p in range(first_page, last_page + 1) if p in selected_pages]
+            if not pages_in_batch:
+                print(f"   ⏭️ 배치 스킵: {first_page} ~ {last_page} (선택된 페이지 없음)")
+                continue
+
         print(f"\n   🔄 배치 처리: {first_page} ~ {last_page} (총 {max_pages})")
         
         # 해당 구간만 이미지로 변환
         batch_images = convert_from_path(pdf_path, dpi=optimal_dpi, first_page=first_page, last_page=last_page)
         
         for idx_in_batch, img in enumerate(batch_images):
-            # 전체 페이지 인덱스
-            page_idx = i + idx_in_batch
+            # 전체 페이지 인덱스 (1-based)
+            page_num_real = i + idx_in_batch + 1
+            
+            # 개별 페이지 필터링
+            if selected_pages is not None and page_num_real not in selected_pages:
+                 continue
+            
+            page_idx = page_num_real - 1 # 0-based index for logic if needed (but we use page_num_real for naming)
             
             if img.mode != 'RGB':
                 img = img.convert('RGB')
@@ -393,4 +407,15 @@ if __name__ == "__main__":
     target_width = int(sys.argv[5]) if len(sys.argv) > 5 else 1200
     output_format = sys.argv[6].lower() if len(sys.argv) > 6 else 'webp'
     
-    process_pdf_optimized(pdf_path, logo_path, output_dir, merge_pages, target_width, output_format)
+    selected_pages = None
+    # Parse --pages argument (simple manual parsing)
+    if "--pages" in sys.argv:
+        try:
+            pages_idx = sys.argv.index("--pages")
+            if pages_idx + 1 < len(sys.argv):
+                pages_str = sys.argv[pages_idx + 1]
+                selected_pages = [int(p) for p in pages_str.split(',') if p.strip().isdigit()]
+        except:
+            pass
+    
+    process_pdf_optimized(pdf_path, logo_path, output_dir, merge_pages, target_width, output_format, selected_pages)
