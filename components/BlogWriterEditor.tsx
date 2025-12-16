@@ -315,14 +315,28 @@ ${stageData.finalDraft}
                     break;
                 case 7:
                     try {
+                        // 마크다운 코드블록 제거 (```json ... ```)
+                        let jsonStr = result;
+                        const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+                        if (jsonMatch) {
+                            jsonStr = jsonMatch[1].trim();
+                        } else {
+                            // 코드블록이 없으면 JSON 배열 시작점 찾기
+                            const arrayStart = result.indexOf('[');
+                            const arrayEnd = result.lastIndexOf(']');
+                            if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+                                jsonStr = result.substring(arrayStart, arrayEnd + 1);
+                            }
+                        }
+
                         // JSON 파싱 시도
-                        const concepts = JSON.parse(result);
+                        const concepts = JSON.parse(jsonStr);
                         if (Array.isArray(concepts)) {
                             setStageData(prev => ({ ...prev, imageConcepts: concepts }));
+                            // 자동 이동 제거 - 버튼 클릭으로만 이동
                         }
                     } catch {
-                        // JSON 파싱 실패 시 결과 그대로 저장
-                        setCurrentOutput(result);
+                        // JSON 파싱 실패 시 결과 그대로 저장 (이미 setCurrentOutput은 위에서 호출됨)
                     }
                     break;
             }
@@ -518,7 +532,7 @@ ${stageData.finalDraft}
                                 onClick={handleCompleteStage7}
                                 className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
                             >
-                                🎨 모든 컨셉으로 이미지 생성
+                                🎨 블로그 이미지에 카드 생성
                             </button>
                         )}
                     </div>
