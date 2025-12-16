@@ -114,14 +114,12 @@ export async function processImage(
 
         const data = await response.json();
 
-        // 서버에서 반환된 상대 경로를 전체 URL로 변환 (필요시)
-        // 현재 로컬호스트 환경이므로 그대로 사용 가능하거나,
-        // 이미지를 보여주기 위해 blob으로 가져오는 로직 추가 가능
-        // 여기서는 파일명 목록만 반환
+        // 서버에서 반환된 상대 경로를 전체 URL로 변환
+        const outputFiles = data.outputFiles.map((path: string) => `${API_URL}${path}`);
 
         return {
             success: true,
-            outputFiles: data.outputFiles, // 예: ["/output/optimized.webp"]
+            outputFiles: outputFiles,
             timestamp: Date.now()
         };
     } catch (error: any) {
@@ -162,9 +160,12 @@ export async function processPdf(
 
         const data = await response.json();
 
+        // 서버에서 반환된 상대 경로를 전체 URL로 변환
+        const outputFiles = data.outputFiles.map((path: string) => `${API_URL}${path}`);
+
         return {
             success: true,
-            outputFiles: data.outputFiles,
+            outputFiles: outputFiles,
             timestamp: Date.now()
         };
     } catch (error: any) {
