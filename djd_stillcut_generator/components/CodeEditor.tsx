@@ -8,7 +8,7 @@ import { useImageGenerator } from '../hooks/useImageGenerator';
 import useLocalStorage from '../hooks/useLocalStorage';
 import GenerationResultPanel from './GenerationResultPanel';
 import Panel from './common/Panel';
-import { SparklesIcon, XIcon, LibraryIcon, PlusIcon } from './Icons';
+import { SparklesIcon, XIcon, LibraryIcon, PlusIcon, EditIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
 import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 
@@ -189,7 +189,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       // JSON 유효성 검증
       JSON.parse(result);
       setAnalysisResult(result);
-      setJsonCode(result);
     } catch (err) {
       setAnalysisResult(`❌ 분석 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     } finally {
@@ -341,40 +340,78 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                     <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
                   </button>
 
-                  {/* Google Drive 파일 선택 모달 */}
+                  {/* Google Drive 파일 선택 팝업 모달 */}
                   {showDriveFiles && (
-                    <div className="p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
-                        <button
-                          onClick={() => setShowDriveFiles(false)}
-                          className="text-gray-400 hover:text-white text-sm"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      {driveFiles.length > 0 ? (
-                        <div className="max-h-48 overflow-y-auto grid grid-cols-3 gap-2">
-                          {driveFiles.map((file) => (
-                            <div
-                              key={file.id}
-                              onClick={() => handleSelectDriveFile(file.id, file.mimeType)}
-                              className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
-                            >
-                              {file.thumbnailLink ? (
-                                <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="text-center p-1">
-                                  <span className="text-xl">🖼️</span>
-                                  <p className="text-xs text-gray-400 truncate">{file.name}</p>
-                                </div>
-                              )}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDriveFiles(false)}>
+                      <div
+                        className="bg-[#1a1f2e] border border-blue-500/50 rounded-2xl shadow-2xl w-[90vw] max-w-4xl max-h-[80vh] overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* 모달 헤더 */}
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">☁️</span>
+                            <div>
+                              <h3 className="text-lg font-semibold text-white">Google Drive</h3>
+                              <p className="text-xs text-gray-400">이미지를 선택하세요</p>
                             </div>
-                          ))}
+                          </div>
+                          <button
+                            onClick={() => setShowDriveFiles(false)}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          >
+                            ✕
+                          </button>
                         </div>
-                      ) : (
-                        <div className="text-center text-gray-400 text-sm py-4">파일 없음</div>
-                      )}
+
+                        {/* 이미지 그리드 */}
+                        <div className="p-4 overflow-y-auto max-h-[60vh]">
+                          {driveFiles.length > 0 ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                              {driveFiles.map((file) => (
+                                <div
+                                  key={file.id}
+                                  onClick={() => handleSelectDriveFile(file.id, file.mimeType)}
+                                  className="group relative aspect-square bg-gray-800 rounded-xl cursor-pointer hover:ring-2 hover:ring-blue-500 hover:scale-105 overflow-hidden transition-all duration-200 shadow-lg"
+                                >
+                                  {file.thumbnailLink ? (
+                                    <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                                      <span className="text-3xl mb-1">🖼️</span>
+                                      <p className="text-xs text-gray-400 text-center truncate w-full">{file.name}</p>
+                                    </div>
+                                  )}
+                                  {/* 호버 오버레이 */}
+                                  <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/20 transition-colors flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 text-white text-2xl transition-opacity">✓</span>
+                                  </div>
+                                  {/* 파일명 표시 */}
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <p className="text-xs text-white truncate">{file.name}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-16">
+                              <span className="text-4xl mb-4 block">📁</span>
+                              <p className="text-gray-400">파일이 없습니다</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 모달 푸터 */}
+                        <div className="flex items-center justify-between p-4 border-t border-white/10 bg-black/20">
+                          <p className="text-xs text-gray-500">{driveFiles.length}개의 이미지</p>
+                          <button
+                            onClick={() => setShowDriveFiles(false)}
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded-lg transition-colors"
+                          >
+                            닫기
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -475,6 +512,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                   >
                     <PlusIcon className="w-3 h-3" />
                     저장
+                  </button>
+                  <button
+                    onClick={formatJson}
+                    disabled={!jsonCode.trim()}
+                    className="flex items-center gap-1 px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="JSON 정리/포맷팅"
+                  >
+                    <EditIcon className="w-3 h-3" />
+                    수정
                   </button>
                   <button
                     onClick={() => setIsLibraryOpen(true)}

@@ -236,14 +236,57 @@ const MpsEditor: React.FC = () => {
             if (fileType === 'image') {
                 processResult = await processImage(uploadedFile, imageOptions);
             } else if (fileType === 'pdf') {
-                processResult = await processPdf(uploadedFile, pdfOptions);
+                // PDF 처리: 선택된 페이지들을 각각 처리
+                const selectedPreviews = pdfPagePreviews.filter(p => pdfOptions.selectedPages.includes(p.pageNum));
+
+                if (selectedPreviews.length === 0) {
+                    throw new Error("선택된 페이지가 없습니다.");
+                }
+
+                // 각 페이지 처리 (워터마크 제거 등)
+                const processedPages = await Promise.all(selectedPreviews.map(async (preview) => {
+                    // Preview 이미지(Data URL)를 processImage에 전달
+                    // PDF 옵션을 ImageOptions 형태로 변환하여 사용
+                    const pageResult = await processImage(preview.imageUrl, {
+                        removeWatermark: pdfOptions.removeWatermark,
+                        optimizeForBlog: false, // 합친 후 최적화하거나 개별 저장 시 최적화 (여기서는 일단 원본 품질 유지)
+                        outputFormat: 'webp' // 중간 포맷
+                    });
+                    if (!pageResult.success || !pageResult.processedImageUrl) {
+                        throw new Error(`페이지 ${preview.pageNum} 처리 실패`);
+                    }
+                    return pageResult.processedImageUrl;
+                }));
+
+                if (pdfOptions.mergePages) {
+                    // 처리된 페이지들을 하나로 병합
+                    const mergedUrl = await mergeImages(processedPages);
+
+                    // 병합된 이미지를 최종 최적화 (블로그 최적화 등)
+                    if (!mergedUrl) throw new Error("이미지 병합 실패");
+
+                    processResult = await processImage(mergedUrl, {
+                        removeWatermark: false, // 이미 제거됨
+                        optimizeForBlog: pdfOptions.optimizeForBlog,
+                        outputFormat: pdfOptions.outputFormat
+                    });
+                } else {
+                    // 개별 페이지 반환 (첫 번째 페이지를 메인 결과로)
+                    processResult = {
+                        success: true,
+                        processedImageUrl: processedPages[0],
+                        processedImages: processedPages,
+                        outputFiles: processedPages.map((_, i) => `page_${i + 1}.${pdfOptions.outputFormat}`),
+                        timestamp: Date.now()
+                    };
+                }
             } else {
                 throw new Error('지원하지 않는 파일 형식입니다.');
             }
 
             setResult(processResult);
             setStatusMessage(processResult.success
-                ? `✅ 처리 완료! 출력: ${processResult.outputFiles?.join(', ') || '없음'}`
+                ? `✅ 처리 완료! 출력: ${processResult.outputFiles?.join(', ') || '완료'}`
                 : `❌ 처리 실패: ${processResult.error}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.');
@@ -251,6 +294,45 @@ const MpsEditor: React.FC = () => {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    // 이미지 병합 헬퍼
+    const mergeImages = async (imageUrls: string[]): Promise<string | null> => {
+        if (imageUrls.length === 0) return null;
+
+        const loadedImages = await Promise.all(
+            imageUrls.map(url => {
+                return new Promise<HTMLImageElement>((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            })
+        );
+
+        if (loadedImages.length === 0) return null;
+
+        const maxWidth = Math.max(...loadedImages.map(img => img.width));
+        const totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = maxWidth;
+        canvas.height = totalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let currentY = 0;
+        for (const img of loadedImages) {
+            const x = (maxWidth - img.width) / 2;
+            ctx.drawImage(img, x, currentY);
+            currentY += img.height;
+        }
+
+        return canvas.toDataURL('image/png');
     };
 
     // 파일 초기화
@@ -267,63 +349,21 @@ const MpsEditor: React.FC = () => {
         }
     };
 
-    // PDF 페이지들을 하나의 이미지로 병합
+    // PDF 페이지들을 하나의 이미지로 병합 (미리보기용 - 원본 사용)
     const mergePagePreviewsToDataUrl = async (): Promise<string | null> => {
+        // ... (이 함수는 mergeImages로 대체되거나 재사용 가능하지만, 기존 로직 유지)
         const selectedPreviews = pdfPagePreviews.filter(p => pdfOptions.selectedPages.includes(p.pageNum));
-        if (selectedPreviews.length === 0) return null;
-
-        // 모든 이미지 로드
-        const loadedImages = await Promise.all(
-            selectedPreviews.map(preview => {
-                return new Promise<HTMLImageElement>((resolve, reject) => {
-                    const img = new Image();
-                    img.onload = () => resolve(img);
-                    img.onerror = reject;
-                    img.src = preview.imageUrl;
-                });
-            })
-        );
-
-        if (loadedImages.length === 0) return null;
-
-        // 캔버스 크기 계산 (세로로 병합)
-        const maxWidth = Math.max(...loadedImages.map(img => img.width));
-        const totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = maxWidth;
-        canvas.height = totalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return null;
-
-        // 배경을 흰색으로
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 이미지들을 세로로 배치
-        let currentY = 0;
-        for (const img of loadedImages) {
-            const x = (maxWidth - img.width) / 2; // 가운데 정렬
-            ctx.drawImage(img, x, currentY);
-            currentY += img.height;
-        }
-
-        return canvas.toDataURL('image/png');
+        return mergeImages(selectedPreviews.map(p => p.imageUrl));
     };
 
-    // 저장할 이미지 URL 가져오기 (처리 결과 또는 원본)
+    // 저장할 이미지 URL 가져오기
     const getImageToSave = async (): Promise<string | null> => {
-        // 처리된 결과가 있으면 사용
         if (result?.processedImageUrl) {
             return result.processedImageUrl;
         }
-
-        // PDF의 경우 선택된 페이지들을 병합
         if (fileType === 'pdf' && pdfPagePreviews.length > 0) {
-            return await mergePagePreviewsToDataUrl();
+            return await mergePagePreviewsToDataUrl(); // 처리 안 된 원본 병합
         }
-
-        // 이미지의 경우 원본 미리보기 사용
         return previewUrl;
     };
 
@@ -347,24 +387,44 @@ const MpsEditor: React.FC = () => {
                 return;
             }
 
-            // 1. 로컬 다운로드
+            // Data URL -> Blob 변환 (안정적인 다운로드/업로드를 위해)
+            const response = await fetch(imageToSave);
+            const blob = await response.blob();
+
+            // 1. 로컬 다운로드 (Blob URL 사용)
             try {
+                const blobUrl = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.href = imageToSave;
+                link.href = blobUrl;
+
                 const fileName = uploadedFile?.name || 'mps-output';
                 const ext = imageOptions.outputFormat === 'jpg' ? 'jpg' : 'webp';
-                link.download = `${fileName.replace(/\.[^/.]+$/, '')}_processed.${ext}`;
+                const finalName = `${fileName.replace(/\.[^/.]+$/, '')}_processed.${ext}`;
+
+                link.download = finalName;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(blobUrl); // 메모리 해제
                 localSuccess = true;
             } catch (localErr) {
                 errors.push(`로컬: ${localErr instanceof Error ? localErr.message : '다운로드 실패'}`);
             }
 
-            // 2. Google Drive 저장
+            // 2. Google Drive 저장 (Blob을 base64로 다시 변환하거나 업로드 함수가 Blob 지원하면 좋음)
+            // 현재 saveToGoogleDrive는 base64 string을 받음. imageToSave는 이미 base64 string일 확률 높음.
+            // 하지만 Blob에서 다시 base64로 명확하게 변환해서 보내는게 안전.
             try {
-                await saveToGoogleDrive(imageToSave);
+                // Blob -> Base64
+                const reader = new FileReader();
+                const base64Promise = new Promise<string>((resolve, reject) => {
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                });
+                reader.readAsDataURL(blob);
+                const base64Data = await base64Promise;
+
+                await saveToGoogleDrive(base64Data);
                 driveSuccess = true;
             } catch (driveErr) {
                 errors.push(`Google Drive: ${driveErr instanceof Error ? driveErr.message : '업로드 실패'}`);
@@ -456,42 +516,78 @@ const MpsEditor: React.FC = () => {
                     <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
                 </button>
 
-                {/* Google Drive 파일 선택 모달 */}
+                {/* Google Drive 파일 선택 팝업 모달 */}
                 {showDriveFiles && (
-                    <div className="mt-3 p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
-                            <button
-                                onClick={() => setShowDriveFiles(false)}
-                                className="text-gray-400 hover:text-white text-sm"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        {driveFiles.length > 0 ? (
-                            <div className="max-h-64 overflow-y-auto grid grid-cols-4 gap-2">
-                                {driveFiles.map((file) => (
-                                    <div
-                                        key={file.id}
-                                        onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
-                                        className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
-                                    >
-                                        {file.thumbnailLink ? (
-                                            <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="text-center p-2">
-                                                <span className="text-2xl">{file.mimeType?.includes('pdf') ? '📄' : '🖼️'}</span>
-                                                <p className="text-xs text-gray-400 mt-1 truncate">{file.name}</p>
-                                            </div>
-                                        )}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDriveFiles(false)}>
+                        <div
+                            className="bg-[#1a1f2e] border border-blue-500/50 rounded-2xl shadow-2xl w-[90vw] max-w-4xl max-h-[80vh] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* 모달 헤더 */}
+                            <div className="flex items-center justify-between p-4 border-b border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">☁️</span>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">Google Drive</h3>
+                                        <p className="text-xs text-gray-400">파일을 선택하세요</p>
                                     </div>
-                                ))}
+                                </div>
+                                <button
+                                    onClick={() => setShowDriveFiles(false)}
+                                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    ✕
+                                </button>
                             </div>
-                        ) : (
-                            <div className="text-center text-gray-400 text-sm py-4">
-                                파일 없음
+
+                            {/* 이미지 그리드 */}
+                            <div className="p-4 overflow-y-auto max-h-[60vh]">
+                                {driveFiles.length > 0 ? (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                                        {driveFiles.map((file) => (
+                                            <div
+                                                key={file.id}
+                                                onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
+                                                className="group relative aspect-square bg-gray-800 rounded-xl cursor-pointer hover:ring-2 hover:ring-blue-500 hover:scale-105 overflow-hidden transition-all duration-200 shadow-lg"
+                                            >
+                                                {file.thumbnailLink ? (
+                                                    <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                                                        <span className="text-3xl mb-1">{file.mimeType?.includes('pdf') ? '📄' : '🖼️'}</span>
+                                                        <p className="text-xs text-gray-400 text-center truncate w-full">{file.name}</p>
+                                                    </div>
+                                                )}
+                                                {/* 호버 오버레이 */}
+                                                <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/20 transition-colors flex items-center justify-center">
+                                                    <span className="opacity-0 group-hover:opacity-100 text-white text-2xl transition-opacity">✓</span>
+                                                </div>
+                                                {/* 파일명 표시 */}
+                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <p className="text-xs text-white truncate">{file.name}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-16">
+                                        <span className="text-4xl mb-4 block">📁</span>
+                                        <p className="text-gray-400">파일이 없습니다</p>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* 모달 푸터 */}
+                            <div className="flex items-center justify-between p-4 border-t border-white/10 bg-black/20">
+                                <p className="text-xs text-gray-500">{driveFiles.length}개의 파일</p>
+                                <button
+                                    onClick={() => setShowDriveFiles(false)}
+                                    className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded-lg transition-colors"
+                                >
+                                    닫기
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

@@ -35,6 +35,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
+  const [isEditingAnalysis, setIsEditingAnalysis] = useState(false);
 
 
 
@@ -151,7 +152,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       // JSON 유효성 검증
       JSON.parse(result);
       setAnalysisResult(result);
-      setJsonCode(result);
+      // 자동 복사 제거 - 사용자가 "복사 & 적용" 버튼으로 수동 복사
     } catch (err) {
       setAnalysisResult(`❌ 분석 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     } finally {
@@ -301,23 +302,41 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               <label className="text-sm font-semibold text-gray-300 mb-2">변환된 JSON 코드</label>
               {analysisResult && !analysisResult.startsWith('❌') ? (
                 <div className="bg-gray-900/50 rounded-lg p-4 flex-1 relative group border border-gray-600">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(analysisResult);
-                      setJsonCode(analysisResult); // 우측 패널로 복사
-                      const btn = document.getElementById('copy-analysis-btn');
-                      if (btn) {
-                        btn.textContent = '✓ 복사됨';
-                        setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
-                      }
-                    }}
-                    id="copy-analysis-btn"
-                    className="absolute top-2 right-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
-                    title="JSON 복사 후 우측에 적용"
-                  >
-                    📋 복사 & 적용
-                  </button>
-                  <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap pr-24 overflow-auto max-h-[200px]">{analysisResult}</pre>
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={() => setIsEditingAnalysis(!isEditingAnalysis)}
+                      className={`px-2 py-1 text-white text-xs rounded transition-colors ${isEditingAnalysis ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}
+                      title={isEditingAnalysis ? "수정 완료" : "직접 수정"}
+                    >
+                      {isEditingAnalysis ? '✓ 완료' : '✏️ 수정'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(analysisResult);
+                        setJsonCode(analysisResult); // 우측 패널로 복사
+                        const btn = document.getElementById('copy-analysis-btn');
+                        if (btn) {
+                          btn.textContent = '✓ 복사됨';
+                          setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
+                        }
+                      }}
+                      id="copy-analysis-btn"
+                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
+                      title="JSON 복사 후 우측에 적용"
+                    >
+                      📋 복사 & 적용
+                    </button>
+                  </div>
+                  {isEditingAnalysis ? (
+                    <textarea
+                      value={analysisResult}
+                      onChange={(e) => setAnalysisResult(e.target.value)}
+                      className="w-full h-[200px] bg-gray-800 text-green-300 font-mono text-sm p-2 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mt-8"
+                      placeholder="JSON 코드를 수정하세요..."
+                    />
+                  ) : (
+                    <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap pr-24 overflow-auto max-h-[200px]">{analysisResult}</pre>
+                  )}
                 </div>
               ) : analysisResult && analysisResult.startsWith('❌') ? (
                 <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 flex-1">
