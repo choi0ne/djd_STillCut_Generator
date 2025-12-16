@@ -128,7 +128,7 @@ def calculate_optimal_dpi(target_width=1200):
     return optimal_dpi
 
 def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized', 
-                         merge_pages=False, target_width=1200, output_format='webp'):
+                         merge_pages=False, target_width=1200, output_format='webp', selected_pages=None):
     print("=== 최적화된 PDF → PNG 변환 ===")
     print(f"목표 너비: {target_width}px")
     
