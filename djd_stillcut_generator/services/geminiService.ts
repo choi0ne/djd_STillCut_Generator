@@ -12,7 +12,7 @@ const getAiClient = () => {
     } catch (error) {
         console.error("로컬 스토리지에서 API 키를 파싱할 수 없습니다:", error);
     }
-    
+
     // Fallback to environment variable if not in local storage
     if (!apiKey) {
         apiKey = process.env.API_KEY;
@@ -56,76 +56,99 @@ const handleApiError = (error: unknown) => {
 }
 
 export const generateImageWithPrompt = async (
-  baseImage: ImageFile,
-  prompt: string,
-  count: number = 4
+    baseImage: ImageFile | null,
+    prompt: string,
+    count: number = 4
 ): Promise<string[]> => {
-  try {
-    const ai = getAiClient();
-    const model = 'gemini-2.5-flash-image';
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.5-flash-image';
 
-    const fullPrompt = `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`;
+        // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
+        const fullPrompt = baseImage
+            ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`
+            : `Create a high-quality, beautiful image based on the following instruction: "${prompt}".`;
 
-    const generateSingleImage = async () => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: {
-                parts: [
-                    base64ToPart(baseImage.base64, baseImage.mimeType),
-                    { text: fullPrompt },
-                ],
-            },
-            config: {
-                responseModalities: [Modality.IMAGE],
-            },
-        });
+        const generateSingleImage = async () => {
+            const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
 
-        if (!response.candidates || response.candidates.length === 0) {
+            if (baseImage) {
+                parts.push(base64ToPart(baseImage.base64, baseImage.mimeType));
+            }
+            parts.push({ text: fullPrompt });
+
+            const response = await ai.models.generateContent({
+                model,
+                contents: {
+                    parts,
+                },
+                config: {
+                    responseModalities: [Modality.IMAGE],
+                },
+            });
+
+            if (!response.candidates || response.candidates.length === 0) {
+                return null;
+            }
+
+            const firstPart = response.candidates[0].content?.parts?.[0];
+            if (firstPart && 'inlineData' in firstPart && firstPart.inlineData) {
+                return `data:${firstPart.inlineData.mimeType};base64,${firstPart.inlineData.data}`;
+            }
             return null;
         }
-        
-        const firstPart = response.candidates[0].content?.parts?.[0];
-        if (firstPart && 'inlineData' in firstPart && firstPart.inlineData) {
-            return `data:${firstPart.inlineData.mimeType};base64,${firstPart.inlineData.data}`;
+
+        const imagePromises = Array(count).fill(null).map(() => generateSingleImage());
+        const results = await Promise.all(imagePromises);
+        const validImages = results.filter((img): img is string => img !== null);
+
+
+        if (validImages.length === 0) {
+            throw new Error("이미지가 생성되지 않았습니다. 응답이 차단되었을 수 있습니다.");
         }
-        return null;
+
+        return validImages;
+    } catch (error) {
+        throw handleApiError(error);
     }
-
-    const imagePromises = Array(count).fill(null).map(() => generateSingleImage());
-    const results = await Promise.all(imagePromises);
-    const validImages = results.filter((img): img is string => img !== null);
-
-
-    if (validImages.length === 0) {
-        throw new Error("이미지가 생성되지 않았습니다. 응답이 차단되었을 수 있습니다.");
-    }
-
-    return validImages;
-  } catch (error) {
-    throw handleApiError(error);
-  }
 };
 
 
 export const generateImageWithCode = async (
     refImage: ImageFile | null,
-    jsonCode: string
+    inputText: string
 ): Promise<string[]> => {
     try {
         const ai = getAiClient();
         const model = 'gemini-2.5-flash-image';
-        
-        // FIX: The type for `parts` must be an array of a union of types to support multimodal content.
+
+        // JSON인지 일반 텍스트 프롬프트인지 감지
+        let isJson = false;
+        try {
+            JSON.parse(inputText.trim());
+            isJson = true;
+        } catch {
+            isJson = false;
+        }
+
         const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
         let prompt: string;
 
         if (refImage) {
             parts.push(base64ToPart(refImage.base64, refImage.mimeType));
-            prompt = "Create the highest quality, most beautiful image possible. Do not use any Korean characters. Use the provided reference image for artistic style, composition, and context. Adhere to the following JSON object for the new image's specific content and attributes:";
+            if (isJson) {
+                prompt = "Create the highest quality, most beautiful image possible. Do not use any Korean characters. Use the provided reference image for artistic style, composition, and context. Adhere to the following JSON object for the new image's specific content and attributes:";
+            } else {
+                prompt = "Create the highest quality, most beautiful image possible. Do not use any Korean characters. Use the provided reference image for artistic style, composition, and context. Follow this instruction:";
+            }
         } else {
-            prompt = "Create the highest quality, most beautiful image possible based on the following JSON object for the image's specific content and attributes. Do not use any Korean characters.";
+            if (isJson) {
+                prompt = "Create the highest quality, most beautiful image possible based on the following JSON object for the image's specific content and attributes. Do not use any Korean characters.";
+            } else {
+                prompt = "Create the highest quality, most beautiful image possible based on the following instruction. Do not use any Korean characters.";
+            }
         }
-        parts.push({ text: `${prompt}\n\n${jsonCode}` });
+        parts.push({ text: `${prompt}\n\n${inputText}` });
 
         const generateSingleImage = async () => {
             const response = await ai.models.generateContent({
@@ -141,14 +164,14 @@ export const generateImageWithCode = async (
             if (!response.candidates || response.candidates.length === 0) {
                 return null;
             }
-            
+
             const firstPart = response.candidates[0].content?.parts?.[0];
             if (firstPart && 'inlineData' in firstPart && firstPart.inlineData) {
                 return `data:${firstPart.inlineData.mimeType};base64,${firstPart.inlineData.data}`;
             }
             return null;
         };
-        
+
         const imagePromises = Array(4).fill(null).map(() => generateSingleImage());
         const results = await Promise.all(imagePromises);
         const validImages = results.filter((img): img is string => img !== null);
@@ -164,32 +187,32 @@ export const generateImageWithCode = async (
 };
 
 export const generatePromptFromImage = async (
-  image: ImageFile,
+    image: ImageFile,
 ): Promise<string> => {
-  try {
-    const ai = getAiClient();
-    const model = 'gemini-3-pro-preview';
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-3-pro-preview';
 
-    const prompt = "Describe this image for an image generation prompt. Focus on the subject, style, setting, and composition. Provide a detailed, comma-separated list of keywords in English.";
-    
-    const response = await ai.models.generateContent({
-        model,
-        contents: {
-            parts: [
-                base64ToPart(image.base64, image.mimeType),
-                { text: prompt },
-            ],
-        },
-    });
+        const prompt = "Describe this image for an image generation prompt. Focus on the subject, style, setting, and composition. Provide a detailed, comma-separated list of keywords in English.";
 
-    const text = response.text;
-    if (!text) {
-        throw new Error("API가 텍스트 응답을 반환하지 않았습니다.");
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [
+                    base64ToPart(image.base64, image.mimeType),
+                    { text: prompt },
+                ],
+            },
+        });
+
+        const text = response.text;
+        if (!text) {
+            throw new Error("API가 텍스트 응답을 반환하지 않았습니다.");
+        }
+
+        return text;
+
+    } catch (error) {
+        throw handleApiError(error);
     }
-    
-    return text;
-
-  } catch (error) {
-    throw handleApiError(error);
-  }
 };

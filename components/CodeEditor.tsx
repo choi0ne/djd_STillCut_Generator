@@ -70,21 +70,26 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         setJsonError(null);
       }
     } catch (e) {
-      setJsonError("잘못된 JSON 형식입니다. 수정해주세요.");
+      // JSON이 아니면 포맷팅 무시 (일반 텍스트 프롬프트로 처리)
+      setJsonError(null);
     }
   };
 
-  const validateJson = () => {
+  const validateInput = () => {
     if (!jsonCode.trim()) {
-      setJsonError('JSON 코드를 입력해주세요.');
+      setJsonError('프롬프트 또는 JSON 코드를 입력해주세요.');
       return false;
     }
+    setJsonError(null);
+    return true;
+  };
+
+  // JSON 여부 확인 함수
+  const isJsonInput = (input: string): boolean => {
     try {
-      JSON.parse(jsonCode);
-      setJsonError(null);
+      JSON.parse(input.trim());
       return true;
-    } catch (e) {
-      setJsonError('잘못된 JSON 형식입니다. 생성하기 전에 수정해주세요.');
+    } catch {
       return false;
     }
   };
@@ -127,14 +132,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     });
   };
 
-  // 현재 JSON 설정을 라이브러리에 저장
+  // 현재 설정을 라이브러리에 저장
   const handleSaveCurrentConfig = () => {
     if (!jsonCode.trim()) {
-      alert("저장할 JSON 설정이 없습니다.");
-      return;
-    }
-    if (!validateJson()) {
-      alert("유효한 JSON 형식이어야 저장할 수 있습니다.");
+      alert("저장할 내용이 없습니다.");
       return;
     }
     setLibraryInitialText(jsonCode);
@@ -151,7 +152,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       openSettings();
       return;
     }
-    if (!validateJson()) {
+    if (!validateInput()) {
       return;
     }
 
@@ -187,8 +188,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 <button
                   onClick={() => setSelectedProvider('gemini')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'gemini'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }`}
                 >
                   🔷 Gemini
@@ -196,8 +197,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 <button
                   onClick={() => setSelectedProvider('openai')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'openai'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }`}
                 >
                   💚 ChatGPT

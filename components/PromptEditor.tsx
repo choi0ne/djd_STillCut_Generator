@@ -23,7 +23,7 @@ const defaultPrompts: StoredPrompt[] = [
   { id: 'consultation-9', title: "태블릿 설명 샷", text: "Transform this photo to show the same doctor showing information on tablet to patient. Medium shot (waist up), shot at f/2.8 for pleasant bokeh, patient and background softly blurred creating focus on interaction. Natural lighting, patient education scene with professional depth and modern feel. Background: Modern Korean medicine consultation room with clean, professional atmosphere. Warm white and beige tones, minimalist design with natural wood accents. Soft, even lighting creating a calm, trustworthy mood. Medical books and subtle traditional Korean medicine elements visible. Contemporary furniture with clean lines." },
   { id: 'consultation-10', title: "설명하는 손동작 (미디엄)", text: "Doctor in white coat making explanatory hand gestures while consulting in modern Korean medicine office. Medium shot waist up f/2.5, warm consultation room with contemporary beige and white design, natural wood furniture, soft professional lighting." },
   { id: 'consultation-11', title: "환자 차트 확인 샷", text: "Transform this photo to show the same doctor in white medical gown, reviewing patient charts or medical records with a thoughtful expression. Medium shot (waist up), shot at f/2.5 for smooth bokeh, professional documentation scene with environmental context. Background: Modern Korean medicine consultation room with clean, professional atmosphere. Warm white and beige tones, minimalist design with natural wood accents. Soft, even lighting creating a calm, trustworthy mood. Medical books and subtle traditional Korean medicine elements visible. Contemporary furniture with clean lines." },
-  
+
   // Category: Environment
   { id: 'environment-1', title: "책장 일부 디테일", text: "Section of modern wooden bookshelf with medical reference books in Korean medicine consultation room. Medium shot f/2.8, book spines slightly out of focus to keep text unreadable, clean contemporary clinic interior with white walls and natural wood, organized professional atmosphere, warm lighting." },
   { id: 'environment-2', title: "문손잡이와 표지판", text: "Close-up shot of modern door handle and clean signage on clinic room door. Shot at f/2.8 for smooth bokeh, handle and sign in focus with corridor softly blurred in background creating spatial depth. Clean professional lighting, no people visible. Professional organization detail with dimensional quality. Background: Professional clinic entrance area. Modern glass doors, reception desk visible. Welcoming atmosphere with clean design, neutral colors (white, beige, natural wood). Bright lighting, indoor plants. Contemporary professional medical facility entrance." },
@@ -72,8 +72,8 @@ const defaultPrompts: StoredPrompt[] = [
 ];
 
 interface PromptEditorProps {
-    isApiKeyReady: boolean;
-    openSettings: () => void;
+  isApiKeyReady: boolean;
+  openSettings: () => void;
 }
 
 const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings }) => {
@@ -83,7 +83,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   const [promptError, setPromptError] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
-  
+
   const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('storedPrompts', defaultPrompts);
 
   const generationWrapper = useCallback(async (
@@ -104,7 +104,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
       return generateImageWithPrompt(baseImage, promptToUse, 4);
     }
   }, []);
-  
+
   const {
     isLoading,
     error,
@@ -121,19 +121,15 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     setImage(file);
     clearResults();
   };
-  
+
   const clearImage = () => {
-      setImage(null);
-      clearResults();
+    setImage(null);
+    clearResults();
   }
 
   const handleSubmit = () => {
     if (!isApiKeyReady) {
       openSettings();
-      return;
-    }
-    if (!image) {
-      setPromptError('먼저 이미지를 업로드해주세요.');
       return;
     }
     if (selectedPrompts.length === 0 && !prompt.trim()) {
@@ -143,7 +139,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     setPromptError(null);
     generate(image, prompt, selectedPrompts);
   };
-  
+
   const handleAddPrompt = (title: string, text: string) => {
     if (title.trim() && text.trim()) {
       const newPrompt = { id: uuidv4(), title, text };
@@ -167,7 +163,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   const handleUpdatePrompt = (id: string, title: string, text: string) => {
     setStoredPrompts(prompts => prompts.map(p => p.id === id ? { ...p, title, text } : p));
   };
-  
+
   const handleDeletePrompt = (id: string) => {
     setStoredPrompts(prompts => prompts.filter(p => p.id !== id));
   };
@@ -177,19 +173,19 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     setPrompt('');
     setIsLibraryOpen(false);
   };
-  
+
   const handleRemoveSelectedPrompt = (idToRemove: string) => {
     setSelectedPrompts(prev => prev.filter(p => p.id !== idToRemove));
   };
-  
+
   const handleImportPrompts = (importedPrompts: StoredPrompt[]) => {
     setStoredPrompts(currentPrompts => {
       const currentIds = new Set(currentPrompts.map(p => p.id));
       const newPrompts = importedPrompts.filter(p => !currentIds.has(p.id));
-      
+
       if (newPrompts.length === 0) {
-          alert("새로운 프롬프트가 없습니다. 모든 프롬프트가 이미 라이브러리에 존재합니다.");
-          return currentPrompts;
+        alert("새로운 프롬프트가 없습니다. 모든 프롬프트가 이미 라이브러리에 존재합니다.");
+        return currentPrompts;
       }
 
       alert(`${newPrompts.length}개의 새로운 프롬프트를 추가했습니다.`);
@@ -203,20 +199,20 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   }
 
   const renderGenerateButton = () => {
-    const isReadyToGenerate = (!!prompt.trim() || selectedPrompts.length > 0) && !!image;
+    const isReadyToGenerate = !!prompt.trim() || selectedPrompts.length > 0;
     return (
-       <button
-          onClick={handleSubmit}
-          disabled={isLoading || !isReadyToGenerate || !isApiKeyReady}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg mt-6"
-        >
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : (
-            <SparklesIcon className="w-6 h-6" />
-          )}
-          <span>{isLoading ? '생성 중...' : '이미지 생성'}</span>
-        </button>
+      <button
+        onClick={handleSubmit}
+        disabled={isLoading || !isReadyToGenerate || !isApiKeyReady}
+        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-lg mt-6"
+      >
+        {isLoading ? (
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+        ) : (
+          <SparklesIcon className="w-6 h-6" />
+        )}
+        <span>{isLoading ? '생성 중...' : '이미지 생성'}</span>
+      </button>
     );
   };
 
@@ -226,42 +222,42 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
         <Panel>
           <div className="flex flex-col gap-6 flex-grow">
             <div className="flex flex-col">
-              <label className="block text-lg font-semibold mb-2 text-gray-300">1. 얼굴 이미지 업로드</label>
-                {image ? (
-                    <div className="relative group h-64 rounded-lg overflow-hidden">
-                    <img src={image.base64} alt="업로드된 얼굴" className="w-full h-full object-contain" />
-                    <button 
-                        onClick={clearImage}
-                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
-                        title="이미지 제거"
-                        aria-label="이미지 제거"
-                    >
-                        <XIcon className="w-5 h-5" />
-                    </button>
-                    </div>
-                ) : (
-                    <div className="h-64">
-                        <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" />
-                    </div>
-                )}
+              <label className="block text-lg font-semibold mb-2 text-gray-300">1. 이미지 업로드 (선택사항)</label>
+              {image ? (
+                <div className="relative group h-64 rounded-lg overflow-hidden">
+                  <img src={image.base64} alt="업로드된 얼굴" className="w-full h-full object-contain" />
+                  <button
+                    onClick={clearImage}
+                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
+                    title="이미지 제거"
+                    aria-label="이미지 제거"
+                  >
+                    <XIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-64">
+                  <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" />
+                </div>
+              )}
             </div>
-            
+
             <div>
               <label htmlFor="prompt-input" className="block text-lg font-semibold mb-2 text-gray-300">2. 변경사항 설명</label>
               {selectedPrompts.length > 0 && (
-                  <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-400 mb-2">선택된 라이브러리 프롬프트:</p>
-                      <div className="flex flex-wrap gap-2">
-                          {selectedPrompts.map(p => (
-                              <span key={p.id} className="flex items-center gap-2 bg-indigo-500/20 text-indigo-300 text-sm font-medium px-3 py-1 rounded-full">
-                                  {p.title}
-                                  <button onClick={() => handleRemoveSelectedPrompt(p.id)} className="text-indigo-200 hover:text-white" aria-label={`"${p.title}" 프롬프트 제거`}>
-                                      <XIcon className="w-3 h-3" />
-                                  </button>
-                              </span>
-                          ))}
-                      </div>
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-gray-400 mb-2">선택된 라이브러리 프롬프트:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPrompts.map(p => (
+                      <span key={p.id} className="flex items-center gap-2 bg-indigo-500/20 text-indigo-300 text-sm font-medium px-3 py-1 rounded-full">
+                        {p.title}
+                        <button onClick={() => handleRemoveSelectedPrompt(p.id)} className="text-indigo-200 hover:text-white" aria-label={`"${p.title}" 프롬프트 제거`}>
+                          <XIcon className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
                   </div>
+                </div>
               )}
               <p className="text-sm text-gray-400 mb-3">
                 {(() => {
@@ -285,21 +281,21 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   className="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed"
                 />
                 <button
-                    onClick={handleSaveCurrentPrompt}
-                    className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                    title="현재 프롬프트 저장"
-                    aria-label="현재 프롬프트 라이브러리에 저장"
-                    disabled={!prompt.trim() || selectedPrompts.length > 0}
+                  onClick={handleSaveCurrentPrompt}
+                  className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
+                  title="현재 프롬프트 저장"
+                  aria-label="현재 프롬프트 라이브러리에 저장"
+                  disabled={!prompt.trim() || selectedPrompts.length > 0}
                 >
-                    <PlusIcon className="w-5 h-5" />
+                  <PlusIcon className="w-5 h-5" />
                 </button>
                 <button
-                    onClick={() => setIsLibraryOpen(true)}
-                    className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                    title="프롬프트 라이브러리"
-                    aria-label="프롬프트 라이브러리 열기"
+                  onClick={() => setIsLibraryOpen(true)}
+                  className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
+                  title="프롬프트 라이브러리"
+                  aria-label="프롬프트 라이브러리 열기"
                 >
-                    <LibraryIcon className="w-5 h-5" />
+                  <LibraryIcon className="w-5 h-5" />
                 </button>
               </div>
               {promptError && <p className="text-sm text-red-400 mt-2">{promptError}</p>}

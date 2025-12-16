@@ -117,13 +117,6 @@ const App: React.FC = () => {
                 ✨ 이미지 생성
               </button>
               <button
-                onClick={() => setMode('image-prompt')}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'image-prompt' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
-                  }`}
-              >
-                🖼️ 프롬프트 추출
-              </button>
-              <button
                 onClick={() => setMode('code')}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'code' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
                   }`}
@@ -136,6 +129,13 @@ const App: React.FC = () => {
                   }`}
               >
                 🔧 MPS 후처리
+              </button>
+              <button
+                onClick={() => setMode('image-prompt')}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'image-prompt' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                🖼️ 프롬프트 추출
               </button>
             </div>
 
