@@ -241,7 +241,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         <Panel>
           <div className="flex flex-col gap-6 flex-grow">
             <div className="flex flex-col">
@@ -281,7 +281,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
               onSelect={handleSelectDriveFile}
             />
 
-            <div>
+            <div className="flex-grow flex flex-col">
               <label htmlFor="prompt-input" className="block text-lg font-semibold mb-2 text-gray-300">2. 변경사항 설명</label>
               {selectedPrompts.length > 0 && (
                 <div className="mb-3">
@@ -309,15 +309,14 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   return '첨부한 파일의 인물의 얼굴은 그대로 유지하면서, 의상과 배경을 어떻게 바꿀지 설명해주세요.';
                 })()}
               </p>
-              <div className="flex gap-2">
-                <input
+              <div className="flex gap-2 flex-grow h-full">
+                <textarea
                   id="prompt-input"
-                  type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={selectedPrompts.length > 0 ? "라이브러리 프롬프트 사용 중" : "예: 미래형 우주복을 입고, 화성에서"}
                   disabled={selectedPrompts.length > 0}
-                  className="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  className="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed resize-none"
                 />
                 <button
                   onClick={handleSaveCurrentPrompt}
