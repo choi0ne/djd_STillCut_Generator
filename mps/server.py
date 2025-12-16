@@ -153,5 +153,14 @@ def process_pdf(
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+    finally:
+        # Cloud Run 메모리 확보를 위해 PDF 원본 즉시 삭제
+        if 'input_path' in locals() and os.path.exists(input_path):
+            try:
+                os.remove(input_path)
+                print(f"🗑️ 메모리 확보: PDF 원본 삭제 완료 ({input_path})")
+            except:
+                pass
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
