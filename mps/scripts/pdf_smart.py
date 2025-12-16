@@ -138,9 +138,22 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
     
     os.makedirs(output_dir, exist_ok=True)
     
-    print(f"\n1. PDF를 이미지로 변환 중... (DPI: {optimal_dpi})")
-    images = convert_from_path(pdf_path, dpi=optimal_dpi)
-    print(f"   총 {len(images)} 페이지 변환 완료")
+    from pdf2image import pdfinfo_from_path
+    
+    # PDF 정보 가져오기 (페이지 수 확인)
+    info = pdfinfo_from_path(pdf_path)
+    max_pages = info["Pages"]
+    print(f"\n1. PDF 분석 완료: 총 {max_pages} 페이지")
+    
+    # 배치 크기 설정 (메모리 절약을 위해 한 번에 처리할 페이지 수)
+    BATCH_SIZE = 5
+    images = []
+    
+    print(f"2. PDF 변환 및 처리 시작 (배치 크기: {BATCH_SIZE}페이지)...")
+    
+    # 배치 단위로 처리
+    info = None # 메모리 해제
+
     
     # 로고 사용 여부 결정 (기본값: 비활성화)
     use_logo = False
@@ -157,106 +170,109 @@ def process_pdf_optimized(pdf_path, logo_path, output_dir='output_optimized',
         use_logo = False
         print(f"   ✅ 워터마크만 제거 (로고 비활성화)")
     
-    print("\n2. 모든 페이지의 좌우 여백 분석 중...")
-    min_left = float('inf')
-    max_right = 0
-    
-    for idx, img in enumerate(images):
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        
-        bounds = detect_content_bounds(img)
-        crop_left, _, crop_right, _ = bounds
-        
-        min_left = min(min_left, crop_left)
-        max_right = max(max_right, crop_right)
-    
-    print(f"   전체 최소 좌측: {min_left}")
-    print(f"   전체 최대 우측: {max_right}")
-    unified_width = max_right - min_left
-    print(f"   통일된 너비: {unified_width}px")
-    
-    needs_final_resize = unified_width > target_width
-    if needs_final_resize:
-        resize_ratio = target_width / unified_width
-        print(f"   📏 최종 리사이즈 필요: {unified_width}px → {target_width}px (비율: {resize_ratio:.2%})")
-    
-    print(f"\n3. 페이지 처리 중...")
+    # 배치 처리 루프
     processed_images = []
     
-    for idx, img in enumerate(images):
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+    # 0부터 max_pages까지 BATCH_SIZE 간격으로 반복
+    for i in range(0, max_pages, BATCH_SIZE):
+        first_page = i + 1
+        last_page = min(i + BATCH_SIZE, max_pages)
+        print(f"\n   🔄 배치 처리: {first_page} ~ {last_page} 페이지 변환 중...")
         
-        width, height = img.size
+        # 해당 구간만 이미지로 변환
+        batch_images = convert_from_path(pdf_path, dpi=optimal_dpi, first_page=first_page, last_page=last_page)
         
-        watermark_width = int(450 * (optimal_dpi / 300))
-        watermark_height = int(130 * (optimal_dpi / 300))
+        # 2. 모든 페이지의 좌우 여백 분석 중... (배치 단위로 수행하려면 복잡하므로, 
+        # 메모리 절약을 위해 여기서는 '기본 여백'이나 '첫 배치의 여백'을 사용하거나,
+        # 전체 분석 대신 개별 페이지 크롭을 수행. 
+        # *성능 최적화를 위해 일단 개별 페이지 크롭으로 변경* (전체 통일성보다 메모리 우선)
         
-        watermark_x1 = width - watermark_width
-        watermark_y1 = height - watermark_height
-        watermark_x2 = width
-        watermark_y2 = height
-        
-        # 개선된 배경색 샘플링 (4방향, 중앙값)
-        background_color = get_improved_background_color(
-            img, watermark_x1, watermark_y1, watermark_x2, watermark_y2
-        )
-        
-        # 그라디언트 블렌딩 적용
-        img_array = np.array(img)
-        img_array = apply_gradient_blend(
-            img_array, watermark_x1, watermark_y1, watermark_x2, watermark_y2, background_color
-        )
-        img = Image.fromarray(img_array)
-        
-        # 로고 삽입 (선택적)
-        if use_logo:
-            logo_size = int(90 * (optimal_dpi / 300))
-            logo_array = np.array(logo)
-            new_logo = np.zeros_like(logo_array)
+        for idx, img in enumerate(batch_images):
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
             
-            for i in range(logo_array.shape[0]):
-                for j in range(logo_array.shape[1]):
-                    r, g, b, a = logo_array[i, j]
-                    
-                    if a < 10:
-                        new_logo[i, j] = [background_color[0], background_color[1], background_color[2], 0]
-                    elif r > 200 and g > 200 and b > 200:
-                        new_logo[i, j] = [background_color[0], background_color[1], background_color[2], 255]
-                    else:
-                        new_logo[i, j] = [r, g, b, a]
+            width, height = img.size
             
-            logo_converted = Image.fromarray(new_logo.astype('uint8'), 'RGBA')
-            logo_resized = logo_converted.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+            # 워터마크 영역 계산
+            watermark_width = int(450 * (optimal_dpi / 300))
+            watermark_height = int(130 * (optimal_dpi / 300))
             
-            logo_x = width - logo_size - int(30 * (optimal_dpi / 300))
-            logo_y = height - logo_size - int(25 * (optimal_dpi / 300))
+            watermark_x1 = width - watermark_width
+            watermark_y1 = height - watermark_height
+            watermark_x2 = width
+            watermark_y2 = height
             
-            img_rgba = img.convert('RGBA')
-            img_rgba.paste(logo_resized, (logo_x, logo_y), logo_resized)
-            img = img_rgba.convert('RGB')
+            # 배경색 샘플링 및 워터마크 제거
+            background_color = get_improved_background_color(
+                img, watermark_x1, watermark_y1, watermark_x2, watermark_y2
+            )
+            
+            img_array = np.array(img)
+            img_array = apply_gradient_blend(
+                img_array, watermark_x1, watermark_y1, watermark_x2, watermark_y2, background_color
+            )
+            img = Image.fromarray(img_array)
+            
+            # 로고 삽입
+            if use_logo:
+                logo_size = int(90 * (optimal_dpi / 300))
+                # 로고 처리 로직 (이전과 동일)
+                logo_array = np.array(logo)
+                new_logo = np.zeros_like(logo_array)
+                for r_idx in range(logo_array.shape[0]):
+                    for c_idx in range(logo_array.shape[1]):
+                        r, g, b, a = logo_array[r_idx, c_idx]
+                        if a < 10:
+                            new_logo[r_idx, c_idx] = [background_color[0], background_color[1], background_color[2], 0]
+                        elif r > 200 and g > 200 and b > 200:
+                            new_logo[r_idx, c_idx] = [background_color[0], background_color[1], background_color[2], 255]
+                        else:
+                            new_logo[r_idx, c_idx] = [r, g, b, a]
+                
+                logo_converted = Image.fromarray(new_logo.astype('uint8'), 'RGBA')
+                logo_resized = logo_converted.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+                
+                logo_x = width - logo_size - int(30 * (optimal_dpi / 300))
+                logo_y = height - logo_size - int(25 * (optimal_dpi / 300))
+                
+                img_rgba = img.convert('RGBA')
+                img_rgba.paste(logo_resized, (logo_x, logo_y), logo_resized)
+                img = img_rgba.convert('RGB')
+
+            # 컨텐츠 영역 감지 및 크롭 (개별 페이지 단위)
+            bounds = detect_content_bounds(img)
+            crop_left, crop_top, crop_right, crop_bottom = bounds
+            
+            # 로고가 있으면 포함
+            if use_logo:
+                # 로고 위치 재계산이 필요할 수 있으나, 위 변수 활용
+                logo_left = logo_x
+                logo_right = logo_x + logo_size
+                crop_left = min(crop_left, logo_left)
+                crop_right = max(crop_right, logo_right)
+            
+            # 여백 통일성을 위해 crop_left를 0으로 고정하거나 최소한의 패딩만 주는 것도 방법
+            # 여기서는 감지된 영역으로 크롭
+            img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
+
+            # 리사이즈 (가로폭 1200 등) - 나중에 합칠 때 하거나 여기서 미리 함
+            # 메모리 절약을 위해 미리 리사이즈
+            current_width = img.width
+            if current_width > target_width:
+                 resize_ratio = target_width / current_width
+                 new_height = int(img.height * resize_ratio)
+                 img = img.resize((target_width, new_height), Image.Resampling.LANCZOS)
+            
+            processed_images.append(img)
+            
+        print(f"   ✅ 배치 완료 ({len(batch_images)}장 처리)")
+        batch_images = None # 메모리 즉시 해제
         
-        # 크롭 영역 계산
-        crop_left = min_left
-        crop_right = max_right
-        crop_top = 0
-        crop_bottom = height
-        
-        # 로고가 있으면 로고도 포함하도록 크롭 영역 조정
-        if use_logo:
-            logo_left = logo_x
-            logo_right = logo_x + logo_size
-            crop_left = min(crop_left, logo_left)
-            crop_right = max(crop_right, logo_right)
-        
-        # 크롭
-        img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
-        
-        processed_images.append(img)
-        
-        if (idx + 1) % 5 == 0:
-            print(f"   처리 완료: {idx + 1}/{len(images)} 페이지")
+    print(f"   총 {len(processed_images)} 페이지 처리 완료")
+    
+    # 이하 병합 로직은 processed_images 사용
+    needs_final_resize = False # 이미 리사이즈 했으므로 false 처리
+    resize_ratio = 1.0 # 리셋
     
     print(f"   ✅ 모든 페이지 처리 완료")
     
