@@ -5,6 +5,7 @@ import { SparklesIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useImageGenerator } from '../hooks/useImageGenerator';
 import { generateImageWithPrompt } from '../services/geminiService';
+import { generateWithOpenAI } from '../services/openaiProvider';
 import GenerationResultPanel from './GenerationResultPanel';
 import { ImageFile } from '../types';
 
@@ -38,6 +39,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
 
     // 직접 프롬프트 입력 모드
     const [directPrompt, setDirectPrompt] = useState('');
+    const [baseDirectPrompt, setBaseDirectPrompt] = useState(''); // 사용자가 입력한 원본 프롬프트
     const [useDirectPrompt, setUseDirectPrompt] = useState(false);
 
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
@@ -58,7 +60,34 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         canRegenerate,
     } = useImageGenerator<ImageFile | null | string>({
         generationFn: async (baseImage: ImageFile | null, prompt: string) => {
-            return await generateImageWithPrompt(baseImage, prompt, 4);
+            if (selectedProvider === 'gemini') {
+                // Gemini 이미지 생성
+                return await generateImageWithPrompt(baseImage, prompt, 4);
+            } else {
+                // OpenAI DALL-E 이미지 생성
+                // DALL-E는 base image를 지원하지 않으므로 프롬프트만 사용
+                const results = await Promise.all(
+                    Array(4).fill(null).map(() =>
+                        generateWithOpenAI(
+                            {
+                                provider: 'openai',
+                                prompt,
+                                options: {
+                                    model: 'dall-e-3',
+                                    size: '1024x1024',
+                                    quality: 'standard'
+                                }
+                            },
+                            openaiApiKey
+                        )
+                    )
+                );
+
+                // 성공한 이미지만 필터링하여 반환
+                return results
+                    .filter(r => r.success && r.imageBase64)
+                    .map(r => `data:image/png;base64,${r.imageBase64}`);
+            }
         }
     });
 
@@ -78,6 +107,9 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         setSelectedConceptIndex(index);
         if (initialContext && initialContext.concepts[index]) {
             const concept = initialContext.concepts[index];
+
+            // 주제와 키워드 자동 설정
+            setTopic(initialContext.topic);
             setContent(concept.keywords.join(', '));
 
             // AI 추천 스타일 자동 적용 (사용자가 나중에 변경 가능)
@@ -192,25 +224,15 @@ ${negatives}
 
     // 스타일/팔레트 변경 시 직접 프롬프트 자동 업데이트
     useEffect(() => {
-        if (useDirectPrompt && directPrompt.trim()) {
-            // 기존 프롬프트에서 스타일/색상 부분 제거 후 새로운 정보로 대체
-            let basePrompt = directPrompt;
-
-            // 기존 Style: 부분 제거
-            basePrompt = basePrompt.replace(/\s*Style:.*?(?=\s*Color palette:|$)/g, '');
-            // 기존 Color palette: 부분 제거
-            basePrompt = basePrompt.replace(/\s*Color palette:.*$/g, '');
-
-            const enhanced = buildEnhancedPrompt(basePrompt.trim(), selectedStyle, selectedPalette);
-            if (enhanced !== directPrompt) {
-                setDirectPrompt(enhanced);
-            }
+        if (useDirectPrompt && baseDirectPrompt.trim()) {
+            const enhanced = buildEnhancedPrompt(baseDirectPrompt.trim(), selectedStyle, selectedPalette);
+            setDirectPrompt(enhanced);
         }
-    }, [selectedStyle, selectedPalette, useDirectPrompt]);
+    }, [selectedStyle, selectedPalette, useDirectPrompt, baseDirectPrompt, buildEnhancedPrompt]);
 
-    // 직접 프롬프트로 이미지 생성 (주제/키워드 없이도 가능)
+    // 직접 프롬프트로 이미지 생성 (생성된 프롬프트 사용)
     const handleGenerateWithDirectPrompt = async () => {
-        if (!directPrompt.trim()) return;
+        if (!generatedPrompt.trim()) return;
 
         const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
         if (!apiKey) {
@@ -218,8 +240,8 @@ ${negatives}
             return;
         }
 
-        setGeneratedPrompt(directPrompt);
-        generateImage(null, directPrompt);
+        // 생성된 프롬프트로 이미지 생성
+        generateImage(null, generatedPrompt);
     };
 
     // 이미지 생성 (프롬프트 자동 생성 포함)
@@ -478,7 +500,15 @@ ${negatives}
                                 </p>
                                 <textarea
                                     value={directPrompt}
-                                    onChange={(e) => setDirectPrompt(e.target.value)}
+                                    onChange={(e) => {
+                                        const input = e.target.value;
+                                        // 사용자가 입력한 텍스트에서 Style:과 Color palette: 부분 제거하여 원본만 저장
+                                        let base = input;
+                                        base = base.replace(/\s*Style:.*?(?=\s*Color palette:|$)/g, '');
+                                        base = base.replace(/\s*Color palette:.*$/g, '');
+                                        setBaseDirectPrompt(base.trim());
+                                        setDirectPrompt(input);
+                                    }}
                                     placeholder="직접 프롬프트를 입력하세요... (예: A calm isometric infographic showing mental wellness)"
                                     rows={3}
                                     className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
@@ -487,7 +517,22 @@ ${negatives}
                                     <button
                                         onClick={() => {
                                             if (selectedStyle) {
-                                                const enhanced = buildEnhancedPrompt(selectedStyle.goldStandardExample.BACKGROUND_PROMPT, selectedStyle, selectedPalette);
+                                                // 생성된 프롬프트가 있으면 그것을 기반으로, 없으면 템플릿만 사용
+                                                let baseContent = generatedPrompt || selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
+
+                                                // 기존 스타일 키워드 제거 (예: "conceptual metaphor style", "digital painting" 등)
+                                                STYLE_LIBRARY.forEach(style => {
+                                                    const keywords = style.keywords.join('|');
+                                                    const regex = new RegExp(`\\b(${keywords})\\b`, 'gi');
+                                                    baseContent = baseContent.replace(regex, '');
+                                                });
+
+                                                // 중복 공백 정리
+                                                baseContent = baseContent.replace(/\s+/g, ' ').trim();
+
+                                                // 새 스타일 템플릿으로 교체하여 직접 입력 필드에 표시
+                                                setBaseDirectPrompt(baseContent);
+                                                const enhanced = buildEnhancedPrompt(baseContent, selectedStyle, selectedPalette);
                                                 setDirectPrompt(enhanced);
                                             }
                                         }}
@@ -497,7 +542,21 @@ ${negatives}
                                         📋 스타일 템플릿 불러오기
                                     </button>
                                     <button
-                                        onClick={() => setDirectPrompt('')}
+                                        onClick={() => {
+                                            if (directPrompt.trim()) {
+                                                setGeneratedPrompt(directPrompt);
+                                            }
+                                        }}
+                                        disabled={!directPrompt.trim()}
+                                        className="flex-1 py-1.5 px-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs rounded transition-colors"
+                                    >
+                                        ↓ 생성된 프롬프트로 적용
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDirectPrompt('');
+                                            setBaseDirectPrompt('');
+                                        }}
                                         className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors"
                                     >
                                         🗑️ 초기화
@@ -529,16 +588,8 @@ ${negatives}
                                         {copiedPrompt ? '✅ 복사됨!' : '📋 복사'}
                                     </button>
                                     <button
-                                        onClick={() => setIsEditingPrompt(!isEditingPrompt)}
-                                        className={`text-xs transition-colors ${isEditingPrompt ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-blue-400'}`}
-                                        title={isEditingPrompt ? '읽기 모드로 전환' : '편집 모드로 전환'}
-                                    >
-                                        {isEditingPrompt ? '👁️ 읽기' : '✏️ 수정'}
-                                    </button>
-                                    <button
                                         onClick={() => {
                                             setGeneratedPrompt('');
-                                            setIsEditingPrompt(false);
                                         }}
                                         className="text-xs text-gray-500 hover:text-red-400 transition-colors"
                                         title="프롬프트 초기화"
@@ -547,25 +598,10 @@ ${negatives}
                                     </button>
                                 </div>
                             </div>
-                            {isEditingPrompt ? (
-                                <>
-                                    <textarea
-                                        value={generatedPrompt}
-                                        onChange={(e) => setGeneratedPrompt(e.target.value)}
-                                        rows={5}
-                                        className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
-                                        placeholder="생성된 프롬프트가 여기에 표시됩니다..."
-                                    />
-                                    <p className="text-xs text-amber-400 mt-1">✏️ 편집 모드: 프롬프트를 자유롭게 수정할 수 있습니다.</p>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs max-h-32 overflow-y-auto">
-                                        {generatedPrompt}
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">👁️ 읽기 모드: 수정하려면 '✏️ 수정' 버튼을 클릭하세요.</p>
-                                </>
-                            )}
+                            <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs max-h-32 overflow-y-auto">
+                                {generatedPrompt}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">👁️ 읽기 전용: 수정하려면 위의 '직접 프롬프트 입력'을 사용하세요.</p>
                         </div>
                     )}
 
@@ -573,7 +609,7 @@ ${negatives}
                     {useDirectPrompt ? (
                         <button
                             onClick={handleGenerateWithDirectPrompt}
-                            disabled={isImageLoading || !directPrompt.trim() || !isApiKeyReady}
+                            disabled={isImageLoading || !generatedPrompt.trim() || !isApiKeyReady}
                             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isImageLoading ? (
