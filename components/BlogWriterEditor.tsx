@@ -454,6 +454,41 @@ ${stageData.finalDraft}
     };
 
     const handleCompleteStage7 = () => {
+        // 추천태그(Stage 1 키워드)를 로컬 텍스트 파일로 자동 저장
+        if (stageData.keywords.length > 0) {
+            // # 표시 제거 및 정리
+            const cleanedTags = stageData.keywords.map(tag =>
+                tag.replace(/^#+\s*/, '')  // 시작 부분의 # 제거
+                    .replace(/^[-*]\s*/, '') // 불릿 포인트 제거
+                    .trim()
+            ).filter(tag => tag.length > 0);
+
+            if (cleanedTags.length > 0) {
+                const content = cleanedTags.join('\n');
+
+                // 파일명 생성 (추천태그_YYYYMMDD_HHmmss.txt)
+                const now = new Date();
+                const timestamp = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') + '_' +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+                const filename = `추천태그_${timestamp}.txt`;
+
+                // Blob으로 파일 다운로드
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
         if (onStage7Complete && stageData.imageConcepts.length > 0) {
             onStage7Complete({
                 topic: stageData.selectedTopic,
