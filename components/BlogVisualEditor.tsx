@@ -43,6 +43,8 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
     const [isEditingPrompt, setIsEditingPrompt] = useState(false);
     const [copiedPrompt, setCopiedPrompt] = useState(false);
+    const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false); // 프롬프트 자동 생성 로딩 상태
+
 
     // 이미지 생성 훅
     const {
@@ -71,24 +73,100 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         }
     }, [initialContext]);
 
-    // 컨셉 선택 변경 시 키워드 및 AI 추천 스타일/팔레트 적용
-    const handleConceptSelect = (index: number) => {
+    // 컨셉 선택 변경 시 키워드 및 AI 추천 스타일/팔레트 적용 + 자동 프롬프트 생성
+    const handleConceptSelect = async (index: number) => {
         setSelectedConceptIndex(index);
         if (initialContext && initialContext.concepts[index]) {
             const concept = initialContext.concepts[index];
             setContent(concept.keywords.join(', '));
 
             // AI 추천 스타일 자동 적용 (사용자가 나중에 변경 가능)
+            let selectedStyleForPrompt: StyleTemplate | null = null;
             if (concept.recommendedStyle) {
                 const style = STYLE_LIBRARY.find(s => s.id === concept.recommendedStyle);
                 if (style) {
                     setSelectedStyle(style);
+                    selectedStyleForPrompt = style;
                 }
             }
 
             // AI 추천 색상 팔레트 자동 적용 (사용자가 나중에 변경 가능)
+            const selectedPaletteForPrompt = concept.recommendedPalette || 'medical';
             if (concept.recommendedPalette) {
                 setSelectedPalette(concept.recommendedPalette);
+            }
+
+            // 자동으로 프롬프트 생성
+            if (selectedStyleForPrompt && initialContext.topic) {
+                setIsGeneratingPrompt(true);
+                setGeneratedPrompt('🔄 프롬프트 자동 생성 중...');
+
+                try {
+                    const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
+                    if (!apiKey) {
+                        setGeneratedPrompt('⚠️ API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.');
+                        setIsGeneratingPrompt(false);
+                        return;
+                    }
+
+                    const palette = COLOR_PALETTES[selectedPaletteForPrompt];
+                    const basePrompt = selectedStyleForPrompt.goldStandardExample.BACKGROUND_PROMPT;
+                    const negatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES.join(', ');
+
+                    const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
+사용자가 제공한 주제와 내용을 바탕으로, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
+
+## 스타일: ${selectedStyleForPrompt.displayName}
+## 기본 프롬프트 템플릿:
+${basePrompt}
+
+## 색상 팔레트:
+- Primary: ${palette.primary}
+- Secondary: ${palette.secondary}
+- Accent: ${palette.accent}
+- Background: ${palette.background}
+
+## 제외할 요소 (NEGATIVES):
+${negatives}
+
+## 사용자 주제: ${initialContext.topic}
+## 컨셉 제목: ${concept.title}
+## 키워드: ${concept.keywords.join(', ')}
+
+위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 스타일 키워드와 색상 지침을 포함하세요.`;
+
+                    let prompt = '';
+                    if (selectedProvider === 'gemini') {
+                        const { GoogleGenAI } = await import('@google/genai');
+                        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+                        const response = await ai.models.generateContent({
+                            model: 'gemini-2.0-flash',
+                            contents: { parts: [{ text: systemPrompt }] }
+                        });
+                        prompt = response.text || '';
+                    } else {
+                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${openaiApiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: 'gpt-4o-mini',
+                                messages: [{ role: 'user', content: systemPrompt }],
+                                max_tokens: 2000
+                            })
+                        });
+                        const data = await response.json();
+                        prompt = data.choices?.[0]?.message?.content || '';
+                    }
+
+                    setGeneratedPrompt(prompt);
+                } catch (error: any) {
+                    setGeneratedPrompt(`❌ 프롬프트 생성 오류: ${error.message}`);
+                } finally {
+                    setIsGeneratingPrompt(false);
+                }
             }
         }
     };
@@ -251,6 +329,12 @@ ${negatives}
                                 <span className="px-2 py-0.5 bg-purple-600/40 text-purple-200 text-xs rounded">
                                     {initialContext!.concepts.length}개
                                 </span>
+                                {isGeneratingPrompt && (
+                                    <div className="flex items-center gap-1 ml-auto">
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400"></div>
+                                        <span className="text-xs text-purple-300">프롬프트 생성 중...</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
                                 {initialContext!.concepts.map((concept, idx) => (
@@ -507,13 +591,18 @@ ${negatives}
                     ) : (
                         <button
                             onClick={handleGenerateImage}
-                            disabled={isImageLoading || !selectedStyle || !topic.trim() || !isApiKeyReady}
+                            disabled={isImageLoading || isGeneratingPrompt || !selectedStyle || !topic.trim() || !isApiKeyReady}
                             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-indigo-600 to-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isImageLoading ? (
                                 <>
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                                     <span>이미지 생성 중...</span>
+                                </>
+                            ) : isGeneratingPrompt ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>프롬프트 생성 중...</span>
                                 </>
                             ) : (
                                 <>
