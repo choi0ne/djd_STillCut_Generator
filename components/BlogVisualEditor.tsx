@@ -41,6 +41,8 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [useDirectPrompt, setUseDirectPrompt] = useState(false);
 
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
+    const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+    const [copiedPrompt, setCopiedPrompt] = useState(false);
 
     // 이미지 생성 훅
     const {
@@ -421,11 +423,65 @@ ${negatives}
                         )}
                     </div>
 
-                    {/* 생성된 프롬프트 미리보기 */}
+                    {/* 생성된 프롬프트 편집 */}
                     {generatedPrompt && !generatedPrompt.startsWith('❌') && (
-                        <div className="bg-gray-800/50 rounded-lg p-2 max-h-24 overflow-y-auto">
-                            <p className="text-xs text-gray-400 mb-1">📝 생성된 프롬프트:</p>
-                            <p className="text-xs text-gray-300 line-clamp-3">{generatedPrompt}</p>
+                        <div className="bg-gray-800/50 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-medium text-gray-400">📝 생성된 프롬프트:</p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(generatedPrompt);
+                                                setCopiedPrompt(true);
+                                                setTimeout(() => setCopiedPrompt(false), 2000);
+                                            } catch (err) {
+                                                console.error('복사 실패:', err);
+                                            }
+                                        }}
+                                        className="text-xs text-gray-500 hover:text-green-400 transition-colors"
+                                        title="클립보드에 복사"
+                                    >
+                                        {copiedPrompt ? '✅ 복사됨!' : '📋 복사'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsEditingPrompt(!isEditingPrompt)}
+                                        className={`text-xs transition-colors ${isEditingPrompt ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-blue-400'}`}
+                                        title={isEditingPrompt ? '읽기 모드로 전환' : '편집 모드로 전환'}
+                                    >
+                                        {isEditingPrompt ? '👁️ 읽기' : '✏️ 수정'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setGeneratedPrompt('');
+                                            setIsEditingPrompt(false);
+                                        }}
+                                        className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                                        title="프롬프트 초기화"
+                                    >
+                                        🗑️ 초기화
+                                    </button>
+                                </div>
+                            </div>
+                            {isEditingPrompt ? (
+                                <>
+                                    <textarea
+                                        value={generatedPrompt}
+                                        onChange={(e) => setGeneratedPrompt(e.target.value)}
+                                        rows={5}
+                                        className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+                                        placeholder="생성된 프롬프트가 여기에 표시됩니다..."
+                                    />
+                                    <p className="text-xs text-amber-400 mt-1">✏️ 편집 모드: 프롬프트를 자유롭게 수정할 수 있습니다.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs max-h-32 overflow-y-auto">
+                                        {generatedPrompt}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">👁️ 읽기 모드: 수정하려면 '✏️ 수정' 버튼을 클릭하세요.</p>
+                                </>
+                            )}
                         </div>
                     )}
 
