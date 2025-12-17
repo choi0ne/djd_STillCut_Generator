@@ -524,6 +524,36 @@ ${stageData.finalDraft}
             URL.revokeObjectURL(url);
         }
 
+        // 최종 글(finalDraft)도 마크다운 파일로 자동 저장
+        if (stageData.finalDraft) {
+            // 마크다운 파일 내용 구성
+            let mdContent = `# ${stageData.selectedTopic || '블로그 글'}\n\n`;
+            mdContent += `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+            mdContent += '---\n\n';
+            mdContent += stageData.finalDraft;
+
+            // 파일명 생성 (최종글_YYYYMMDD_HHmmss.md)
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() +
+                (now.getMonth() + 1).toString().padStart(2, '0') +
+                now.getDate().toString().padStart(2, '0') + '_' +
+                now.getHours().toString().padStart(2, '0') +
+                now.getMinutes().toString().padStart(2, '0') +
+                now.getSeconds().toString().padStart(2, '0');
+            const mdFilename = `최종글_${timestamp}.md`;
+
+            // Blob으로 마크다운 파일 다운로드
+            const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+            const mdUrl = URL.createObjectURL(mdBlob);
+            const mdLink = document.createElement('a');
+            mdLink.href = mdUrl;
+            mdLink.download = mdFilename;
+            document.body.appendChild(mdLink);
+            mdLink.click();
+            document.body.removeChild(mdLink);
+            URL.revokeObjectURL(mdUrl);
+        }
+
         if (onStage7Complete && stageData.imageConcepts.length > 0) {
             onStage7Complete({
                 topic: stageData.selectedTopic,
