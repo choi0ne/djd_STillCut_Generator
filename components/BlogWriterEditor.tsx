@@ -17,6 +17,11 @@ interface BlogWriterEditorProps {
 
 type WorkflowStage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+interface HashtagCategory {
+    category: string;
+    tags: string[];
+}
+
 interface StageData {
     ideation: string[];        // Stage 0
     selectedTopic: string;     // Stage 0.5
@@ -29,6 +34,7 @@ interface StageData {
     critique: string;          // Stage 5
     finalDraft: string;        // Stage 6
     imageConcepts: Array<{ title: string; reason: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;  // Stage 7
+    recommendedHashtags: HashtagCategory[];  // Stage 7 - AI 생성 해시태그
 }
 
 const STAGE_INFO: { [key: number]: { name: string; description: string; icon: string } } = {
@@ -81,7 +87,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
         draft: '',
         critique: '',
         finalDraft: '',
-        imageConcepts: []
+        imageConcepts: [],
+        recommendedHashtags: []
     });
     const [currentOutput, setCurrentOutput] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
@@ -234,13 +241,14 @@ ${stageData.critique}
             case 7:
                 return `${WORKFLOW_PROMPT}
 
-## Stage 7: 시각 프롬프트 설계 (스타일 라이브러리)
+## Stage 7: 시각 프롬프트 설계 + 해시태그 생성
 
 주제: "${stageData.selectedTopic}"
+키워드 클러스터: ${stageData.keywords.slice(0, 15).join(', ')}
 최종 글:
 ${stageData.finalDraft}
 
-위 블로그 글에 적합한 이미지 컨셉을 3-5개 추천하세요.
+### TASK 1: 이미지 컨셉 (3-5개)
 
 ### 사용 가능한 스타일 라이브러리 (15종)
 1. isometric-infographic: 아이소메트릭 인포그래픽 - 관계, 프로세스, 시스템을 3D 방식으로 시각화
@@ -265,24 +273,33 @@ ${stageData.finalDraft}
 2. calm: 차분한 톤 (파란색 계열 - #5C7AEA primary)
 3. warm: 따뜻한 톤 (베이지 계열 - #D4A373 primary)
 
-### 출력 형식
-각 컨셉마다 다음을 포함:
-1. 컨셉 제목 (간결하게, 15자 이내)
-2. 이유 (왜 이 주제에 적합한지, 한 문장)
-3. 핵심 키워드 3개 (시각적 요소 중심)
-4. 추천 스타일 (위 15종 중 하나의 id)
-5. 추천 색상 팔레트 (medical, calm, warm 중 하나)
+### TASK 2: 블로그 게시용 해시태그 (# 제외)
+블로그 노출도와 검색 유입을 위한 핵심 해시태그를 5개 분류로 생성하세요:
+- 핵심증상: 주요 증상 관련 태그 4-5개 (예: 손목통증, 건초염, 키보드손목통증)
+- 타겟상황: 타겟 독자/상황 태그 4-5개 (예: 직장인손목, 사무직통증, 육아맘손목)
+- 행동솔루션: 행동/솔루션 태그 4-5개 (예: 손목스트레칭, 손목휴식, 손목보호대)
+- 의학한의학: 의학/한의학 관련 태그 4-5개 (예: 건초염치료, 한의원, 침치료)
+- 페르소나톤: 페르소나/톤 태그 3-4개 (예: 한의사칼럼, 환자중심, 통증관리)
 
-반드시 JSON 배열 형식으로 출력:
-[
-  {
-    "title": "손그림 다이어그램 - 호흡법",
-    "reason": "단계별 실행 방법을 직관적으로 표현",
-    "keywords": ["호흡", "단계", "손그림"],
-    "recommendedStyle": "hand-drawn-diagram",
-    "recommendedPalette": "calm"
-  }
-]`;
+### 출력 형식 (반드시 JSON)
+{
+  "imageConcepts": [
+    {
+      "title": "손그림 다이어그램 - 호흡법",
+      "reason": "단계별 실행 방법을 직관적으로 표현",
+      "keywords": ["호흡", "단계", "손그림"],
+      "recommendedStyle": "hand-drawn-diagram",
+      "recommendedPalette": "calm"
+    }
+  ],
+  "hashtags": [
+    { "category": "핵심증상", "tags": ["손목통증", "건초염", "손목건초염", "키보드손목통증"] },
+    { "category": "타겟상황", "tags": ["직장인손목", "사무직통증", "육아맘손목"] },
+    { "category": "행동솔루션", "tags": ["손목스트레칭", "손목휴식", "손목찜질"] },
+    { "category": "의학한의학", "tags": ["건초염치료", "한의원건초염", "침치료"] },
+    { "category": "페르소나톤", "tags": ["한의사칼럼", "환자중심", "통증관리"] }
+  ]
+}`;
 
             default:
                 return '';
@@ -387,19 +404,28 @@ ${stageData.finalDraft}
                         if (jsonMatch) {
                             jsonStr = jsonMatch[1].trim();
                         } else {
-                            // 코드블록이 없으면 JSON 배열 시작점 찾기
-                            const arrayStart = result.indexOf('[');
-                            const arrayEnd = result.lastIndexOf(']');
-                            if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
-                                jsonStr = result.substring(arrayStart, arrayEnd + 1);
+                            // 코드블록이 없으면 JSON 객체/배열 시작점 찾기
+                            const objStart = result.indexOf('{');
+                            const objEnd = result.lastIndexOf('}');
+                            if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
+                                jsonStr = result.substring(objStart, objEnd + 1);
                             }
                         }
 
                         // JSON 파싱 시도
-                        const concepts = JSON.parse(jsonStr);
-                        if (Array.isArray(concepts)) {
-                            setStageData(prev => ({ ...prev, imageConcepts: concepts }));
-                            // 자동 이동 제거 - 버튼 클릭으로만 이동
+                        const parsed = JSON.parse(jsonStr);
+
+                        // 새 형식 (imageConcepts + hashtags 객체)
+                        if (parsed.imageConcepts && Array.isArray(parsed.imageConcepts)) {
+                            setStageData(prev => ({
+                                ...prev,
+                                imageConcepts: parsed.imageConcepts,
+                                recommendedHashtags: parsed.hashtags || []
+                            }));
+                        }
+                        // 이전 형식 호환 (배열만 있는 경우)
+                        else if (Array.isArray(parsed)) {
+                            setStageData(prev => ({ ...prev, imageConcepts: parsed }));
                         }
                     } catch {
                         // JSON 파싱 실패 시 결과 그대로 저장 (이미 setCurrentOutput은 위에서 호출됨)
@@ -454,39 +480,48 @@ ${stageData.finalDraft}
     };
 
     const handleCompleteStage7 = () => {
-        // 추천태그(Stage 1 키워드)를 로컬 텍스트 파일로 자동 저장
-        if (stageData.keywords.length > 0) {
-            // # 표시 제거 및 정리
-            const cleanedTags = stageData.keywords.map(tag =>
-                tag.replace(/^#+\s*/, '')  // 시작 부분의 # 제거
-                    .replace(/^[-*]\s*/, '') // 불릿 포인트 제거
-                    .trim()
-            ).filter(tag => tag.length > 0);
+        // AI가 생성한 해시태그를 로컬 텍스트 파일로 자동 저장 (# 제외)
+        if (stageData.recommendedHashtags.length > 0) {
+            // 분류별로 해시태그 정리
+            let content = '🏷️ 블로그 게시용 추천 태그\n\n';
 
-            if (cleanedTags.length > 0) {
-                const content = cleanedTags.join('\n');
+            stageData.recommendedHashtags.forEach(category => {
+                // # 제거하고 태그만 추출
+                const cleanedTags = category.tags.map(tag =>
+                    tag.replace(/^#/, '').trim()
+                ).filter(tag => tag.length > 0);
 
-                // 파일명 생성 (추천태그_YYYYMMDD_HHmmss.txt)
-                const now = new Date();
-                const timestamp = now.getFullYear().toString() +
-                    (now.getMonth() + 1).toString().padStart(2, '0') +
-                    now.getDate().toString().padStart(2, '0') + '_' +
-                    now.getHours().toString().padStart(2, '0') +
-                    now.getMinutes().toString().padStart(2, '0') +
-                    now.getSeconds().toString().padStart(2, '0');
-                const filename = `추천태그_${timestamp}.txt`;
+                content += `[${category.category}]\n`;
+                content += cleanedTags.join(', ') + '\n\n';
+            });
 
-                // Blob으로 파일 다운로드
-                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
+            // 모든 태그를 한 줄로 (복사 편의용)
+            const allTags = stageData.recommendedHashtags
+                .flatMap(cat => cat.tags.map(tag => tag.replace(/^#/, '').trim()))
+                .filter(tag => tag.length > 0);
+            content += '\n[전체 태그 - 복사용]\n';
+            content += allTags.join(' ');
+
+            // 파일명 생성 (해시태그_YYYYMMDD_HHmmss.txt)
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() +
+                (now.getMonth() + 1).toString().padStart(2, '0') +
+                now.getDate().toString().padStart(2, '0') + '_' +
+                now.getHours().toString().padStart(2, '0') +
+                now.getMinutes().toString().padStart(2, '0') +
+                now.getSeconds().toString().padStart(2, '0');
+            const filename = `해시태그_${timestamp}.txt`;
+
+            // Blob으로 파일 다운로드
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         if (onStage7Complete && stageData.imageConcepts.length > 0) {
