@@ -95,6 +95,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     const [isEditMode, setIsEditMode] = useState(false);
     const [savedDrafts, setSavedDrafts] = useLocalStorage<{ stage: number; content: string; date: string }[]>('blog-drafts', []);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [manualInputMode, setManualInputMode] = useState(false); // Stage 6 수동 입력 모드
+    const [manualFinalDraft, setManualFinalDraft] = useState(''); // Stage 6 수동 입력 원고
 
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
@@ -307,6 +309,17 @@ ${stageData.finalDraft}
     };
 
     const handleExecuteStage = async () => {
+        // Stage 6 수동 입력 모드인 경우 AI 호출 없이 바로 처리
+        if (currentStage === 6 && manualInputMode) {
+            if (!manualFinalDraft.trim()) {
+                setCurrentOutput('❌ 원고를 입력해주세요.');
+                return;
+            }
+            setCurrentOutput(manualFinalDraft);
+            setStageData(prev => ({ ...prev, finalDraft: manualFinalDraft }));
+            return;
+        }
+
         if (!geminiApiKey) {
             openSettings();
             return;
@@ -645,6 +658,49 @@ ${stageData.finalDraft}
                         </div>
                     )}
 
+                    {/* Stage 6: Manual Input Mode */}
+                    {currentStage === 6 && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-300">
+                                    입력 방식 선택
+                                </label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setManualInputMode(false)}
+                                        className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${!manualInputMode ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                    >
+                                        🤖 AI 생성
+                                    </button>
+                                    <button
+                                        onClick={() => setManualInputMode(true)}
+                                        className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${manualInputMode ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                    >
+                                        ✍️ 직접 입력
+                                    </button>
+                                </div>
+                            </div>
+
+                            {manualInputMode && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        외부 원고 붙여넣기 (7단계에서 이미지 카드 & 태그만 추출됩니다)
+                                    </label>
+                                    <textarea
+                                        value={manualFinalDraft}
+                                        onChange={(e) => setManualFinalDraft(e.target.value)}
+                                        placeholder="외부에서 작성한 블로그 원고를 여기에 붙여넣으세요..."
+                                        rows={10}
+                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none font-mono"
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        💡 원고를 입력한 후 "실행" 버튼을 클릭하여 저장하세요.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Stage 0.5: Topic Selection Cards */}
                     {currentStage === 0.5 && stageData.scoredTopics.length > 0 && (
                         <div className="space-y-2">
@@ -717,7 +773,11 @@ ${stageData.finalDraft}
                         </button>
                         <button
                             onClick={handleExecuteStage}
-                            disabled={isLoading || !isApiKeyReady || (currentStage === 0 && !userInput.trim())}
+                            disabled={
+                                isLoading ||
+                                (currentStage === 6 && manualInputMode ? !manualFinalDraft.trim() : !isApiKeyReady) ||
+                                (currentStage === 0 && !userInput.trim())
+                            }
                             className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
