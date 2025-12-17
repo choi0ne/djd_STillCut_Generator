@@ -2,8 +2,8 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import {
     detectFileType,
-    processImage,
-    processPdf,
+    processHybrid,
+    type ProcessingMode,
     type MpsImageOptions,
     type MpsPdfOptions,
     type FileType,
@@ -61,6 +61,9 @@ const MpsEditor: React.FC = () => {
     // PDF 미리보기 상태
     const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
     const [isParsing, setIsParsing] = useState(false);
+
+    // 처리 모드 상태 (하이브리드 전략)
+    const [processingMode, setProcessingMode] = useState<ProcessingMode>('auto');
 
     // PDF 페이지 파싱 및 미리보기 생성
     const parsePdfPages = async (file: File) => {
@@ -219,23 +222,34 @@ const MpsEditor: React.FC = () => {
         setIsProcessing(true);
         setError(null);
         setResult(null);
-        setStatusMessage('처리 중...');
+
+        const modeLabel = processingMode === 'auto' ? '🔄 Auto' : processingMode === 'backend' ? '☁️ Backend' : '💻 Client';
+        setStatusMessage(`${modeLabel} 모드로 처리 중...`);
 
         try {
-            let processResult: MpsResult;
+            // PDF 클라이언트 처리용 페이지 이미지 준비
+            const pdfImages = pdfPagePreviews.map(p => p.imageUrl);
 
-            if (fileType === 'image') {
-                processResult = await processImage(uploadedFile, imageOptions);
-            } else if (fileType === 'pdf') {
-                processResult = await processPdf(uploadedFile, pdfOptions);
-            } else {
-                throw new Error('지원하지 않는 파일 형식입니다.');
-            }
+            const processResult = await processHybrid(
+                uploadedFile,
+                fileType === 'image' ? imageOptions : pdfOptions,
+                fileType,
+                processingMode,
+                pdfImages
+            );
 
             setResult(processResult);
-            setStatusMessage(processResult.success
-                ? `✅ 처리 완료! 출력: ${processResult.outputFiles?.join(', ') || '없음'}`
-                : `❌ 처리 실패: ${processResult.error}`);
+
+            // 결과 메시지 생성
+            let message = '';
+            if (processResult.success) {
+                const location = processResult.processedBy === 'backend' ? '☁️ 백엔드' : '💻 클라이언트';
+                const fallback = (processResult as any).fallbackUsed ? ' (폴백)' : '';
+                message = `✅ ${location}${fallback}에서 처리 완료! 출력: ${processResult.outputFiles?.length || 0}개 파일`;
+            } else {
+                message = `❌ 처리 실패: ${processResult.error}`;
+            }
+            setStatusMessage(message);
         } catch (err) {
             setError(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.');
             setStatusMessage(null);
@@ -382,6 +396,47 @@ const MpsEditor: React.FC = () => {
                 </button>
 
                 {/* Google Drive 파일 선택 모달 - 위치 이동됨 */}
+            </div>
+
+            {/* 처리 모드 선택 */}
+            <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
+                <h3 className="text-sm font-medium text-gray-300 border-b border-white/10 pb-2 mb-4">
+                    ⚙️ 처리 모드
+                </h3>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setProcessingMode('auto')}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'auto'
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                    >
+                        <span>🔄</span> Auto
+                    </button>
+                    <button
+                        onClick={() => setProcessingMode('backend')}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'backend'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                    >
+                        <span>☁️</span> Backend
+                    </button>
+                    <button
+                        onClick={() => setProcessingMode('client')}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'client'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                    >
+                        <span>💻</span> Client
+                    </button>
+                </div>
+                <p className="mt-3 text-xs text-gray-500">
+                    {processingMode === 'auto' && '백엔드 우선 처리, 실패 시 클라이언트 폴백'}
+                    {processingMode === 'backend' && '고품질 워터마크 제거 & PDF 변환 (pytesseract, pdf2image)'}
+                    {processingMode === 'client' && '빠른 처리, 서버 부하 0 (Canvas API)'}
+                </p>
             </div>
 
             {/* 미리보기 */}

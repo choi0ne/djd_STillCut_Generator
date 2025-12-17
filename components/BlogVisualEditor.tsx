@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Panel from './common/Panel';
 import { STYLE_LIBRARY, COLOR_PALETTES, StyleTemplate } from '../data/styleLibrary';
 import { SparklesIcon } from './Icons';
@@ -35,6 +35,10 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [content, setContent] = useState('');
     const [selectedPalette, setSelectedPalette] = useState<'medical' | 'calm' | 'warm'>('medical');
     const [generatedPrompt, setGeneratedPrompt] = useState('');
+
+    // 직접 프롬프트 입력 모드
+    const [directPrompt, setDirectPrompt] = useState('');
+    const [useDirectPrompt, setUseDirectPrompt] = useState(false);
 
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
 
@@ -87,6 +91,56 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         }
     };
 
+    // 직접 프롬프트에 스타일/색상 정보를 주입하는 헬퍼 함수
+    const buildEnhancedPrompt = useCallback((basePrompt: string, style: StyleTemplate | null, palette: 'medical' | 'calm' | 'warm') => {
+        if (!basePrompt.trim()) return '';
+
+        const paletteInfo = COLOR_PALETTES[palette];
+        let enhancedPrompt = basePrompt;
+
+        // 스타일 정보 추가 (있을 경우)
+        if (style) {
+            const styleKeywords = style.keywords.join(', ');
+            enhancedPrompt += ` Style: ${style.displayName}, ${styleKeywords}.`;
+        }
+
+        // 색상 팔레트 정보 추가
+        enhancedPrompt += ` Color palette: Primary ${paletteInfo.primary}, Secondary ${paletteInfo.secondary}, Accent ${paletteInfo.accent}, Background ${paletteInfo.background}.`;
+
+        return enhancedPrompt;
+    }, []);
+
+    // 스타일/팔레트 변경 시 직접 프롬프트 자동 업데이트
+    useEffect(() => {
+        if (useDirectPrompt && directPrompt.trim()) {
+            // 기존 프롬프트에서 스타일/색상 부분 제거 후 새로운 정보로 대체
+            let basePrompt = directPrompt;
+
+            // 기존 Style: 부분 제거
+            basePrompt = basePrompt.replace(/\s*Style:.*?(?=\s*Color palette:|$)/g, '');
+            // 기존 Color palette: 부분 제거
+            basePrompt = basePrompt.replace(/\s*Color palette:.*$/g, '');
+
+            const enhanced = buildEnhancedPrompt(basePrompt.trim(), selectedStyle, selectedPalette);
+            if (enhanced !== directPrompt) {
+                setDirectPrompt(enhanced);
+            }
+        }
+    }, [selectedStyle, selectedPalette, useDirectPrompt]);
+
+    // 직접 프롬프트로 이미지 생성 (주제/키워드 없이도 가능)
+    const handleGenerateWithDirectPrompt = async () => {
+        if (!directPrompt.trim()) return;
+
+        const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
+        if (!apiKey) {
+            openSettings();
+            return;
+        }
+
+        setGeneratedPrompt(directPrompt);
+        generateImage(null, directPrompt);
+    };
 
     // 이미지 생성 (프롬프트 자동 생성 포함)
     const handleGenerateImage = async () => {
@@ -314,6 +368,59 @@ ${negatives}
                         </div>
                     </div>
 
+                    {/* 6. 직접 프롬프트 입력 섹션 */}
+                    <div className="bg-gradient-to-r from-amber-900/20 to-orange-900/20 border border-amber-500/30 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">✏️</span>
+                                <h4 className="text-sm font-semibold text-amber-300">직접 프롬프트 입력</h4>
+                            </div>
+                            <button
+                                onClick={() => setUseDirectPrompt(!useDirectPrompt)}
+                                className={`relative w-10 h-5 rounded-full transition-colors ${useDirectPrompt ? 'bg-amber-500' : 'bg-gray-600'}`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${useDirectPrompt ? 'translate-x-5' : 'translate-x-0.5'}`}
+                                />
+                            </button>
+                        </div>
+
+                        {useDirectPrompt && (
+                            <>
+                                <p className="text-xs text-gray-400 mb-2">
+                                    💡 위에서 선택한 <span className="text-amber-300">스타일</span>과 <span className="text-amber-300">색상 팔레트</span>를 변경하면 아래 프롬프트가 자동으로 업데이트됩니다.
+                                </p>
+                                <textarea
+                                    value={directPrompt}
+                                    onChange={(e) => setDirectPrompt(e.target.value)}
+                                    placeholder="직접 프롬프트를 입력하세요... (예: A calm isometric infographic showing mental wellness)"
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+                                />
+                                <div className="flex gap-2 mt-2">
+                                    <button
+                                        onClick={() => {
+                                            if (selectedStyle) {
+                                                const enhanced = buildEnhancedPrompt(selectedStyle.goldStandardExample.BACKGROUND_PROMPT, selectedStyle, selectedPalette);
+                                                setDirectPrompt(enhanced);
+                                            }
+                                        }}
+                                        disabled={!selectedStyle}
+                                        className="flex-1 py-1.5 px-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 text-xs rounded transition-colors"
+                                    >
+                                        📋 스타일 템플릿 불러오기
+                                    </button>
+                                    <button
+                                        onClick={() => setDirectPrompt('')}
+                                        className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors"
+                                    >
+                                        🗑️ 초기화
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
                     {/* 생성된 프롬프트 미리보기 */}
                     {generatedPrompt && !generatedPrompt.startsWith('❌') && (
                         <div className="bg-gray-800/50 rounded-lg p-2 max-h-24 overflow-y-auto">
@@ -322,24 +429,44 @@ ${negatives}
                         </div>
                     )}
 
-                    {/* 이미지 생성 버튼 */}
-                    <button
-                        onClick={handleGenerateImage}
-                        disabled={isImageLoading || !selectedStyle || !topic.trim() || !isApiKeyReady}
-                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-indigo-600 to-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isImageLoading ? (
-                            <>
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                <span>이미지 생성 중...</span>
-                            </>
-                        ) : (
-                            <>
-                                <SparklesIcon className="w-5 h-5" />
-                                <span>🖼️ 이미지 생성</span>
-                            </>
-                        )}
-                    </button>
+                    {/* 이미지 생성 버튼 - 직접 프롬프트 모드에 따라 분기 */}
+                    {useDirectPrompt ? (
+                        <button
+                            onClick={handleGenerateWithDirectPrompt}
+                            disabled={isImageLoading || !directPrompt.trim() || !isApiKeyReady}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isImageLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>이미지 생성 중...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <SparklesIcon className="w-5 h-5" />
+                                    <span>✏️ 직접 프롬프트로 생성</span>
+                                </>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleGenerateImage}
+                            disabled={isImageLoading || !selectedStyle || !topic.trim() || !isApiKeyReady}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-indigo-600 to-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isImageLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>이미지 생성 중...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <SparklesIcon className="w-5 h-5" />
+                                    <span>🖼️ 이미지 생성</span>
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
             </Panel>
 
@@ -358,3 +485,4 @@ ${negatives}
 };
 
 export default BlogVisualEditor;
+
