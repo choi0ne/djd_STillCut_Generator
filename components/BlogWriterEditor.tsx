@@ -241,12 +241,22 @@ ${stageData.critique}
 문장 흐름과 오탈자를 검토하세요.`;
 
             case 7:
+                // 숏컷 트랙(Stage 6 직접 입력)인 경우 주제가 없을 수 있음
+                const hasTopicFromWorkflow = stageData.selectedTopic && stageData.selectedTopic.trim();
+                const topicInstruction = hasTopicFromWorkflow
+                    ? `주제: "${stageData.selectedTopic}"`
+                    : `주제: (아래 최종 글에서 핵심 주제를 추출하세요)`;
+
+                const keywordsInstruction = stageData.keywords.length > 0
+                    ? `키워드 클러스터: ${stageData.keywords.slice(0, 15).join(', ')}`
+                    : `키워드 클러스터: (아래 최종 글에서 핵심 키워드를 추출하세요)`;
+
                 return `${WORKFLOW_PROMPT}
 
 ## Stage 7: 시각 프롬프트 설계 + 해시태그 생성
 
-주제: "${stageData.selectedTopic}"
-키워드 클러스터: ${stageData.keywords.slice(0, 15).join(', ')}
+${topicInstruction}
+${keywordsInstruction}
 최종 글:
 ${stageData.finalDraft}
 
@@ -285,6 +295,7 @@ ${stageData.finalDraft}
 
 ### 출력 형식 (반드시 JSON)
 {
+  "extractedTopic": "어지럼증의 원인과 관리법",  // 주제가 없을 경우 최종 글에서 추출한 주제
   "imageConcepts": [
     {
       "title": "손그림 다이어그램 - 호흡법",
@@ -432,6 +443,8 @@ ${stageData.finalDraft}
                         if (parsed.imageConcepts && Array.isArray(parsed.imageConcepts)) {
                             setStageData(prev => ({
                                 ...prev,
+                                // 숏컷 트랙에서 주제가 없을 경우 AI가 추출한 주제 사용
+                                selectedTopic: prev.selectedTopic || parsed.extractedTopic || '',
                                 imageConcepts: parsed.imageConcepts,
                                 recommendedHashtags: parsed.hashtags || []
                             }));
