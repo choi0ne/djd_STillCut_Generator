@@ -110,6 +110,13 @@ const App: React.FC = () => {
                 🎨 블로그 이미지
               </button>
               <button
+                onClick={() => setMode('mps')}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'mps' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                🔧 MPS 후처리
+              </button>
+              <button
                 onClick={() => setMode('prompt')}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'prompt' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
                   }`}
@@ -122,13 +129,6 @@ const App: React.FC = () => {
                   }`}
               >
                 📝 JSON 생성
-              </button>
-              <button
-                onClick={() => setMode('mps')}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'mps' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
-                  }`}
-              >
-                🔧 MPS 후처리
               </button>
               <button
                 onClick={() => setMode('image-prompt')}
