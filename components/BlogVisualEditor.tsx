@@ -17,7 +17,7 @@ interface BlogVisualEditorProps {
     setSelectedProvider: (provider: 'gemini' | 'openai') => void;
     initialContext?: {
         topic: string;
-        concepts: Array<{ title: string; keywords: string[] }>;
+        concepts: Array<{ title: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;
     } | null;
 }
 
@@ -65,11 +65,25 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         }
     }, [initialContext]);
 
-    // 컨셉 선택 변경 시 키워드 업데이트
+    // 컨셉 선택 변경 시 키워드 및 AI 추천 스타일/팔레트 적용
     const handleConceptSelect = (index: number) => {
         setSelectedConceptIndex(index);
         if (initialContext && initialContext.concepts[index]) {
-            setContent(initialContext.concepts[index].keywords.join(', '));
+            const concept = initialContext.concepts[index];
+            setContent(concept.keywords.join(', '));
+
+            // AI 추천 스타일 자동 적용 (사용자가 나중에 변경 가능)
+            if (concept.recommendedStyle) {
+                const style = STYLE_LIBRARY.find(s => s.id === concept.recommendedStyle);
+                if (style) {
+                    setSelectedStyle(style);
+                }
+            }
+
+            // AI 추천 색상 팔레트 자동 적용 (사용자가 나중에 변경 가능)
+            if (concept.recommendedPalette) {
+                setSelectedPalette(concept.recommendedPalette);
+            }
         }
     };
 
@@ -205,6 +219,26 @@ ${negatives}
                                                 </span>
                                             ))}
                                         </div>
+                                        {/* AI 추천 스타일 및 색상 팔레트 표시 */}
+                                        {(concept.recommendedStyle || concept.recommendedPalette) && (
+                                            <div className="flex gap-1 mt-1.5 flex-wrap items-center">
+                                                <span className="text-xs text-gray-400">🤖 AI 추천:</span>
+                                                {concept.recommendedStyle && (
+                                                    <span className="px-1.5 py-0.5 bg-emerald-600/40 text-emerald-200 text-xs rounded">
+                                                        🎨 {STYLE_LIBRARY.find(s => s.id === concept.recommendedStyle)?.displayName || concept.recommendedStyle}
+                                                    </span>
+                                                )}
+                                                {concept.recommendedPalette && (
+                                                    <span className="px-1.5 py-0.5 bg-amber-600/40 text-amber-200 text-xs rounded flex items-center gap-1">
+                                                        <span
+                                                            className="w-2 h-2 rounded-full"
+                                                            style={{ backgroundColor: COLOR_PALETTES[concept.recommendedPalette]?.primary }}
+                                                        />
+                                                        {concept.recommendedPalette}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>

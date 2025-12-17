@@ -4,6 +4,7 @@ import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
 import { ImageFile, StoredPrompt } from '../types';
 import { generateImageWithCode } from '../services/geminiService';
+import { listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
 import { useImageGenerator } from '../hooks/useImageGenerator';
 import useLocalStorage from '../hooks/useLocalStorage';
 import GenerationResultPanel from './GenerationResultPanel';
@@ -36,6 +37,19 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
   const [isEditingAnalysis, setIsEditingAnalysis] = useState(false);
+
+  // Right Panel State
+  const [isEditingJsonInput, setIsEditingJsonInput] = useState(true); // Default to true (editable) or false matching user preference? User asked for "Edit button", usually implies Read intent first. But this is an Input focused tool. I'll stick to Toggle.
+  // Actually, if I add an "Edit" button to a functional input form, it usually implies it's static until clicked.
+  // However, for better UX in a generator, usually it's editable. 
+  // Let's make it toggleable but start as editable so we don't break flow, OR start as View if content exists?
+  // Let's just add the state.
+
+
+  // Google Drive 상태
+  const [showDriveFiles, setShowDriveFiles] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
 
 
 
@@ -97,6 +111,36 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     setImage(null);
     setAnalysisResult('');
     clearResults();
+  };
+
+  // Google Drive에서 이미지 가져오기
+  const handleOpenGoogleDrive = async () => {
+    setIsLoadingDrive(true);
+    try {
+      const files = await listImagesFromGoogleDrive();
+      setDriveFiles(files);
+      setShowDriveFiles(true);
+    } catch (err: any) {
+      alert(err.message || 'Google Drive 파일을 불러올 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
+
+  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    setIsLoadingDrive(true);
+    try {
+      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      handleImageUpload({
+        base64: imageData.base64,
+        mimeType: mimeType,
+      });
+      setShowDriveFiles(false);
+    } catch (err: any) {
+      alert(err.message || '파일을 다운로드할 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
   };
 
   // 이미지 → JSON 분석
@@ -231,6 +275,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     setIsLibraryOpen(true);
   };
 
+  const handleSaveAnalysisToLibrary = () => {
+    if (!analysisResult.trim() || analysisResult.startsWith('❌')) {
+      alert("저장할 변환 결과가 없습니다.");
+      return;
+    }
+    setLibraryInitialText(analysisResult);
+    setIsLibraryOpen(true);
+  };
+
   const handleCloseLibrary = () => {
     setIsLibraryOpen(false);
     setLibraryInitialText(null);
@@ -292,41 +345,142 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 </div>
               ) : (
                 <div className="h-48">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" />
+                  <ImageDropzone onImageUpload={handleImageUpload} label="이미지를 업로드하여 JSON으로 변환 (Ctrl+V)" showDriveButton={false} />
+                  <button
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full mt-2 py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <span>☁️</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                  </button>
+
+                  {/* Google Drive 파일 선택 팝업 모달 */}
+                  {showDriveFiles && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDriveFiles(false)}>
+                      <div
+                        className="bg-[#1a1f2e] border border-blue-500/50 rounded-2xl shadow-2xl w-[90vw] max-w-4xl max-h-[80vh] overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* 모달 헤더 */}
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">☁️</span>
+                            <div>
+                              <h3 className="text-lg font-semibold text-white">Google Drive</h3>
+                              <p className="text-xs text-gray-400">이미지를 선택하세요</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setShowDriveFiles(false)}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* 이미지 그리드 */}
+                        <div className="p-4 overflow-y-auto max-h-[60vh]">
+                          {driveFiles.length > 0 ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                              {driveFiles.map((file) => (
+                                <div
+                                  key={file.id}
+                                  onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
+                                  className="group relative aspect-square bg-gray-800 rounded-xl cursor-pointer hover:ring-2 hover:ring-blue-500 hover:scale-105 overflow-hidden transition-all duration-200 shadow-lg"
+                                >
+                                  {file.thumbnailLink ? (
+                                    <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                                      <span className="text-3xl mb-1">🖼️</span>
+                                      <p className="text-xs text-gray-400 text-center truncate w-full">{file.name}</p>
+                                    </div>
+                                  )}
+                                  {/* 호버 오버레이 */}
+                                  <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/20 transition-colors flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 text-white text-2xl transition-opacity">✓</span>
+                                  </div>
+                                  {/* 파일명 표시 */}
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <p className="text-xs text-white truncate">{file.name}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-16">
+                              <span className="text-4xl mb-4 block">📁</span>
+                              <p className="text-gray-400">파일이 없습니다</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 모달 푸터 */}
+                        <div className="flex items-center justify-between p-4 border-t border-white/10 bg-black/20">
+                          <p className="text-xs text-gray-500">{driveFiles.length}개의 이미지</p>
+                          <button
+                            onClick={() => setShowDriveFiles(false)}
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded-lg transition-colors"
+                          >
+                            닫기
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* JSON 변환 결과 출력 */}
             <div className="flex-1 flex flex-col">
-              <label className="text-sm font-semibold text-gray-300 mb-2">변환된 JSON 코드</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-semibold text-gray-300">변환된 JSON 코드</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsEditingAnalysis(!isEditingAnalysis)}
+                    className={`px-2 py-1 text-white text-xs rounded transition-colors ${isEditingAnalysis ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    title={isEditingAnalysis ? "수정 완료" : "직접 수정"}
+                  >
+                    {isEditingAnalysis ? '✓ 완료' : '✏️ 수정'}
+                  </button>
+                  <button
+                    onClick={handleSaveAnalysisToLibrary}
+                    className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors flex items-center gap-1"
+                    title="라이브러리에 저장"
+                  >
+                    <PlusIcon className="w-3 h-3" />
+                    저장
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(analysisResult);
+                      const btn = document.getElementById('copy-analysis-btn');
+                      if (btn) {
+                        const originalText = btn.innerHTML;
+                        btn.textContent = '✓ 복사됨';
+                        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                      }
+                    }}
+                    id="copy-analysis-btn"
+                    className="px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded transition-colors"
+                    title="클립보드에 복사"
+                  >
+                    📋 복사
+                  </button>
+                  <button
+                    onClick={() => setIsLibraryOpen(true)}
+                    className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors flex items-center gap-1"
+                    title="라이브러리 열기"
+                  >
+                    <LibraryIcon className="w-3 h-3" />
+                    라이브러리
+                  </button>
+                </div>
+              </div>
               {analysisResult && !analysisResult.startsWith('❌') ? (
-                <div className="bg-gray-900/50 rounded-lg p-4 flex-1 relative group border border-gray-600">
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      onClick={() => setIsEditingAnalysis(!isEditingAnalysis)}
-                      className={`px-2 py-1 text-white text-xs rounded transition-colors ${isEditingAnalysis ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}
-                      title={isEditingAnalysis ? "수정 완료" : "직접 수정"}
-                    >
-                      {isEditingAnalysis ? '✓ 완료' : '✏️ 수정'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(analysisResult);
-                        setJsonCode(analysisResult); // 우측 패널로 복사
-                        const btn = document.getElementById('copy-analysis-btn');
-                        if (btn) {
-                          btn.textContent = '✓ 복사됨';
-                          setTimeout(() => { btn.textContent = '📋 복사 & 적용'; }, 2000);
-                        }
-                      }}
-                      id="copy-analysis-btn"
-                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors"
-                      title="JSON 복사 후 우측에 적용"
-                    >
-                      📋 복사 & 적용
-                    </button>
-                  </div>
+                <div className="bg-gray-900/50 rounded-lg p-4 flex-1 relative group border border-gray-600 max-h-[400px] overflow-hidden">
                   {isEditingAnalysis ? (
                     <textarea
                       value={analysisResult}
@@ -384,6 +538,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                 <label htmlFor="json-input" className="text-sm font-semibold text-gray-300">JSON 코드 입력</label>
                 <div className="flex gap-2">
                   <button
+                    onClick={() => setIsEditingJsonInput(!isEditingJsonInput)}
+                    className={`px-2 py-1 text-white text-xs rounded transition-colors ${isEditingJsonInput ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    title={isEditingJsonInput ? "편집 완료" : "코드 편집"}
+                  >
+                    {isEditingJsonInput ? '✓ 완료' : '✏️ 수정'}
+                  </button>
+                  <button
                     onClick={handleSaveCurrentConfig}
                     disabled={!jsonCode.trim()}
                     className="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -402,14 +563,28 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                   </button>
                 </div>
               </div>
-              <textarea
-                id="json-input"
-                value={jsonCode}
-                onChange={handleJsonChange}
-                onBlur={formatJson}
-                placeholder={`{\n  "subject": "a majestic lion",\n  "style": "synthwave",\n  "setting": "neon city"\n}`}
-                className="w-full flex-grow min-h-[150px] bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow font-mono text-sm"
-              />
+              {isEditingJsonInput ? (
+                <textarea
+                  id="json-input"
+                  value={jsonCode}
+                  onChange={handleJsonChange}
+                  onBlur={formatJson}
+                  placeholder={`{\n  "subject": "a majestic lion",\n  "style": "synthwave",\n  "setting": "neon city"\n}`}
+                  className="w-full flex-grow min-h-[150px] bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow font-mono text-sm resize-none"
+                />
+              ) : (
+                <div
+                  className="w-full flex-grow min-h-[150px] bg-gray-900/50 text-white border border-gray-600 rounded-lg px-4 py-3 font-mono text-sm overflow-auto whitespace-pre-wrap cursor-pointer hover:bg-gray-900/70 transition-colors"
+                  onClick={() => setIsEditingJsonInput(true)}
+                  title="클릭하여 편집"
+                >
+                  {jsonCode || <span className="text-gray-500">JSON 코드가 없습니다. 수정을 눌러 입력하세요.</span>}
+                </div>
+              )}
+              {/* <textarea ... removed replaced by conditional above */
+              /* NOTE: The original textarea is effectively replaced by the conditional block above. 
+                 Need to ensure the original textarea lines are fully consumed by TargetContent.
+              */}
               {jsonError && <p className="text-sm text-red-400 mt-2">{jsonError}</p>}
             </div>
 

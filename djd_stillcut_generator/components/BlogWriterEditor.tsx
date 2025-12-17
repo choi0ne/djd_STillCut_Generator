@@ -12,7 +12,7 @@ interface BlogWriterEditorProps {
     openaiApiKey: string;
     selectedProvider: 'gemini' | 'openai';
     setSelectedProvider: (provider: 'gemini' | 'openai') => void;
-    onStage7Complete?: (data: { topic: string; concepts: Array<{ title: string; keywords: string[] }> }) => void;
+    onStage7Complete?: (data: { topic: string; concepts: Array<{ title: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }> }) => void;
 }
 
 type WorkflowStage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -28,7 +28,7 @@ interface StageData {
     draft: string;             // Stage 4
     critique: string;          // Stage 5
     finalDraft: string;        // Stage 6
-    imageConcepts: Array<{ title: string; reason: string; keywords: string[] }>;  // Stage 7
+    imageConcepts: Array<{ title: string; reason: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;  // Stage 7
 }
 
 const STAGE_INFO: { [key: number]: { name: string; description: string; icon: string } } = {
@@ -234,7 +234,7 @@ ${stageData.critique}
             case 7:
                 return `${WORKFLOW_PROMPT}
 
-## Stage 7: 시각 프롬프트 설계
+## Stage 7: 시각 프롬프트 설계 (스타일 라이브러리)
 
 주제: "${stageData.selectedTopic}"
 최종 글:
@@ -242,17 +242,45 @@ ${stageData.finalDraft}
 
 위 블로그 글에 적합한 이미지 컨셉을 3-5개 추천하세요.
 
+### 사용 가능한 스타일 라이브러리 (15종)
+1. isometric-infographic: 아이소메트릭 인포그래픽 - 관계, 프로세스, 시스템을 3D 방식으로 시각화
+2. infographic-chart: 인포그래픽 차트 - 데이터와 통계를 명확하게 제시
+3. empathetic-character: 공감 캐릭터 - 감정, 증상, 자세를 친근하게 표현
+4. herbal-sketch: 약재 스케치 - 약재의 식물학적 표현
+5. empathetic-cutoon: 공감 컷툰 - 상황이나 감정을 스토리텔링 방식으로 전달
+6. artistic-thumbnail: 예술적 썸네일 - 소셜 미디어 또는 블로그 포스트 썸네일
+7. hand-drawn-diagram: 손그림 다이어그램 - 사이클, 관계, 간단한 프로세스 설명
+8. medical-illustration: 의학 일러스트레이션 - 해부학적 구조 비교 또는 생리학적 프로세스
+9. conceptual-metaphor: 개념적 은유 - 추상적인 의학 개념을 상징적인 오브제로 시각화
+10. 2d-step-diagram: 2D 스텝 다이어그램 - 환자의 행동 지침, 치료 프로토콜
+11. papercraft-illustration: 페이퍼크래프트 일러스트 - 신체 기관이나 프로세스를 따뜻하게 묘사
+12. minimal-wellness-photo: 미니멀 웰니스 포토 - 약재, 차, 건강 음식을 감성적으로
+13. continuous-line-drawing: 연속적인 한 줄 드로잉 - 세련되고 감성적인 방식으로 표현
+14. conceptual-sketch: 개념적 스케치 - 복잡한 철학적/심리적 개념을 위트 있게 시각화
+15. textured-digital-painting: 텍스처 디지털 페인팅 - 따뜻하고 아날로그적인 회화 질감
+16. precision-medical: 정밀 의학도 - 해부학적 정확도, 색상 코딩, 텍스트 라벨 분리된 교과서 스타일
+
+### 사용 가능한 색상 팔레트 (3종)
+1. medical: 의료 톤 (녹색 계열 - #3A5A40 primary)
+2. calm: 차분한 톤 (파란색 계열 - #5C7AEA primary)
+3. warm: 따뜻한 톤 (베이지 계열 - #D4A373 primary)
+
+### 출력 형식
 각 컨셉마다 다음을 포함:
 1. 컨셉 제목 (간결하게, 15자 이내)
 2. 이유 (왜 이 주제에 적합한지, 한 문장)
 3. 핵심 키워드 3개 (시각적 요소 중심)
+4. 추천 스타일 (위 15종 중 하나의 id)
+5. 추천 색상 팔레트 (medical, calm, warm 중 하나)
 
 반드시 JSON 배열 형식으로 출력:
 [
   {
     "title": "손그림 다이어그램 - 호흡법",
     "reason": "단계별 실행 방법을 직관적으로 표현",
-    "keywords": ["호흡", "단계", "손그림"]
+    "keywords": ["호흡", "단계", "손그림"],
+    "recommendedStyle": "hand-drawn-diagram",
+    "recommendedPalette": "calm"
   }
 ]`;
 
@@ -431,7 +459,9 @@ ${stageData.finalDraft}
                 topic: stageData.selectedTopic,
                 concepts: stageData.imageConcepts.map(c => ({
                     title: c.title,
-                    keywords: c.keywords
+                    keywords: c.keywords,
+                    recommendedStyle: c.recommendedStyle,
+                    recommendedPalette: c.recommendedPalette
                 }))
             });
         }

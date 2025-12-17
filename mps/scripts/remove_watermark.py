@@ -143,7 +143,8 @@ def create_gradient_fill(img, wm_x1, wm_y1, wm_x2, wm_y2, bg_color):
     # 좌측 경계 블렌딩
     if wm_x1 >= feather_size:
         for i in range(feather_size):
-            alpha = (i + 1) / feather_size
+            t = (i + 1) / feather_size
+            alpha = t * t * (3 - 2 * t) # Smoothstep blending
             x = wm_x1 + i
             # 왼쪽 원본 픽셀과 블렌딩
             for y in range(wm_y1, wm_y2):
@@ -155,7 +156,8 @@ def create_gradient_fill(img, wm_x1, wm_y1, wm_x2, wm_y2, bg_color):
     # 상단 경계 블렌딩
     if wm_y1 >= feather_size:
         for i in range(feather_size):
-            alpha = (i + 1) / feather_size
+            t = (i + 1) / feather_size
+            alpha = t * t * (3 - 2 * t)
             y = wm_y1 + i
             # 위쪽 원본 픽셀과 블렌딩
             for x in range(wm_x1, wm_x2):
@@ -167,7 +169,8 @@ def create_gradient_fill(img, wm_x1, wm_y1, wm_x2, wm_y2, bg_color):
     # 우측 경계 블렌딩 (워터마크가 이미지 끝이 아닌 경우)
     if wm_x2 < width - feather_size:
         for i in range(feather_size):
-            alpha = 1 - (i + 1) / feather_size
+            t = (i + 1) / feather_size
+            alpha = 1 - (t * t * (3 - 2 * t))
             x = wm_x2 - 1 - i
             # 오른쪽 원본 픽셀과 블렌딩
             for y in range(wm_y1, wm_y2):
@@ -179,7 +182,8 @@ def create_gradient_fill(img, wm_x1, wm_y1, wm_x2, wm_y2, bg_color):
     # 하단 경계 블렌딩 (워터마크가 이미지 끝이 아닌 경우)
     if wm_y2 < height - feather_size:
         for i in range(feather_size):
-            alpha = 1 - (i + 1) / feather_size
+            t = (i + 1) / feather_size
+            alpha = 1 - (t * t * (3 - 2 * t))
             y = wm_y2 - 1 - i
             # 아래쪽 원본 픽셀과 블렌딩
             for x in range(wm_x1, wm_x2):

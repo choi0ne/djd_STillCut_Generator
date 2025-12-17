@@ -176,6 +176,17 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
             BACKGROUND_PROMPT: 'A textured digital painting, mimicking a pastel or colored pencil drawing on fine-grained paper. A subtle paper texture overlay is visible across the entire image. Style: textured digital painting, soft focus, warm and inviting, pastel-like.',
             NEGATIVES: ['harsh lighting', 'sharp edges', 'cartoon', 'anime', 'cold colors']
         }
+    },
+    {
+        id: 'precision-medical',
+        displayName: '정밀 의학도',
+        icon: '🔬',
+        description: '해부학적 정확도와 색상 코딩, 텍스트 라벨이 분리된 의학 교과서 스타일',
+        keywords: ['medical textbook', 'anatomy', 'labeled', 'cross-section', 'color-coded', 'precision', 'Netter style'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: "A detailed anatomical illustration in medical textbook style with subtle shading. Color-coded structures: arteries in #E53935 (red), veins in #1E88E5 (blue), organs in natural tones. Clean white background with no gradients. Cross-section or anterior view with realistic anatomical proportions. Style: conservative medical textbook, Netter's Atlas inspired, precise line art, minimal shading, educational clarity. Labels should be placed as vector text layer separately.",
+            NEGATIVES: ['stylization drift', 'artistic interpretation', '3D rendering', 'photographs', 'cartoon style', 'anime', 'fantasy elements', 'incorrect anatomy']
+        }
     }
 ];
 

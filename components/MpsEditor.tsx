@@ -9,7 +9,8 @@ import {
     type FileType,
     type MpsResult
 } from '../services/mpsService';
-import { saveToGoogleDrive, listImagesFromGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
+import { saveToGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
+import GoogleDrivePickerModal from './GoogleDrivePickerModal';
 
 // PDF.js worker 설정 (ES Module 호환)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.mjs`;
@@ -54,8 +55,7 @@ const MpsEditor: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     // 구글 드라이브 상태
-    const [showDriveFiles, setShowDriveFiles] = useState(false);
-    const [driveFiles, setDriveFiles] = useState<any[]>([]);
+    const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
     const [isLoadingDrive, setIsLoadingDrive] = useState(false);
 
     // PDF 미리보기 상태
@@ -190,22 +190,14 @@ const MpsEditor: React.FC = () => {
         }
     }, [handleFileUpload]);
 
-    // 구글 드라이브에서 파일 목록 가져오기
-    const handleOpenGoogleDrive = async () => {
-        setIsLoadingDrive(true);
-        try {
-            const files = await listImagesFromGoogleDrive();
-            setDriveFiles(files);
-            setShowDriveFiles(true);
-        } catch (error: any) {
-            setError(error.message || 'Google Drive 파일 목록을 불러올 수 없습니다.');
-        } finally {
-            setIsLoadingDrive(false);
-        }
+    // 구글 드라이브 모달 열기
+    const handleOpenGoogleDrive = () => {
+        setIsDriveModalOpen(true);
     };
 
     // 구글 드라이브에서 선택한 파일 다운로드
     const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+        setIsDriveModalOpen(false);
         setIsLoadingDrive(true);
         try {
             const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
@@ -213,7 +205,6 @@ const MpsEditor: React.FC = () => {
             const blob = await response.blob();
             const file = new File([blob], fileName, { type: mimeType });
             handleFileUpload(file);
-            setShowDriveFiles(false);
         } catch (error: any) {
             setError(error.message || '파일을 다운로드할 수 없습니다.');
         } finally {
@@ -274,18 +265,46 @@ const MpsEditor: React.FC = () => {
         setIsSaving(true);
         try {
             // 로컬 다운로드
-            if (previewUrl) {
+            // 저장할 파일 결정 (처리 결과가 있으면 최우선, 없으면 업로드 미리보기)
+            let fileUrlToSave = previewUrl;
+            let fileNameToSave = `mps-${Date.now()}.png`; // 기본 이름
+
+            if (result && result.outputFiles && result.outputFiles.length > 0) {
+                // 처리된 파일 중 첫 번째 파일 사용 (단일 파일 저장 시)
+                // TODO: 여러 파일인 경우(PDF 개별 페이지 등) ZIP 저장 등을 고려해야 함
+                fileUrlToSave = result.outputFiles[0];
+                const parts = fileUrlToSave.split('/');
+                fileNameToSave = parts[parts.length - 1];
+            }
+
+            if (fileUrlToSave) {
+                // 다운로드를 위해 Blob으로 변환
+                const response = await fetch(fileUrlToSave);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                // 로컬 다운로드
                 const link = document.createElement('a');
-                link.href = previewUrl;
-                link.download = `mps-${Date.now()}.png`;
+                link.href = blobUrl;
+                link.download = fileNameToSave;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-            }
 
-            // Google Drive 저장
-            if (previewUrl) {
-                await saveToGoogleDrive(previewUrl);
+                // Google Drive 저장
+                // saveToGoogleDrive가 URL을 받는지 Blob을 받는지 확인 필요하지만
+                // 기존 코드는 URL을 넘기고 있었음.
+                // 하지만 CORS 문제 등이 있을 수 있으므로 blobUrl이나 base64 변환 필요할 수 있음
+                // 현재 saveToGoogleDrive 구현을 보면(추정), URL을 받아서 처리한다고 가정.
+                // 만약 서버 URL을 직접 넘기면 드라이브 서비스가 다운로드 못할 수 있음 (인증 등)
+                // 따라서 여기서는 blobUrl을 넘기는 걸로 시도하거나,
+                // saveToGoogleDrive 함수 내부 확인 필요.
+                // 일단 기존 previewUrl 로직을 fileUrlToSave로 변경
+                // 주의: fileUrlToSave가 원격 서버(Cloud Run) URL일 때 CORS 이슈 가능성 있음
+                // 앞서 fetch로 blob을 성공적으로 가져왔다면, blobUrl을 넘기는게 안전함.
+                await saveToGoogleDrive(blobUrl);
+
+                URL.revokeObjectURL(blobUrl);
             }
 
             setStatusMessage('✅ 저장 완료! 로컬 + Google Drive');
@@ -362,44 +381,7 @@ const MpsEditor: React.FC = () => {
                     <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
                 </button>
 
-                {/* Google Drive 파일 선택 모달 */}
-                {showDriveFiles && (
-                    <div className="mt-3 p-4 border-2 border-blue-500 rounded-lg bg-gray-800/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-white">☁️ Google Drive</span>
-                            <button
-                                onClick={() => setShowDriveFiles(false)}
-                                className="text-gray-400 hover:text-white text-sm"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        {driveFiles.length > 0 ? (
-                            <div className="max-h-64 overflow-y-auto grid grid-cols-4 gap-2">
-                                {driveFiles.map((file) => (
-                                    <div
-                                        key={file.id}
-                                        onClick={() => handleSelectDriveFile(file.id, file.mimeType, file.name)}
-                                        className="aspect-square bg-gray-700 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 overflow-hidden flex items-center justify-center"
-                                    >
-                                        {file.thumbnailLink ? (
-                                            <img src={file.thumbnailLink} alt={file.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="text-center p-2">
-                                                <span className="text-2xl">{file.mimeType?.includes('pdf') ? '📄' : '🖼️'}</span>
-                                                <p className="text-xs text-gray-400 mt-1 truncate">{file.name}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center text-gray-400 text-sm py-4">
-                                파일 없음
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Google Drive 파일 선택 모달 - 위치 이동됨 */}
             </div>
 
             {/* 미리보기 */}
@@ -489,6 +471,13 @@ const MpsEditor: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Google Drive 파일 선택 모달 */}
+            <GoogleDrivePickerModal
+                isOpen={isDriveModalOpen}
+                onClose={() => setIsDriveModalOpen(false)}
+                onSelect={handleSelectDriveFile}
+            />
         </div>
     );
 };

@@ -4,6 +4,8 @@ import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
 import { ImageFile, StoredPrompt } from '../types';
 import { generateImageWithPrompt } from '../services/geminiService';
+import { downloadImageFromGoogleDrive } from '../services/googleDriveService';
+import GoogleDrivePickerModal from './GoogleDrivePickerModal';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useImageGenerator } from '../hooks/useImageGenerator';
 import GenerationResultPanel from './GenerationResultPanel';
@@ -83,6 +85,27 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   const [promptError, setPromptError] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryInitialText, setLibraryInitialText] = useState<string | null>(null);
+
+  // Google Drive State
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+
+  const handleOpenGoogleDrive = () => {
+    setIsDriveModalOpen(true);
+  };
+
+  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    setIsDriveModalOpen(false);
+    setIsLoadingDrive(true);
+    try {
+      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      handleImageUpload(imageData);
+    } catch (err: any) {
+      alert(err.message || '이미지를 다운로드할 수 없습니다.');
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
 
   const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('storedPrompts', defaultPrompts);
 
@@ -218,7 +241,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         <Panel>
           <div className="flex flex-col gap-6 flex-grow">
             <div className="flex flex-col">
@@ -236,14 +259,32 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   </button>
                 </div>
               ) : (
-                <div className="h-64">
-                  <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" />
+                <div className="h-64 flex flex-col gap-2">
+                  <div className="flex-1">
+                    <ImageDropzone onImageUpload={handleImageUpload} label="인물 사진 (PNG, JPG)" showDriveButton={false} />
+                  </div>
+                  <button
+                    onClick={handleOpenGoogleDrive}
+                    disabled={isLoadingDrive}
+                    className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <span>☁️</span>
+                    <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                  </button>
                 </div>
               )}
             </div>
 
-            <div>
-              <label htmlFor="prompt-input" className="block text-lg font-semibold mb-2 text-gray-300">2. 변경사항 설명</label>
+            <GoogleDrivePickerModal
+              isOpen={isDriveModalOpen}
+              onClose={() => setIsDriveModalOpen(false)}
+              onSelect={handleSelectDriveFile}
+            />
+
+            <div className="flex-grow flex flex-col">
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="prompt-input" className="block text-lg font-semibold text-gray-300">2. 변경사항 설명</label>
+              </div>
               {selectedPrompts.length > 0 && (
                 <div className="mb-3">
                   <p className="text-sm font-medium text-gray-400 mb-2">선택된 라이브러리 프롬프트:</p>
@@ -259,44 +300,47 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
                   </div>
                 </div>
               )}
-              <p className="text-sm text-gray-400 mb-3">
-                {(() => {
-                  if (selectedPrompts.length === 1) {
-                    return '선택된 프롬프트로 4개의 이미지를 생성합니다.';
-                  }
-                  if (selectedPrompts.length > 1) {
-                    return '선택된 프롬프트들로 각각 이미지를 생성합니다.';
-                  }
-                  return '첨부한 파일의 인물의 얼굴은 그대로 유지하면서, 의상과 배경을 어떻게 바꿀지 설명해주세요.';
-                })()}
-              </p>
-              <div className="flex gap-2">
-                <input
+              <div className="flex justify-between items-end mb-3">
+                <p className="text-sm text-gray-400">
+                  {(() => {
+                    if (selectedPrompts.length === 1) {
+                      return '선택된 프롬프트로 4개의 이미지를 생성합니다.';
+                    }
+                    if (selectedPrompts.length > 1) {
+                      return '선택된 프롬프트들로 각각 이미지를 생성합니다.';
+                    }
+                    return '첨부한 파일의 인물의 얼굴은 그대로 유지하면서, 의상과 배경을 어떻게 바꿀지 설명해주세요.';
+                  })()}
+                </p>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={handleSaveCurrentPrompt}
+                    className="p-1.5 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+                    title="현재 프롬프트 저장"
+                    aria-label="현재 프롬프트 라이브러리에 저장"
+                    disabled={!prompt.trim() || selectedPrompts.length > 0}
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setIsLibraryOpen(true)}
+                    className="p-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                    title="프롬프트 라이브러리"
+                    aria-label="프롬프트 라이브러리 열기"
+                  >
+                    <LibraryIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-grow h-full">
+                <textarea
                   id="prompt-input"
-                  type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={selectedPrompts.length > 0 ? "라이브러리 프롬프트 사용 중" : "예: 미래형 우주복을 입고, 화성에서"}
                   disabled={selectedPrompts.length > 0}
-                  className="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  className="w-full h-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:bg-gray-800 disabled:cursor-not-allowed resize-none"
                 />
-                <button
-                  onClick={handleSaveCurrentPrompt}
-                  className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                  title="현재 프롬프트 저장"
-                  aria-label="현재 프롬프트 라이브러리에 저장"
-                  disabled={!prompt.trim() || selectedPrompts.length > 0}
-                >
-                  <PlusIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setIsLibraryOpen(true)}
-                  className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
-                  title="프롬프트 라이브러리"
-                  aria-label="프롬프트 라이브러리 열기"
-                >
-                  <LibraryIcon className="w-5 h-5" />
-                </button>
               </div>
               {promptError && <p className="text-sm text-red-400 mt-2">{promptError}</p>}
             </div>
