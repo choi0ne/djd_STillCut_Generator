@@ -4,7 +4,7 @@ import { ImageFile, StoredPrompt } from '../types';
 import Panel from './common/Panel';
 import ImageDropzone from './ImageDropzone';
 import PromptLibraryModal from './PromptLibraryModal';
-import { generatePromptFromImage, generateJsonFromImage } from '../services/geminiService';
+import { generatePromptFromImage, generateJsonFromImage, generatePromptFromTextInput, generateCombinedPrompt } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { XIcon, SparklesIcon, ClipboardIcon, LibraryIcon, PlusIcon, EditIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
@@ -19,6 +19,8 @@ interface ImageToPromptEditorProps {
     selectedProvider: ImageProvider;
     setSelectedProvider: (provider: ImageProvider) => void;
 }
+
+type InputMode = 'image' | 'text' | 'both';
 
 const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
     isApiKeyReady,
@@ -36,9 +38,15 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
     const [outputMode, setOutputMode] = useState<'text' | 'json'>('text');
     const [isEditing, setIsEditing] = useState(false);
 
+    // 입력 모드 상태: 이미지만 / 텍스트만 / 이미지+텍스트
+    const [inputMode, setInputMode] = useState<InputMode>('image');
+
     // Google Drive 상태
     const [showDriveFiles, setShowDriveFiles] = useState(false);
     const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+
+    // 텍스트 입력 상태
+    const [textInput, setTextInput] = useState('');
 
     const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('generatedPromptsLibrary', []);
 
@@ -56,13 +64,11 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
 
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf('image') !== -1) {
-                    // 이미지 발견 즉시 기본 동작 방지
                     e.preventDefault();
                     e.stopPropagation();
 
                     const file = items[i].getAsFile();
                     if (file) {
-                        // File을 ImageFile 형식으로 변환
                         const reader = new FileReader();
                         reader.onload = (event) => {
                             if (typeof event.target?.result === 'string') {
@@ -163,33 +169,6 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
         setLibraryInitialText(null);
     };
 
-    const handleGenerate = async () => {
-        if (!isApiKeyReady) {
-            openSettings();
-            return;
-        }
-        if (!image) {
-            setError('먼저 이미지를 업로드해주세요.');
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-        setGeneratedPrompt('');
-
-        try {
-            // TODO: Use selectedProvider to choose between Gemini and OpenAI
-            const promptText = outputMode === 'json'
-                ? await generateJsonFromImage(image)
-                : await generatePromptFromImage(image);
-            setGeneratedPrompt(promptText);
-        } catch (e: any) {
-            setError(e.message || '생성 중 오류가 발생했습니다.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleCopy = () => {
         if (!generatedPrompt) return;
         navigator.clipboard.writeText(generatedPrompt).then(() => {
@@ -198,14 +177,73 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
         });
     };
 
+    // 통합 프롬프트 생성 함수
+    const handleGenerate = async () => {
+        if (!isApiKeyReady) {
+            openSettings();
+            return;
+        }
+
+        // 입력 모드에 따른 유효성 검사
+        if (inputMode === 'image' && !image) {
+            setError('이미지를 업로드해주세요.');
+            return;
+        }
+        if (inputMode === 'text' && !textInput.trim()) {
+            setError('텍스트를 입력해주세요.');
+            return;
+        }
+        if (inputMode === 'both' && (!image || !textInput.trim())) {
+            setError('이미지와 텍스트를 모두 입력해주세요.');
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        setGeneratedPrompt('');
+
+        try {
+            let promptText: string;
+
+            if (inputMode === 'image' && image) {
+                // 이미지만 사용
+                promptText = outputMode === 'json'
+                    ? await generateJsonFromImage(image)
+                    : await generatePromptFromImage(image);
+            } else if (inputMode === 'text') {
+                // 텍스트만 사용
+                promptText = await generatePromptFromTextInput(textInput, outputMode);
+            } else if (inputMode === 'both' && image) {
+                // 이미지 + 텍스트 함께 사용
+                promptText = await generateCombinedPrompt(image, textInput, outputMode);
+            } else {
+                throw new Error('입력 조건이 올바르지 않습니다.');
+            }
+
+            setGeneratedPrompt(promptText);
+        } catch (e: any) {
+            setError(e.message || '생성 중 오류가 발생했습니다.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 생성 버튼 활성화 조건
+    const canGenerate = () => {
+        if (inputMode === 'image') return !!image;
+        if (inputMode === 'text') return !!textInput.trim();
+        if (inputMode === 'both') return !!image && !!textInput.trim();
+        return false;
+    };
+
     return (
         <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                 <Panel>
-                    <div className="flex flex-col gap-6 flex-grow">
+                    <div className="flex flex-col gap-5 flex-grow">
                         {/* 제목 + AI 제공자 선택 */}
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-gray-300">1. 이미지 업로드</h3>
+                            <h3 className="text-lg font-semibold text-gray-300">1. 입력 방식 선택</h3>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setSelectedProvider('gemini')}
@@ -227,60 +265,112 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                                 </button>
                             </div>
                         </div>
-                        <p className="text-sm text-gray-400 -mt-4">
-                            내용을 분석하여 프롬프트를 생성할 이미지를 업로드하세요.
-                        </p>
 
-                        {/* 이미지 업로드 영역 */}
-                        <div className="flex flex-col flex-grow">
-                            {image ? (
-                                <div className="relative group h-full min-h-64 rounded-lg overflow-hidden">
-                                    <img src={image.base64} alt="프롬프트 생성용 이미지" className="w-full h-full object-contain" />
-                                    <button
-                                        onClick={clearImage}
-                                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
-                                        title="이미지 제거"
-                                        aria-label="이미지 제거"
-                                    >
-                                        <XIcon className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="h-full min-h-48">
-                                        <ImageDropzone onImageUpload={handleImageUpload} label="분석할 이미지 (PNG, JPG) - Ctrl+V 붙여넣기 지원" showDriveButton={false} />
-                                    </div>
-                                    <button
-                                        onClick={handleOpenGoogleDrive}
-                                        disabled={isLoadingDrive}
-                                        className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                    >
-                                        <span>☁️</span>
-                                        <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
-                                    </button>
-
-                                    <GoogleDrivePickerModal
-                                        isOpen={showDriveFiles}
-                                        onClose={() => setShowDriveFiles(false)}
-                                        onSelect={handleSelectDriveFile}
-                                    />
-                                </div>
-                            )}
+                        {/* 입력 모드 선택 */}
+                        <div className="flex gap-2 p-1 bg-gray-800/50 rounded-lg">
+                            <button
+                                onClick={() => setInputMode('image')}
+                                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${inputMode === 'image'
+                                    ? 'bg-teal-600 text-white shadow-lg'
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                                    }`}
+                            >
+                                🖼️ 이미지만
+                            </button>
+                            <button
+                                onClick={() => setInputMode('text')}
+                                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${inputMode === 'text'
+                                    ? 'bg-teal-600 text-white shadow-lg'
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                                    }`}
+                            >
+                                💬 텍스트만
+                            </button>
+                            <button
+                                onClick={() => setInputMode('both')}
+                                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${inputMode === 'both'
+                                    ? 'bg-teal-600 text-white shadow-lg'
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                                    }`}
+                            >
+                                🖼️+💬 함께
+                            </button>
                         </div>
-                    </div>
 
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isLoading || !image || !isApiKeyReady}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-                    >
-                        {isLoading ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        ) : (
-                            <SparklesIcon className="w-5 h-5" />
+                        {/* 이미지 업로드 영역 (이미지만 또는 함께 모드일 때 표시) */}
+                        {(inputMode === 'image' || inputMode === 'both') && (
+                            <div className="flex flex-col">
+                                <label className="text-sm font-medium text-gray-400 mb-2">
+                                    📷 이미지 업로드
+                                </label>
+                                {image ? (
+                                    <div className="relative group h-48 rounded-lg overflow-hidden border border-gray-600">
+                                        <img src={image.base64} alt="프롬프트 생성용 이미지" className="w-full h-full object-contain" />
+                                        <button
+                                            onClick={clearImage}
+                                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity"
+                                            title="이미지 제거"
+                                            aria-label="이미지 제거"
+                                        >
+                                            <XIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="h-40">
+                                            <ImageDropzone onImageUpload={handleImageUpload} label="이미지 (PNG, JPG) - Ctrl+V 지원" showDriveButton={false} />
+                                        </div>
+                                        <button
+                                            onClick={handleOpenGoogleDrive}
+                                            disabled={isLoadingDrive}
+                                            className="w-full py-2 bg-blue-600/20 text-blue-300 text-sm rounded-lg hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <span>☁️</span>
+                                            <span>{isLoadingDrive ? '로딩...' : 'Google Drive에서 가져오기'}</span>
+                                        </button>
+
+                                        <GoogleDrivePickerModal
+                                            isOpen={showDriveFiles}
+                                            onClose={() => setShowDriveFiles(false)}
+                                            onSelect={handleSelectDriveFile}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         )}
-                        <span>{isLoading ? '분석 중...' : '프롬프트 생성'}</span>
-                    </button>
+
+                        {/* 텍스트 입력 영역 (텍스트만 또는 함께 모드일 때 표시) */}
+                        {(inputMode === 'text' || inputMode === 'both') && (
+                            <div className="flex flex-col">
+                                <label className="text-sm font-medium text-gray-400 mb-2">
+                                    💬 이미지 설명 입력
+                                </label>
+                                <textarea
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    placeholder="원하는 이미지를 설명하세요...&#10;예: 밤하늘 아래 외로운 늑대, 사이버펑크 스타일의 미래 도시"
+                                    className="w-full h-28 bg-gray-900/50 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow text-sm resize-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    한국어로 입력하면 영어 프롬프트로 자동 변환됩니다
+                                </p>
+                            </div>
+                        )}
+
+                        {/* 통합 프롬프트 생성 버튼 */}
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading || !canGenerate() || !isApiKeyReady}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold py-3 px-4 rounded-lg hover:from-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        >
+                            {isLoading ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            ) : (
+                                <SparklesIcon className="w-5 h-5" />
+                            )}
+                            <span>{isLoading ? '프롬프트 생성 중...' : '✨ 프롬프트 생성'}</span>
+                        </button>
+                    </div>
                 </Panel>
 
                 <Panel>
@@ -310,7 +400,7 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                         </div>
                         <div className="flex items-center justify-between" style={{ marginTop: '-0.5rem' }}>
                             <p className="text-xs text-gray-500">
-                                {outputMode === 'json' ? '이미지를 구조화된 JSON으로 변환합니다' : '이미지를 텍스트 프롬프트로 변환합니다'}
+                                {outputMode === 'json' ? '구조화된 JSON으로 변환 (subject, style, setting, colors, composition 등)' : '구도, 색감, 조명, 분위기 등을 포함한 상세 영어 프롬프트'}
                             </p>
                             <div className="flex gap-2">
                                 <button

@@ -191,9 +191,24 @@ export const generatePromptFromImage = async (
 ): Promise<string> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-2.0-flash';
 
-        const prompt = "Describe this image for an image generation prompt. Focus on the subject, style, setting, and composition. Provide a detailed, comma-separated list of keywords in English.";
+        const prompt = `Analyze this image in detail and create a comprehensive image generation prompt in English. Include ALL of the following aspects:
+
+1. **Subject**: Main subject, people, characters, objects
+2. **Composition**: Framing, angle (close-up, wide shot, bird's eye view, etc.), rule of thirds, leading lines
+3. **Style**: Art style, photography style, rendering style (photorealistic, anime, oil painting, watercolor, etc.)
+4. **Color Palette**: Dominant colors, color harmony, warm/cool tones, saturation, contrast
+5. **Lighting**: Light source, direction, quality (soft, hard, dramatic), shadows, highlights, golden hour, neon
+6. **Background/Setting**: Environment, location, atmosphere, depth
+7. **Mood/Atmosphere**: Emotional tone (peaceful, mysterious, energetic, romantic, dark, etc.)
+8. **Details**: Textures, patterns, fine details, quality descriptors
+
+Output format: A single paragraph of comma-separated keywords and phrases in English, organized from most important to least important. Make it detailed and specific for high-quality image generation.
+
+Example: "majestic lion standing on rocky outcrop, golden hour lighting, warm orange and amber color palette, dramatic side lighting with deep shadows, African savanna background, photorealistic style, powerful and regal mood, detailed fur texture, shallow depth of field, cinematic composition, rule of thirds, 8k ultra detailed"
+
+Generate only the prompt, no explanations.`;
 
         const response = await ai.models.generateContent({
             model,
@@ -210,7 +225,7 @@ export const generatePromptFromImage = async (
             throw new Error("API가 텍스트 응답을 반환하지 않았습니다.");
         }
 
-        return text;
+        return text.trim();
 
     } catch (error) {
         throw handleApiError(error);
@@ -261,6 +276,192 @@ Provide ONLY the JSON object, no markdown formatting, no explanations. Use Engli
         }
 
         return text;
+
+    } catch (error) {
+        throw handleApiError(error);
+    }
+};
+
+/**
+ * 텍스트 입력을 받아 이미지 생성용 프롬프트를 생성합니다.
+ * @param textInput 사용자가 입력한 텍스트 설명
+ * @param outputMode 'text' 또는 'json' 형식
+ */
+export const generatePromptFromTextInput = async (
+    textInput: string,
+    outputMode: 'text' | 'json' = 'text'
+): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
+
+        let prompt: string;
+
+        if (outputMode === 'json') {
+            prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 API에 사용할 수 있는 JSON 코드를 생성하세요.
+
+사용자 입력: "${textInput}"
+
+다음 형식으로 출력하세요:
+{
+  "subject": "주요 피사체 (영어로 작성)",
+  "style": "스타일 (예: photorealistic, cartoon, watercolor, oil painting, anime, cyberpunk 등)",
+  "setting": "배경/장소 (영어로 작성)",
+  "lighting": "조명 (예: natural light, dramatic, soft, golden hour, neon 등)",
+  "mood": "분위기 (예: peaceful, energetic, mysterious, romantic, dark 등)"
+}
+
+중요 지침:
+1. 사용자의 한국어 입력을 영어 프롬프트로 번역하세요.
+2. 각 필드는 구체적이고 상세하게 작성하세요.
+3. 반드시 유효한 JSON 형식으로만 출력하고, 다른 설명은 하지 마세요.`;
+        } else {
+            prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 AI에 사용할 수 있는 매우 상세한 영어 프롬프트를 생성하세요.
+
+사용자 입력: "${textInput}"
+
+다음 요소들을 반드시 포함하세요:
+1. Subject (주요 피사체): 메인 주제, 인물, 캐릭터, 오브젝트 상세 묘사
+2. Composition (구도): 프레이밍, 앵글, 시점 (클로즈업, 와이드샷, 버드아이뷰 등)
+3. Style (스타일): 아트 스타일, 사진 스타일, 렌더링 스타일
+4. Color Palette (색감): 주요 색상, 색조 조화, 따뜻함/차가움, 채도, 대비
+5. Lighting (조명): 광원, 방향, 품질 (소프트, 하드, 드라마틱), 그림자
+6. Setting (배경): 환경, 장소, 깊이감
+7. Mood (분위기): 감정적 톤, 전체적인 느낌
+8. Details (디테일): 텍스처, 패턴, 품질 묘사 (8k, ultra detailed 등)
+
+출력 형식: 콤마로 구분된 영어 키워드와 구문으로 구성된 단일 문단. 중요도 순으로 정리하세요.
+
+예시: "lone wolf standing beneath starry night sky, majestic and solitary, photorealistic style, deep blue and silver color palette with purple nebula accents, moonlit backlighting with soft ambient glow, vast wilderness forest setting, mysterious and melancholic atmosphere, detailed fur texture, shallow depth of field, cinematic wide shot composition, 8k ultra detailed, dramatic contrast"
+
+프롬프트만 출력하고 다른 설명은 하지 마세요.`;
+        }
+
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [{ text: prompt }],
+            },
+        });
+
+        let result = response.text || '';
+
+        if (outputMode === 'json') {
+            // 마크다운 코드블록 제거
+            const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+                result = jsonMatch[1].trim();
+            }
+
+            // JSON 유효성 검증
+            try {
+                JSON.parse(result);
+            } catch (e) {
+                throw new Error("생성된 JSON이 유효하지 않습니다.");
+            }
+        }
+
+        if (!result.trim()) {
+            throw new Error("프롬프트 생성에 실패했습니다.");
+        }
+
+        return result.trim();
+
+    } catch (error) {
+        throw handleApiError(error);
+    }
+};
+
+/**
+ * 이미지와 텍스트를 함께 분석하여 프롬프트를 생성합니다.
+ * @param image 분석할 이미지
+ * @param textInput 사용자가 입력한 추가 설명/키워드
+ * @param outputMode 'text' 또는 'json' 형식
+ */
+export const generateCombinedPrompt = async (
+    image: ImageFile,
+    textInput: string,
+    outputMode: 'text' | 'json' = 'text'
+): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
+
+        let prompt: string;
+
+        if (outputMode === 'json') {
+            prompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 이미지 생성용 JSON을 만드세요.
+
+사용자 추가 설명: "${textInput}"
+
+다음 형식으로 출력하세요:
+{
+  "subject": "주요 피사체 (영어로 작성, 이미지+사용자 입력 종합)",
+  "style": "스타일 (photorealistic, cartoon, watercolor, oil painting, anime, cyberpunk 등)",
+  "setting": "배경/장소 (영어로 작성)",
+  "composition": "구도 (프레이밍, 앵글, 시점 등)",
+  "colors": "색감 (주요 색상, 색조, 따뜻함/차가움)",
+  "lighting": "조명 (광원, 방향, 품질, 그림자)",
+  "mood": "분위기 (감정적 톤)",
+  "details": "디테일 (텍스처, 품질 묘사)"
+}
+
+중요 지침:
+1. 이미지에서 분석한 내용과 사용자 입력을 결합하세요.
+2. 사용자 입력에서 강조한 부분을 우선시하세요.
+3. 반드시 유효한 JSON 형식으로만 출력하세요.`;
+        } else {
+            prompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 매우 상세한 이미지 생성 프롬프트를 만드세요.
+
+사용자 추가 설명: "${textInput}"
+
+다음 요소들을 반드시 포함하세요:
+1. Subject (주요 피사체): 이미지와 사용자 입력을 종합하여 상세 묘사
+2. Composition (구도): 프레이밍, 앵글, 시점
+3. Style (스타일): 아트 스타일, 사진 스타일, 렌더링 스타일
+4. Color Palette (색감): 주요 색상, 색조 조화, 따뜻함/차가움, 채도
+5. Lighting (조명): 광원, 방향, 품질, 그림자
+6. Setting (배경): 환경, 장소, 깊이감
+7. Mood (분위기): 감정적 톤, 전체적인 느낌
+8. Details (디테일): 텍스처, 패턴, 품질 묘사
+
+중요 지침:
+- 이미지에서 분석한 내용과 사용자 입력을 자연스럽게 결합하세요.
+- 사용자가 강조한 부분을 우선시하세요.
+- 콤마로 구분된 영어 키워드로 출력하세요.
+- 프롬프트만 출력하고 다른 설명은 하지 마세요.`;
+        }
+
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [
+                    base64ToPart(image.base64, image.mimeType),
+                    { text: prompt },
+                ],
+            },
+        });
+
+        let result = response.text || '';
+
+        if (outputMode === 'json') {
+            const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+                result = jsonMatch[1].trim();
+            }
+
+            try {
+                JSON.parse(result);
+            } catch (e) {
+                throw new Error("생성된 JSON이 유효하지 않습니다.");
+            }
+        }
+
+        if (!result.trim()) {
+            throw new Error("프롬프트 생성에 실패했습니다.");
+        }
+
+        return result.trim();
 
     } catch (error) {
         throw handleApiError(error);
