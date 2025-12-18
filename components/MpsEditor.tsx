@@ -586,8 +586,8 @@ const MpsEditor: React.FC = () => {
                 </div>
             )}
 
-            {/* 이미지 옵션 */}
-            {fileType === 'image' && (
+            {/* 이미지 옵션 (단일 이미지 또는 일괄 처리 대기 중) */}
+            {(fileType === 'image' || pendingBatchFiles.length > 0) && (
                 <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
                     <ImageOptionsPanel options={imageOptions} onChange={setImageOptions} />
                 </div>
