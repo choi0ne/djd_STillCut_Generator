@@ -62,6 +62,7 @@ const MpsEditor: React.FC = () => {
     const [isBatchProcessing, setIsBatchProcessing] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
     const [batchResults, setBatchResults] = useState<Array<{ fileName: string; success: boolean; error?: string }>>([]);
+    const [pendingBatchFiles, setPendingBatchFiles] = useState<SelectedDriveFile[]>([]); // 대기 중인 파일 큐;
 
     // PDF 미리보기 상태
     const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
@@ -203,7 +204,7 @@ const MpsEditor: React.FC = () => {
         setIsDriveModalOpen(true);
     };
 
-    // 구글 드라이브에서 선택한 파일들 일괄 처리 (순차 처리 + 저장)
+    // 구글 드라이브에서 선택한 파일들 큐에 저장 (옵션 선택 후 실행)
     const handleSelectDriveFiles = async (files: SelectedDriveFile[]) => {
         setIsDriveModalOpen(false);
         if (files.length === 0) return;
@@ -226,35 +227,49 @@ const MpsEditor: React.FC = () => {
             return;
         }
 
-        // 다중 파일 일괄 처리 모드
+        // 다중 파일: 큐에 저장하고 옵션 선택 대기
+        setPendingBatchFiles(files);
+        setBatchResults([]);
+        setError(null);
+        setStatusMessage(`📦 ${files.length}개 파일 선택됨. 옵션 설정 후 "일괄 처리 시작" 버튼을 클릭하세요.`);
+    };
+
+    // 일괄 처리 실행 (큐에 있는 파일들 순차 처리)
+    const handleStartBatchProcessing = async () => {
+        if (pendingBatchFiles.length === 0) return;
+
         setIsBatchProcessing(true);
         setBatchResults([]);
         setError(null);
 
         const results: Array<{ fileName: string; success: boolean; error?: string }> = [];
         const timestamp = Date.now();
+        const filesToProcess = [...pendingBatchFiles];
 
-        for (let i = 0; i < files.length; i++) {
-            const driveFile = files[i];
-            setBatchProgress({ current: i + 1, total: files.length, fileName: driveFile.fileName });
+        // 큐 초기화 (처리 시작 시)
+        setPendingBatchFiles([]);
+
+        for (let i = 0; i < filesToProcess.length; i++) {
+            const driveFile = filesToProcess[i];
+            setBatchProgress({ current: i + 1, total: filesToProcess.length, fileName: driveFile.fileName });
 
             try {
                 // 1. 파일 다운로드
-                setStatusMessage(`📥 [${i + 1}/${files.length}] 다운로드: ${driveFile.fileName}`);
+                setStatusMessage(`📥 [${i + 1}/${filesToProcess.length}] 다운로드: ${driveFile.fileName}`);
                 const imageData = await downloadImageFromGoogleDrive(driveFile.fileId, driveFile.mimeType);
                 const response = await fetch(imageData.base64);
                 const blob = await response.blob();
                 const localFile = new File([blob], driveFile.fileName, { type: driveFile.mimeType });
                 const localFileType = detectFileType(localFile);
 
-                // 2. 처리 실행
-                setStatusMessage(`⚙️ [${i + 1}/${files.length}] 처리 중: ${driveFile.fileName}`);
+                // 2. 처리 실행 (선택된 옵션 사용)
+                setStatusMessage(`⚙️ [${i + 1}/${filesToProcess.length}] 처리 중: ${driveFile.fileName}`);
                 const processResult = await processHybrid(
                     localFile,
                     localFileType === 'image' ? imageOptions : pdfOptions,
                     localFileType,
                     processingMode,
-                    [] // PDF 미리보기는 일괄 처리에서는 생략 (이미지만 지원)
+                    [] // PDF 미리보기는 일괄 처리에서는 생략
                 );
 
                 if (!processResult.success || !processResult.outputFiles) {
@@ -262,7 +277,7 @@ const MpsEditor: React.FC = () => {
                 }
 
                 // 3. 저장 (로컬 + Google Drive)
-                setStatusMessage(`💾 [${i + 1}/${files.length}] 저장 중: ${driveFile.fileName}`);
+                setStatusMessage(`💾 [${i + 1}/${filesToProcess.length}] 저장 중: ${driveFile.fileName}`);
 
                 for (let j = 0; j < processResult.outputFiles.length; j++) {
                     const fileUrl = processResult.outputFiles[j];
@@ -315,6 +330,12 @@ const MpsEditor: React.FC = () => {
         } else {
             setStatusMessage(`⚠️ 일괄 처리 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
         }
+    };
+
+    // 대기 중인 파일 취소
+    const handleCancelBatch = () => {
+        setPendingBatchFiles([]);
+        setStatusMessage(null);
     };
 
     // 처리 실행
@@ -581,6 +602,46 @@ const MpsEditor: React.FC = () => {
                         pagePreviews={pdfPagePreviews}
                         isParsing={isParsing}
                     />
+                </div>
+            )}
+
+            {/* 대기 중인 파일 목록 (일괄 처리 대기) */}
+            {pendingBatchFiles.length > 0 && !isBatchProcessing && (
+                <div className="bg-[#111827] rounded-xl border border-purple-500/30 p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-purple-400">
+                            📦 일괄 처리 대기 ({pendingBatchFiles.length}개 파일)
+                        </h3>
+                        <button
+                            onClick={handleCancelBatch}
+                            className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                        >
+                            전체 취소
+                        </button>
+                    </div>
+                    <div className="space-y-1 max-h-32 overflow-y-auto mb-4">
+                        {pendingBatchFiles.map((file, idx) => (
+                            <div key={idx} className="text-xs flex items-center justify-between text-gray-300 bg-black/20 px-2 py-1 rounded">
+                                <span className="truncate flex-1">{idx + 1}. {file.fileName}</span>
+                                <button
+                                    onClick={() => setPendingBatchFiles(prev => prev.filter((_, i) => i !== idx))}
+                                    className="text-gray-500 hover:text-red-400 ml-2"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                        ⬆️ 위의 이미지 옵션을 설정한 후 아래 버튼을 클릭하세요
+                    </p>
+                    <button
+                        onClick={handleStartBatchProcessing}
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                        <span>🚀</span>
+                        <span>일괄 처리 시작</span>
+                    </button>
                 </div>
             )}
 
