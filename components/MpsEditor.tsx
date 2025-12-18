@@ -58,6 +58,11 @@ const MpsEditor: React.FC = () => {
     const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
     const [isLoadingDrive, setIsLoadingDrive] = useState(false);
 
+    // 다중 파일 일괄 처리 상태
+    const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+    const [batchResults, setBatchResults] = useState<Array<{ fileName: string; success: boolean; error?: string }>>([]);
+
     // PDF 미리보기 상태
     const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
     const [isParsing, setIsParsing] = useState(false);
@@ -198,29 +203,117 @@ const MpsEditor: React.FC = () => {
         setIsDriveModalOpen(true);
     };
 
-    // 구글 드라이브에서 선택한 파일들 다운로드 (다중 선택 지원)
+    // 구글 드라이브에서 선택한 파일들 일괄 처리 (순차 처리 + 저장)
     const handleSelectDriveFiles = async (files: SelectedDriveFile[]) => {
         setIsDriveModalOpen(false);
         if (files.length === 0) return;
 
-        setIsLoadingDrive(true);
-        try {
-            // 첫 번째 파일만 처리 (단일 파일 처리 모드 유지)
-            // TODO: 다중 파일 일괄 처리 모드 구현 시 확장 필요
-            const firstFile = files[0];
-            const imageData = await downloadImageFromGoogleDrive(firstFile.fileId, firstFile.mimeType);
-            const response = await fetch(imageData.base64);
-            const blob = await response.blob();
-            const file = new File([blob], firstFile.fileName, { type: firstFile.mimeType });
-            handleFileUpload(file);
-
-            if (files.length > 1) {
-                setStatusMessage(`📥 ${files.length}개 파일 중 첫 번째 파일 로드됨 (추후 일괄 처리 지원 예정)`);
+        // 단일 파일인 경우 기존 로직 사용
+        if (files.length === 1) {
+            setIsLoadingDrive(true);
+            try {
+                const firstFile = files[0];
+                const imageData = await downloadImageFromGoogleDrive(firstFile.fileId, firstFile.mimeType);
+                const response = await fetch(imageData.base64);
+                const blob = await response.blob();
+                const file = new File([blob], firstFile.fileName, { type: firstFile.mimeType });
+                handleFileUpload(file);
+            } catch (error: any) {
+                setError(error.message || '파일을 다운로드할 수 없습니다.');
+            } finally {
+                setIsLoadingDrive(false);
             }
-        } catch (error: any) {
-            setError(error.message || '파일을 다운로드할 수 없습니다.');
-        } finally {
-            setIsLoadingDrive(false);
+            return;
+        }
+
+        // 다중 파일 일괄 처리 모드
+        setIsBatchProcessing(true);
+        setBatchResults([]);
+        setError(null);
+
+        const results: Array<{ fileName: string; success: boolean; error?: string }> = [];
+        const timestamp = Date.now();
+
+        for (let i = 0; i < files.length; i++) {
+            const driveFile = files[i];
+            setBatchProgress({ current: i + 1, total: files.length, fileName: driveFile.fileName });
+
+            try {
+                // 1. 파일 다운로드
+                setStatusMessage(`📥 [${i + 1}/${files.length}] 다운로드: ${driveFile.fileName}`);
+                const imageData = await downloadImageFromGoogleDrive(driveFile.fileId, driveFile.mimeType);
+                const response = await fetch(imageData.base64);
+                const blob = await response.blob();
+                const localFile = new File([blob], driveFile.fileName, { type: driveFile.mimeType });
+                const localFileType = detectFileType(localFile);
+
+                // 2. 처리 실행
+                setStatusMessage(`⚙️ [${i + 1}/${files.length}] 처리 중: ${driveFile.fileName}`);
+                const processResult = await processHybrid(
+                    localFile,
+                    localFileType === 'image' ? imageOptions : pdfOptions,
+                    localFileType,
+                    processingMode,
+                    [] // PDF 미리보기는 일괄 처리에서는 생략 (이미지만 지원)
+                );
+
+                if (!processResult.success || !processResult.outputFiles) {
+                    throw new Error(processResult.error || '처리 실패');
+                }
+
+                // 3. 저장 (로컬 + Google Drive)
+                setStatusMessage(`💾 [${i + 1}/${files.length}] 저장 중: ${driveFile.fileName}`);
+
+                for (let j = 0; j < processResult.outputFiles.length; j++) {
+                    const fileUrl = processResult.outputFiles[j];
+                    const ext = imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg';
+                    const baseName = driveFile.fileName.replace(/\.[^.]+$/, '');
+                    const saveName = processResult.outputFiles.length > 1
+                        ? `${baseName}-${timestamp}-${j + 1}.${ext}`
+                        : `${baseName}-${timestamp}.${ext}`;
+
+                    const saveResponse = await fetch(fileUrl);
+                    const saveBlob = await saveResponse.blob();
+                    const blobUrl = URL.createObjectURL(saveBlob);
+
+                    // 로컬 다운로드
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = saveName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Google Drive 저장
+                    try {
+                        await saveToGoogleDrive(blobUrl);
+                    } catch (driveErr) {
+                        console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                    }
+
+                    URL.revokeObjectURL(blobUrl);
+                }
+
+                results.push({ fileName: driveFile.fileName, success: true });
+
+            } catch (err: any) {
+                console.error(`[MPS Batch] 처리 실패: ${driveFile.fileName}`, err);
+                results.push({ fileName: driveFile.fileName, success: false, error: err.message });
+            }
+        }
+
+        // 결과 요약
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+
+        setBatchResults(results);
+        setBatchProgress(null);
+        setIsBatchProcessing(false);
+
+        if (failCount === 0) {
+            setStatusMessage(`✅ 일괄 처리 완료! ${successCount}개 파일 저장됨`);
+        } else {
+            setStatusMessage(`⚠️ 일괄 처리 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
         }
     };
 
@@ -488,6 +581,51 @@ const MpsEditor: React.FC = () => {
                         pagePreviews={pdfPagePreviews}
                         isParsing={isParsing}
                     />
+                </div>
+            )}
+
+            {/* 일괄 처리 진행 상태 */}
+            {isBatchProcessing && batchProgress && (
+                <div className="bg-[#111827] rounded-xl border border-blue-500/30 p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-blue-400">📦 일괄 처리 진행 중</h3>
+                        <span className="text-sm text-gray-400">
+                            {batchProgress.current} / {batchProgress.total}
+                        </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                        />
+                    </div>
+                    <p className="text-xs text-gray-400 truncate">
+                        🔄 {batchProgress.fileName}
+                    </p>
+                </div>
+            )}
+
+            {/* 일괄 처리 결과 요약 */}
+            {!isBatchProcessing && batchResults.length > 0 && (
+                <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-gray-300">📋 일괄 처리 결과</h3>
+                        <button
+                            onClick={() => setBatchResults([])}
+                            className="text-xs text-gray-500 hover:text-gray-300"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {batchResults.map((r, idx) => (
+                            <div key={idx} className={`text-xs flex items-center gap-2 ${r.success ? 'text-green-400' : 'text-red-400'}`}>
+                                <span>{r.success ? '✅' : '❌'}</span>
+                                <span className="truncate">{r.fileName}</span>
+                                {r.error && <span className="text-gray-500">({r.error})</span>}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
