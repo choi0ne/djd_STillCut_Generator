@@ -10,7 +10,7 @@ import {
     type MpsResult
 } from '../services/mpsService';
 import { saveToGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
-import GoogleDrivePickerModal from './GoogleDrivePickerModal';
+import GoogleDrivePickerModal, { type SelectedDriveFile } from './GoogleDrivePickerModal';
 
 // PDF.js worker 설정 (ES Module 호환)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.mjs`;
@@ -198,16 +198,25 @@ const MpsEditor: React.FC = () => {
         setIsDriveModalOpen(true);
     };
 
-    // 구글 드라이브에서 선택한 파일 다운로드
-    const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    // 구글 드라이브에서 선택한 파일들 다운로드 (다중 선택 지원)
+    const handleSelectDriveFiles = async (files: SelectedDriveFile[]) => {
         setIsDriveModalOpen(false);
+        if (files.length === 0) return;
+
         setIsLoadingDrive(true);
         try {
-            const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+            // 첫 번째 파일만 처리 (단일 파일 처리 모드 유지)
+            // TODO: 다중 파일 일괄 처리 모드 구현 시 확장 필요
+            const firstFile = files[0];
+            const imageData = await downloadImageFromGoogleDrive(firstFile.fileId, firstFile.mimeType);
             const response = await fetch(imageData.base64);
             const blob = await response.blob();
-            const file = new File([blob], fileName, { type: mimeType });
+            const file = new File([blob], firstFile.fileName, { type: firstFile.mimeType });
             handleFileUpload(file);
+
+            if (files.length > 1) {
+                setStatusMessage(`📥 ${files.length}개 파일 중 첫 번째 파일 로드됨 (추후 일괄 처리 지원 예정)`);
+            }
         } catch (error: any) {
             setError(error.message || '파일을 다운로드할 수 없습니다.');
         } finally {
@@ -272,56 +281,70 @@ const MpsEditor: React.FC = () => {
         }
     };
 
-    // 저장 기능 (로컬 + Google Drive)
+    // 저장 기능 (로컬 + Google Drive) - 모든 출력 파일 저장
     const handleSave = async () => {
-        if (!result || !result.success) return;
+        if (!result || !result.success || !result.outputFiles || result.outputFiles.length === 0) return;
 
         setIsSaving(true);
+        let savedCount = 0;
+        let driveSuccessCount = 0;
+
         try {
-            // 로컬 다운로드
-            // 저장할 파일 결정 (처리 결과가 있으면 최우선, 없으면 업로드 미리보기)
-            let fileUrlToSave = previewUrl;
-            let fileNameToSave = `mps-${Date.now()}.png`; // 기본 이름
+            const outputFormat = fileType === 'pdf' ? pdfOptions.outputFormat : imageOptions.outputFormat;
+            const timestamp = Date.now();
 
-            if (result && result.outputFiles && result.outputFiles.length > 0) {
-                // 처리된 파일 중 첫 번째 파일 사용 (단일 파일 저장 시)
-                // TODO: 여러 파일인 경우(PDF 개별 페이지 등) ZIP 저장 등을 고려해야 함
-                fileUrlToSave = result.outputFiles[0];
-                const parts = fileUrlToSave.split('/');
-                fileNameToSave = parts[parts.length - 1];
-            }
+            for (let i = 0; i < result.outputFiles.length; i++) {
+                const fileUrl = result.outputFiles[i];
 
-            if (fileUrlToSave) {
-                // 다운로드를 위해 Blob으로 변환
-                const response = await fetch(fileUrlToSave);
+                // 파일 확장자 결정
+                let extension = 'png';
+                if (outputFormat === 'webp') extension = 'webp';
+                else if (outputFormat === 'jpg') extension = 'jpg';
+                else if (fileUrl.includes('.webp')) extension = 'webp';
+                else if (fileUrl.includes('.jpg') || fileUrl.includes('.jpeg')) extension = 'jpg';
+
+                const fileName = result.outputFiles.length > 1
+                    ? `mps-${timestamp}-${i + 1}.${extension}`
+                    : `mps-${timestamp}.${extension}`;
+
+                // Blob으로 변환
+                const response = await fetch(fileUrl);
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
 
                 // 로컬 다운로드
                 const link = document.createElement('a');
                 link.href = blobUrl;
-                link.download = fileNameToSave;
+                link.download = fileName;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                savedCount++;
 
                 // Google Drive 저장
-                // saveToGoogleDrive가 URL을 받는지 Blob을 받는지 확인 필요하지만
-                // 기존 코드는 URL을 넘기고 있었음.
-                // 하지만 CORS 문제 등이 있을 수 있으므로 blobUrl이나 base64 변환 필요할 수 있음
-                // 현재 saveToGoogleDrive 구현을 보면(추정), URL을 받아서 처리한다고 가정.
-                // 만약 서버 URL을 직접 넘기면 드라이브 서비스가 다운로드 못할 수 있음 (인증 등)
-                // 따라서 여기서는 blobUrl을 넘기는 걸로 시도하거나,
-                // saveToGoogleDrive 함수 내부 확인 필요.
-                // 일단 기존 previewUrl 로직을 fileUrlToSave로 변경
-                // 주의: fileUrlToSave가 원격 서버(Cloud Run) URL일 때 CORS 이슈 가능성 있음
-                // 앞서 fetch로 blob을 성공적으로 가져왔다면, blobUrl을 넘기는게 안전함.
-                await saveToGoogleDrive(blobUrl);
+                try {
+                    await saveToGoogleDrive(blobUrl);
+                    driveSuccessCount++;
+                } catch (driveErr) {
+                    console.error(`[MPS] Google Drive 저장 실패 (파일 ${i + 1}):`, driveErr);
+                }
 
                 URL.revokeObjectURL(blobUrl);
+
+                // 진행 상태 업데이트 (여러 파일일 때)
+                if (result.outputFiles.length > 1) {
+                    setStatusMessage(`💾 저장 중... ${i + 1}/${result.outputFiles.length}`);
+                }
             }
 
-            setStatusMessage('✅ 저장 완료! 로컬 + Google Drive');
+            // 최종 상태 메시지
+            if (driveSuccessCount === savedCount) {
+                setStatusMessage(`✅ 저장 완료! ${savedCount}개 파일 (로컬 + Google Drive)`);
+            } else if (driveSuccessCount > 0) {
+                setStatusMessage(`✅ 저장 완료! 로컬 ${savedCount}개, Drive ${driveSuccessCount}개`);
+            } else {
+                setStatusMessage(`⚠️ 로컬 ${savedCount}개 저장됨 (Drive 저장 실패)`);
+            }
         } catch (err) {
             setError(`저장 중 오류: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         } finally {
@@ -407,8 +430,8 @@ const MpsEditor: React.FC = () => {
                     <button
                         onClick={() => setProcessingMode('auto')}
                         className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'auto'
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
                         <span>🔄</span> Auto
@@ -416,8 +439,8 @@ const MpsEditor: React.FC = () => {
                     <button
                         onClick={() => setProcessingMode('backend')}
                         className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'backend'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
                         <span>☁️</span> Backend
@@ -425,8 +448,8 @@ const MpsEditor: React.FC = () => {
                     <button
                         onClick={() => setProcessingMode('client')}
                         className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${processingMode === 'client'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
                         <span>💻</span> Client
@@ -531,7 +554,8 @@ const MpsEditor: React.FC = () => {
             <GoogleDrivePickerModal
                 isOpen={isDriveModalOpen}
                 onClose={() => setIsDriveModalOpen(false)}
-                onSelect={handleSelectDriveFile}
+                onSelect={handleSelectDriveFiles}
+                multiSelect={true}
             />
         </div>
     );

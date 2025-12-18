@@ -9,7 +9,7 @@ import useLocalStorage from '../hooks/useLocalStorage';
 import { XIcon, SparklesIcon, ClipboardIcon, LibraryIcon, PlusIcon, EditIcon } from './Icons';
 import type { ImageProvider } from '../services/types';
 import { downloadImageFromGoogleDrive } from '../services/googleDriveService';
-import GoogleDrivePickerModal from './GoogleDrivePickerModal';
+import GoogleDrivePickerModal, { type SelectedDriveFile } from './GoogleDrivePickerModal';
 
 interface ImageToPromptEditorProps {
     isApiKeyReady: boolean;
@@ -96,15 +96,17 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
         setShowDriveFiles(true);
     };
 
-    const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+    const handleSelectDriveFile = async (files: SelectedDriveFile[]) => {
+        if (files.length === 0) return;
+        const firstFile = files[0];
+        setShowDriveFiles(false);
         setIsLoadingDrive(true);
         try {
-            const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+            const imageData = await downloadImageFromGoogleDrive(firstFile.fileId, firstFile.mimeType);
             handleImageUpload({
                 base64: imageData.base64,
-                mimeType: mimeType,
+                mimeType: firstFile.mimeType,
             });
-            setShowDriveFiles(false);
         } catch (err: any) {
             setError(err.message || '파일을 다운로드할 수 없습니다.');
         } finally {
@@ -333,6 +335,7 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
                                             isOpen={showDriveFiles}
                                             onClose={() => setShowDriveFiles(false)}
                                             onSelect={handleSelectDriveFile}
+                                            multiSelect={false}
                                         />
                                     </div>
                                 )}

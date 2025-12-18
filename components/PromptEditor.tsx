@@ -5,7 +5,7 @@ import PromptLibraryModal from './PromptLibraryModal';
 import { ImageFile, StoredPrompt } from '../types';
 import { generateImageWithPrompt } from '../services/geminiService';
 import { downloadImageFromGoogleDrive } from '../services/googleDriveService';
-import GoogleDrivePickerModal from './GoogleDrivePickerModal';
+import GoogleDrivePickerModal, { type SelectedDriveFile } from './GoogleDrivePickerModal';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useImageGenerator } from '../hooks/useImageGenerator';
 import GenerationResultPanel from './GenerationResultPanel';
@@ -99,11 +99,13 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     setIsDriveModalOpen(true);
   };
 
-  const handleSelectDriveFile = async (fileId: string, mimeType: string, fileName: string) => {
+  const handleSelectDriveFile = async (files: SelectedDriveFile[]) => {
+    if (files.length === 0) return;
+    const firstFile = files[0];
     setIsDriveModalOpen(false);
     setIsLoadingDrive(true);
     try {
-      const imageData = await downloadImageFromGoogleDrive(fileId, mimeType);
+      const imageData = await downloadImageFromGoogleDrive(firstFile.fileId, firstFile.mimeType);
       handleImageUpload(imageData);
     } catch (err: any) {
       alert(err.message || '이미지를 다운로드할 수 없습니다.');
@@ -306,6 +308,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
               isOpen={isDriveModalOpen}
               onClose={() => setIsDriveModalOpen(false)}
               onSelect={handleSelectDriveFile}
+              multiSelect={false}
             />
 
             <div className="flex-grow flex flex-col">
