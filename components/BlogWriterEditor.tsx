@@ -96,7 +96,6 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     const [savedDrafts, setSavedDrafts] = useLocalStorage<{ stage: number; content: string; date: string }[]>('blog-drafts', []);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [manualInputMode, setManualInputMode] = useState(false); // Stage 6 수동 입력 모드
-    const [manualFinalDraft, setManualFinalDraft] = useState(''); // Stage 6 수동 입력 원고
 
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
@@ -319,15 +318,87 @@ ${stageData.finalDraft}
         }
     };
 
+    // Helper: Save current output to appropriate stageData field
+    const saveCurrentOutputToStageData = () => {
+        if (!currentOutput) return;
+
+        switch (currentStage) {
+            case 0:
+                setStageData(prev => ({ ...prev, ideation: currentOutput.split('\n').filter(l => l.trim()) }));
+                break;
+            case 0.5:
+                // Stage 0.5 uses scoredTopics, which is already managed by handleExecuteStage
+                break;
+            case 1:
+                setStageData(prev => ({ ...prev, keywords: currentOutput.split('\n').filter(l => l.trim()) }));
+                break;
+            case 2:
+                setStageData(prev => ({ ...prev, references: currentOutput.split('\n').filter(l => l.trim()) }));
+                break;
+            case 3:
+                setStageData(prev => ({ ...prev, outline: currentOutput }));
+                break;
+            case 4:
+                setStageData(prev => ({ ...prev, draft: currentOutput }));
+                break;
+            case 5:
+                setStageData(prev => ({ ...prev, critique: currentOutput }));
+                break;
+            case 6:
+                setStageData(prev => ({ ...prev, finalDraft: currentOutput }));
+                break;
+            case 7:
+                // Stage 7 uses imageConcepts, which is already managed by handleExecuteStage
+                break;
+        }
+    };
+
+    // Helper: Load stageData to currentOutput when entering a stage
+    const loadStageDataToOutput = (stage: WorkflowStage) => {
+        switch (stage) {
+            case 0:
+                setCurrentOutput(stageData.ideation.join('\n'));
+                break;
+            case 0.5:
+                // Stage 0.5 displays scoredTopics as cards, not in currentOutput
+                setCurrentOutput('');
+                break;
+            case 1:
+                setCurrentOutput(stageData.keywords.join('\n'));
+                break;
+            case 2:
+                setCurrentOutput(stageData.references.join('\n'));
+                break;
+            case 3:
+                setCurrentOutput(stageData.outline);
+                break;
+            case 4:
+                setCurrentOutput(stageData.draft);
+                break;
+            case 5:
+                setCurrentOutput(stageData.critique);
+                break;
+            case 6:
+                setCurrentOutput(stageData.finalDraft);
+                break;
+            case 7:
+                // Stage 7 displays imageConcepts as cards, not in currentOutput
+                setCurrentOutput('');
+                break;
+            default:
+                setCurrentOutput('');
+        }
+    };
+
     const handleExecuteStage = async () => {
         // Stage 6 수동 입력 모드인 경우 AI 호출 없이 바로 처리
         if (currentStage === 6 && manualInputMode) {
-            if (!manualFinalDraft.trim()) {
-                setCurrentOutput('❌ 원고를 입력해주세요.');
+            if (!currentOutput.trim()) {
+                alert('원고를 입력해주세요. 오른쪽 출력 패널에서 직접 입력하거나 붙여넣기 하세요.');
                 return;
             }
-            setCurrentOutput(manualFinalDraft);
-            setStageData(prev => ({ ...prev, finalDraft: manualFinalDraft }));
+            // currentOutput이 이미 입력되어 있으므로 stageData에만 저장
+            setStageData(prev => ({ ...prev, finalDraft: currentOutput }));
             return;
         }
 
@@ -469,8 +540,12 @@ ${stageData.finalDraft}
         const stages: WorkflowStage[] = [0, 0.5, 1, 2, 3, 4, 5, 6, 7];
         const currentIndex = stages.indexOf(currentStage);
         if (currentIndex < stages.length - 1) {
-            setCurrentStage(stages[currentIndex + 1]);
-            setCurrentOutput('');
+            // Save current output to stageData before moving
+            saveCurrentOutputToStageData();
+            const nextStage = stages[currentIndex + 1];
+            setCurrentStage(nextStage);
+            // Load existing data for next stage
+            loadStageDataToOutput(nextStage);
         }
     };
 
@@ -478,8 +553,12 @@ ${stageData.finalDraft}
         const stages: WorkflowStage[] = [0, 0.5, 1, 2, 3, 4, 5, 6, 7];
         const currentIndex = stages.indexOf(currentStage);
         if (currentIndex > 0) {
-            setCurrentStage(stages[currentIndex - 1]);
-            setCurrentOutput('');
+            // Save current output to stageData before moving
+            saveCurrentOutputToStageData();
+            const prevStage = stages[currentIndex - 1];
+            setCurrentStage(prevStage);
+            // Load existing data for previous stage
+            loadStageDataToOutput(prevStage);
         }
     };
 
@@ -631,7 +710,11 @@ ${stageData.finalDraft}
                         {stages.map((stage, idx) => (
                             <button
                                 key={stage}
-                                onClick={() => { setCurrentStage(stage); setCurrentOutput(''); }}
+                                onClick={() => {
+                                    saveCurrentOutputToStageData();
+                                    setCurrentStage(stage);
+                                    loadStageDataToOutput(stage);
+                                }}
                                 className={`flex-shrink-0 px-2 py-1 rounded text-xs transition-all ${currentStage === stage
                                     ? 'bg-indigo-600 text-white'
                                     : stage < currentStage || (stage === 0.5 && currentStage > 0.5)
@@ -686,7 +769,10 @@ ${stageData.finalDraft}
                                         🤖 AI 생성
                                     </button>
                                     <button
-                                        onClick={() => setManualInputMode(true)}
+                                        onClick={() => {
+                                            setManualInputMode(true);
+                                            setIsEditMode(true); // 수동 입력 모드 활성화 시 자동으로 편집 모드 활성화
+                                        }}
                                         className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${manualInputMode ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
                                     >
                                         ✍️ 직접 입력
@@ -695,19 +781,12 @@ ${stageData.finalDraft}
                             </div>
 
                             {manualInputMode && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                                        외부 원고 붙여넣기 (7단계에서 이미지 카드 & 태그만 추출됩니다)
-                                    </label>
-                                    <textarea
-                                        value={manualFinalDraft}
-                                        onChange={(e) => setManualFinalDraft(e.target.value)}
-                                        placeholder="외부에서 작성한 블로그 원고를 여기에 붙여넣으세요..."
-                                        rows={10}
-                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none font-mono"
-                                    />
+                                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                                    <p className="text-sm text-green-300">
+                                        💡 <strong>직접 입력 모드</strong>: 오른쪽 출력 패널에서 원고를 직접 입력/붙여넣기 하세요.
+                                    </p>
                                     <p className="text-xs text-gray-400 mt-1">
-                                        💡 원고를 입력한 후 "실행" 버튼을 클릭하여 저장하세요.
+                                        입력 후 "다음 →" 버튼을 클릭하면 7단계에서 이미지 카드와 태그가 생성됩니다.
                                     </p>
                                 </div>
                             )}
@@ -788,7 +867,7 @@ ${stageData.finalDraft}
                             onClick={handleExecuteStage}
                             disabled={
                                 isLoading ||
-                                (currentStage === 6 && manualInputMode ? !manualFinalDraft.trim() : !isApiKeyReady) ||
+                                (currentStage === 6 && manualInputMode ? !currentOutput.trim() : !isApiKeyReady) ||
                                 (currentStage === 0 && !userInput.trim())
                             }
                             className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
@@ -903,7 +982,16 @@ ${stageData.finalDraft}
                             <div className="flex flex-col items-center justify-center h-full text-gray-500">
                                 <span className="text-4xl mb-2">{stageInfo.icon}</span>
                                 <p>{stageInfo.name} 단계</p>
-                                <p className="text-sm">[실행] 버튼을 클릭하세요</p>
+                                {currentStage === 6 && manualInputMode ? (
+                                    <div className="text-center mt-4">
+                                        <p className="text-sm text-green-400">✍️ 직접 입력 모드</p>
+                                        <p className="text-xs text-gray-400 mt-2">
+                                            [수정] 버튼을 클릭하여 원고를 입력하세요
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm">[실행] 버튼을 클릭하세요</p>
+                                )}
                             </div>
                         )}
                     </div>

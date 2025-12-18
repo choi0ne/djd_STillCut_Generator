@@ -11,6 +11,7 @@ import { useImageGenerator } from '../hooks/useImageGenerator';
 import GenerationResultPanel from './GenerationResultPanel';
 import Panel from './common/Panel';
 import { SparklesIcon, LibraryIcon, XIcon, PlusIcon } from './Icons';
+import type { ImageProvider } from '../services/types';
 
 const defaultPrompts: StoredPrompt[] = [
   // Category: Consultation
@@ -76,9 +77,13 @@ const defaultPrompts: StoredPrompt[] = [
 interface PromptEditorProps {
   isApiKeyReady: boolean;
   openSettings: () => void;
+  geminiApiKey: string;
+  openaiApiKey: string;
+  selectedProvider: ImageProvider;
+  setSelectedProvider: (provider: ImageProvider) => void;
 }
 
-const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings }) => {
+const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings, geminiApiKey, openaiApiKey, selectedProvider, setSelectedProvider }) => {
   const [image, setImage] = useState<ImageFile | null>(null);
   const [prompt, setPrompt] = useState('');
   const [selectedPrompts, setSelectedPrompts] = useState<StoredPrompt[]>([]);
@@ -245,7 +250,29 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
         <Panel>
           <div className="flex flex-col gap-6 flex-grow">
             <div className="flex flex-col">
-              <label className="block text-lg font-semibold mb-2 text-gray-300">1. 이미지 업로드 (선택사항)</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-lg font-semibold text-gray-300">1. 이미지 업로드 (선택사항)</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedProvider('gemini')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'gemini'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      }`}
+                  >
+                    🔷 Gemini
+                  </button>
+                  <button
+                    onClick={() => setSelectedProvider('openai')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedProvider === 'openai'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      }`}
+                  >
+                    💚 ChatGPT
+                  </button>
+                </div>
+              </div>
               {image ? (
                 <div className="relative group h-64 rounded-lg overflow-hidden">
                   <img src={image.base64} alt="업로드된 얼굴" className="w-full h-full object-contain" />

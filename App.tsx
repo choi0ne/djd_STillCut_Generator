@@ -5,11 +5,12 @@ import ImageToPromptEditor from './components/ImageToPromptEditor';
 import MpsEditor from './components/MpsEditor';
 import BlogVisualEditor from './components/BlogVisualEditor';
 import BlogWriterEditor from './components/BlogWriterEditor';
+import ReviewManagerEditor from './components/ReviewManagerEditor';
 import SettingsModal from './components/SettingsModal';
 import useLocalStorage from './hooks/useLocalStorage';
 import useGoogleAuth from './hooks/useGoogleAuth';
 
-type EditorMode = 'blog-writer' | 'blog-image' | 'prompt' | 'image-prompt' | 'code' | 'mps';
+type EditorMode = 'blog-writer' | 'blog-image' | 'prompt' | 'image-prompt' | 'code' | 'mps' | 'review-manager';
 type ImageProvider = 'gemini' | 'openai';
 
 interface ApiKeys {
@@ -72,6 +73,8 @@ const App: React.FC = () => {
         return <CodeEditor {...editorProps} />;
       case 'mps':
         return <MpsEditor />;
+      case 'review-manager':
+        return <ReviewManagerEditor {...editorProps} />;
       default:
         return null;
     }
@@ -115,6 +118,13 @@ const App: React.FC = () => {
                   }`}
               >
                 🔧 MPS 후처리
+              </button>
+              <button
+                onClick={() => setMode('review-manager')}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'review-manager' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                💬 리뷰 응대
               </button>
               <button
                 onClick={() => setMode('prompt')}
