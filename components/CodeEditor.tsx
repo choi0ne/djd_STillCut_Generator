@@ -56,6 +56,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   // JSON 설정을 저장하는 라이브러리
   const [storedConfigs, setStoredConfigs] = useLocalStorage<StoredPrompt[]>('jsonConfigsLibrary', []);
 
+  // selectedProvider를 반영하는 래퍼 함수
+  const generationFn = useCallback(
+    (refImage: ImageFile | null, inputText: string) => generateImageWithCode(refImage, inputText, selectedProvider),
+    [selectedProvider]
+  );
+
   const {
     isLoading,
     error,
@@ -66,7 +72,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     regenerate,
     clearResults,
     canRegenerate,
-  } = useImageGenerator({ generationFn: generateImageWithCode });
+  } = useImageGenerator({ generationFn });
 
   const handleImageUpload = useCallback((file: ImageFile) => {
     setImage(file);

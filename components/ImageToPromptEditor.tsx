@@ -208,14 +208,14 @@ const ImageToPromptEditor: React.FC<ImageToPromptEditorProps> = ({
             if (inputMode === 'image' && image) {
                 // 이미지만 사용
                 promptText = outputMode === 'json'
-                    ? await generateJsonFromImage(image)
-                    : await generatePromptFromImage(image);
+                    ? await generateJsonFromImage(image, selectedProvider)
+                    : await generatePromptFromImage(image, selectedProvider);
             } else if (inputMode === 'text') {
                 // 텍스트만 사용
-                promptText = await generatePromptFromTextInput(textInput, outputMode);
+                promptText = await generatePromptFromTextInput(textInput, outputMode, selectedProvider);
             } else if (inputMode === 'both' && image) {
                 // 이미지 + 텍스트 함께 사용
-                promptText = await generateCombinedPrompt(image, textInput, outputMode);
+                promptText = await generateCombinedPrompt(image, textInput, outputMode, selectedProvider);
             } else {
                 throw new Error('입력 조건이 올바르지 않습니다.');
             }

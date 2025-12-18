@@ -904,7 +904,7 @@ ${stageData.finalDraft}
                         <h3 className="text-lg font-semibold text-gray-300">
                             {stageInfo.icon} {stageInfo.name} 결과
                         </h3>
-                        {currentOutput && (
+                        {(currentOutput || (currentStage === 6 && manualInputMode)) && (
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleToggleEdit}
@@ -937,11 +937,12 @@ ${stageData.finalDraft}
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mr-2"></div>
                                 <span>Gemini 3.0으로 생성 중...</span>
                             </div>
-                        ) : currentOutput ? (
-                            isEditMode ? (
+                        ) : (currentOutput || (currentStage === 6 && manualInputMode)) ? (
+                            (isEditMode || (currentStage === 6 && manualInputMode && !currentOutput)) ? (
                                 <textarea
                                     value={currentOutput}
                                     onChange={(e) => setCurrentOutput(e.target.value)}
+                                    placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
                                     className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
                                 />
                             ) : currentStage === 6 ? (

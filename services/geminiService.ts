@@ -1,5 +1,8 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ImageFile } from '../types';
+import type { ImageProvider } from './types';
+import { generateMultipleImagesWithOpenAI, analyzeImageWithGPT, generateTextWithGPT } from './openaiProvider';
+
 
 const getAiClient = () => {
     let apiKey: string | undefined;
@@ -58,16 +61,27 @@ const handleApiError = (error: unknown) => {
 export const generateImageWithPrompt = async (
     baseImage: ImageFile | null,
     prompt: string,
-    count: number = 4
+    count: number = 4,
+    provider: ImageProvider = 'gemini'
 ): Promise<string[]> => {
+    // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
+    const fullPrompt = baseImage
+        ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`
+        : `Create a high-quality, beautiful image based on the following instruction: "${prompt}".`;
+
+    // OpenAI 분기 (DALL-E는 이미지 참조 불가, 텍스트만 사용)
+    if (provider === 'openai') {
+        try {
+            return await generateMultipleImagesWithOpenAI(fullPrompt, count);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini 분기
     try {
         const ai = getAiClient();
         const model = 'gemini-2.5-flash-image';
-
-        // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
-        const fullPrompt = baseImage
-            ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`
-            : `Create a high-quality, beautiful image based on the following instruction: "${prompt}".`;
 
         const generateSingleImage = async () => {
             const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
@@ -116,20 +130,39 @@ export const generateImageWithPrompt = async (
 
 export const generateImageWithCode = async (
     refImage: ImageFile | null,
-    inputText: string
+    inputText: string,
+    provider: ImageProvider = 'gemini'
 ): Promise<string[]> => {
+    // JSON인지 일반 텍스트 프롬프트인지 감지
+    let isJson = false;
+    try {
+        JSON.parse(inputText.trim());
+        isJson = true;
+    } catch {
+        isJson = false;
+    }
+
+    // 프롬프트 생성
+    let fullPrompt: string;
+    if (isJson) {
+        fullPrompt = `Create the highest quality, most beautiful image possible based on the following JSON object for the image's specific content and attributes. Do not use any Korean characters.\n\n${inputText}`;
+    } else {
+        fullPrompt = `Create the highest quality, most beautiful image possible based on the following instruction. Do not use any Korean characters.\n\n${inputText}`;
+    }
+
+    // OpenAI 분기 (DALL-E는 이미지 참조 불가)
+    if (provider === 'openai') {
+        try {
+            return await generateMultipleImagesWithOpenAI(fullPrompt, 4);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini 분기
     try {
         const ai = getAiClient();
         const model = 'gemini-2.5-flash-image';
-
-        // JSON인지 일반 텍스트 프롬프트인지 감지
-        let isJson = false;
-        try {
-            JSON.parse(inputText.trim());
-            isJson = true;
-        } catch {
-            isJson = false;
-        }
 
         const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
         let prompt: string;
@@ -188,12 +221,9 @@ export const generateImageWithCode = async (
 
 export const generatePromptFromImage = async (
     image: ImageFile,
+    provider: ImageProvider = 'gemini'
 ): Promise<string> => {
-    try {
-        const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
-
-        const prompt = `Analyze this image in detail and create a comprehensive image generation prompt in English. Include ALL of the following aspects:
+    const analysisPrompt = `Analyze this image in detail and create a comprehensive image generation prompt in English. Include ALL of the following aspects:
 
 1. **Subject**: Main subject, people, characters, objects
 2. **Composition**: Framing, angle (close-up, wide shot, bird's eye view, etc.), rule of thirds, leading lines
@@ -210,12 +240,26 @@ Example: "majestic lion standing on rocky outcrop, golden hour lighting, warm or
 
 Generate only the prompt, no explanations.`;
 
+    // OpenAI 분기 (GPT-4o Vision)
+    if (provider === 'openai') {
+        try {
+            return await analyzeImageWithGPT(image.base64, analysisPrompt);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini 분기
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
+
         const response = await ai.models.generateContent({
             model,
             contents: {
                 parts: [
                     base64ToPart(image.base64, image.mimeType),
-                    { text: prompt },
+                    { text: analysisPrompt },
                 ],
             },
         });
@@ -234,12 +278,9 @@ Generate only the prompt, no explanations.`;
 
 export const generateJsonFromImage = async (
     image: ImageFile,
+    provider: ImageProvider = 'gemini'
 ): Promise<string> => {
-    try {
-        const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
-
-        const prompt = `Analyze this image and create a structured JSON object for image generation. The JSON should include:
+    const analysisPrompt = `Analyze this image and create a structured JSON object for image generation. The JSON should include:
 - "subject": main subject/person in the image
 - "style": artistic style, photography style, or rendering style
 - "setting": background, location, environment
@@ -250,12 +291,35 @@ export const generateJsonFromImage = async (
 
 Provide ONLY the JSON object, no markdown formatting, no explanations. Use English for all values.`;
 
+    // OpenAI 분기 (GPT-4o Vision)
+    if (provider === 'openai') {
+        try {
+            let result = await analyzeImageWithGPT(image.base64, analysisPrompt);
+            // Remove markdown code blocks if present
+            result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            // Validate JSON
+            try {
+                JSON.parse(result);
+            } catch (e) {
+                throw new Error("생성된 JSON이 유효하지 않습니다.");
+            }
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini 분기
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
+
         const response = await ai.models.generateContent({
             model,
             contents: {
                 parts: [
                     base64ToPart(image.base64, image.mimeType),
-                    { text: prompt },
+                    { text: analysisPrompt },
                 ],
             },
         });
@@ -286,19 +350,17 @@ Provide ONLY the JSON object, no markdown formatting, no explanations. Use Engli
  * 텍스트 입력을 받아 이미지 생성용 프롬프트를 생성합니다.
  * @param textInput 사용자가 입력한 텍스트 설명
  * @param outputMode 'text' 또는 'json' 형식
+ * @param provider 'gemini' 또는 'openai'
  */
 export const generatePromptFromTextInput = async (
     textInput: string,
-    outputMode: 'text' | 'json' = 'text'
+    outputMode: 'text' | 'json' = 'text',
+    provider: ImageProvider = 'gemini'
 ): Promise<string> => {
-    try {
-        const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+    let prompt: string;
 
-        let prompt: string;
-
-        if (outputMode === 'json') {
-            prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 API에 사용할 수 있는 JSON 코드를 생성하세요.
+    if (outputMode === 'json') {
+        prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 API에 사용할 수 있는 JSON 코드를 생성하세요.
 
 사용자 입력: "${textInput}"
 
@@ -315,8 +377,8 @@ export const generatePromptFromTextInput = async (
 1. 사용자의 한국어 입력을 영어 프롬프트로 번역하세요.
 2. 각 필드는 구체적이고 상세하게 작성하세요.
 3. 반드시 유효한 JSON 형식으로만 출력하고, 다른 설명은 하지 마세요.`;
-        } else {
-            prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 AI에 사용할 수 있는 매우 상세한 영어 프롬프트를 생성하세요.
+    } else {
+        prompt = `사용자가 원하는 이미지에 대한 설명을 보고, 이미지 생성 AI에 사용할 수 있는 매우 상세한 영어 프롬프트를 생성하세요.
 
 사용자 입력: "${textInput}"
 
@@ -335,7 +397,36 @@ export const generatePromptFromTextInput = async (
 예시: "lone wolf standing beneath starry night sky, majestic and solitary, photorealistic style, deep blue and silver color palette with purple nebula accents, moonlit backlighting with soft ambient glow, vast wilderness forest setting, mysterious and melancholic atmosphere, detailed fur texture, shallow depth of field, cinematic wide shot composition, 8k ultra detailed, dramatic contrast"
 
 프롬프트만 출력하고 다른 설명은 하지 마세요.`;
+    }
+
+    // OpenAI 분기 (GPT-4o)
+    if (provider === 'openai') {
+        try {
+            let result = await generateTextWithGPT(prompt);
+            if (outputMode === 'json') {
+                const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+                if (jsonMatch) {
+                    result = jsonMatch[1].trim();
+                }
+                try {
+                    JSON.parse(result);
+                } catch (e) {
+                    throw new Error("생성된 JSON이 유효하지 않습니다.");
+                }
+            }
+            if (!result.trim()) {
+                throw new Error("프롬프트 생성에 실패했습니다.");
+            }
+            return result.trim();
+        } catch (error) {
+            throw error;
         }
+    }
+
+    // Gemini 분기
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
 
         const response = await ai.models.generateContent({
             model,
@@ -377,20 +468,18 @@ export const generatePromptFromTextInput = async (
  * @param image 분석할 이미지
  * @param textInput 사용자가 입력한 추가 설명/키워드
  * @param outputMode 'text' 또는 'json' 형식
+ * @param provider 'gemini' 또는 'openai'
  */
 export const generateCombinedPrompt = async (
     image: ImageFile,
     textInput: string,
-    outputMode: 'text' | 'json' = 'text'
+    outputMode: 'text' | 'json' = 'text',
+    provider: ImageProvider = 'gemini'
 ): Promise<string> => {
-    try {
-        const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+    let analysisPrompt: string;
 
-        let prompt: string;
-
-        if (outputMode === 'json') {
-            prompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 이미지 생성용 JSON을 만드세요.
+    if (outputMode === 'json') {
+        analysisPrompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 이미지 생성용 JSON을 만드세요.
 
 사용자 추가 설명: "${textInput}"
 
@@ -410,8 +499,8 @@ export const generateCombinedPrompt = async (
 1. 이미지에서 분석한 내용과 사용자 입력을 결합하세요.
 2. 사용자 입력에서 강조한 부분을 우선시하세요.
 3. 반드시 유효한 JSON 형식으로만 출력하세요.`;
-        } else {
-            prompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 매우 상세한 이미지 생성 프롬프트를 만드세요.
+    } else {
+        analysisPrompt = `이미지를 분석하고 사용자의 추가 설명을 함께 고려하여 매우 상세한 이미지 생성 프롬프트를 만드세요.
 
 사용자 추가 설명: "${textInput}"
 
@@ -430,14 +519,43 @@ export const generateCombinedPrompt = async (
 - 사용자가 강조한 부분을 우선시하세요.
 - 콤마로 구분된 영어 키워드로 출력하세요.
 - 프롬프트만 출력하고 다른 설명은 하지 마세요.`;
+    }
+
+    // OpenAI 분기 (GPT-4o Vision)
+    if (provider === 'openai') {
+        try {
+            let result = await analyzeImageWithGPT(image.base64, analysisPrompt);
+            if (outputMode === 'json') {
+                const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+                if (jsonMatch) {
+                    result = jsonMatch[1].trim();
+                }
+                try {
+                    JSON.parse(result);
+                } catch (e) {
+                    throw new Error("생성된 JSON이 유효하지 않습니다.");
+                }
+            }
+            if (!result.trim()) {
+                throw new Error("프롬프트 생성에 실패했습니다.");
+            }
+            return result.trim();
+        } catch (error) {
+            throw error;
         }
+    }
+
+    // Gemini 분기
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-2.0-flash';
 
         const response = await ai.models.generateContent({
             model,
             contents: {
                 parts: [
                     base64ToPart(image.base64, image.mimeType),
-                    { text: prompt },
+                    { text: analysisPrompt },
                 ],
             },
         });

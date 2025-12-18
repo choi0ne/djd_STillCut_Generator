@@ -122,16 +122,16 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     if (libraryPrompts.length > 1) {
       // Multi-prompt library generation (2-4 prompts): 1 image per prompt
       const generationTasks = libraryPrompts.map(p =>
-        generateImageWithPrompt(baseImage, p.text, 1)
+        generateImageWithPrompt(baseImage, p.text, 1, selectedProvider)
       );
       const imageArrays = await Promise.all(generationTasks);
       return imageArrays.flat().filter((img): img is string => img !== null);
     } else {
       // Single prompt generation (manual or 1 from library): 4 variations
       const promptToUse = libraryPrompts.length === 1 ? libraryPrompts[0].text : manualPrompt;
-      return generateImageWithPrompt(baseImage, promptToUse, 4);
+      return generateImageWithPrompt(baseImage, promptToUse, 4, selectedProvider);
     }
-  }, []);
+  }, [selectedProvider]);
 
   const {
     isLoading,
