@@ -187,10 +187,34 @@ const MpsEditor: React.FC = () => {
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            handleFileUpload(file);
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+
+        // 단일 파일인 경우 기존 로직 사용
+        if (files.length === 1) {
+            handleFileUpload(files[0]);
+            return;
         }
+
+        // 다중 파일: 큐에 저장하고 옵션 선택 대기
+        const driveStyleFiles: SelectedDriveFile[] = [];
+        const localFiles: File[] = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            driveStyleFiles.push({
+                fileId: `local-${Date.now()}-${i}`,
+                fileName: file.name,
+                mimeType: file.type
+            });
+            localFiles.push(file);
+        }
+
+        setPendingBatchFiles(driveStyleFiles);
+        setPendingLocalFiles(localFiles);
+        setBatchResults([]);
+        setError(null);
+        setStatusMessage(`📦 ${files.length}개 파일 선택됨. 옵션 설정 후 "일괄 처리 시작" 버튼을 클릭하세요.`);
     }, [handleFileUpload]);
 
     const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
