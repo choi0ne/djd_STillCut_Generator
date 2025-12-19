@@ -63,6 +63,7 @@ const MpsEditor: React.FC = () => {
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
     const [batchResults, setBatchResults] = useState<Array<{ fileName: string; success: boolean; error?: string }>>([]);
     const [pendingBatchFiles, setPendingBatchFiles] = useState<SelectedDriveFile[]>([]); // 대기 중인 파일 큐;
+    const [pendingLocalFiles, setPendingLocalFiles] = useState<File[]>([]); // 로컬 파일 큐 (실제 File 객체)
 
     // PDF 미리보기 상태
     const [pdfPagePreviews, setPdfPagePreviews] = useState<PdfPagePreview[]>([]);
@@ -193,9 +194,38 @@ const MpsEditor: React.FC = () => {
     }, [handleFileUpload]);
 
     const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            handleFileUpload(file);
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        // 단일 파일인 경우 기존 로직 사용
+        if (files.length === 1) {
+            handleFileUpload(files[0]);
+            return;
+        }
+
+        // 다중 파일: 큐에 저장하고 옵션 선택 대기
+        const driveStyleFiles: SelectedDriveFile[] = [];
+        const localFiles: File[] = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            driveStyleFiles.push({
+                fileId: `local-${Date.now()}-${i}`, // 로컬 파일용 임시 ID
+                fileName: file.name,
+                mimeType: file.type
+            });
+            localFiles.push(file);
+        }
+
+        setPendingBatchFiles(driveStyleFiles);
+        setPendingLocalFiles(localFiles);
+        setBatchResults([]);
+        setError(null);
+        setStatusMessage(`📦 ${files.length}개 파일 선택됨. 옵션 설정 후 "일괄 처리 시작" 버튼을 클릭하세요.`);
+
+        // input 초기화 (같은 파일 다시 선택 가능)
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     }, [handleFileUpload]);
 
@@ -234,8 +264,14 @@ const MpsEditor: React.FC = () => {
         setStatusMessage(`📦 ${files.length}개 파일 선택됨. 옵션 설정 후 "일괄 처리 시작" 버튼을 클릭하세요.`);
     };
 
-    // 일괄 처리 실행 (큐에 있는 파일들 순차 처리)
+    // 일괄 처리 실행 (큐에 있는 파일들 순차 처리 - Google Drive 파일용)
     const handleStartBatchProcessing = async () => {
+        // 로컬 파일이 있으면 로컬 처리 실행
+        if (pendingLocalFiles.length > 0) {
+            await handleStartLocalBatchProcessing();
+            return;
+        }
+
         if (pendingBatchFiles.length === 0) return;
 
         setIsBatchProcessing(true);
@@ -332,9 +368,102 @@ const MpsEditor: React.FC = () => {
         }
     };
 
+    // 일괄 처리 실행 (로컬 파일용 - 다운로드 없이 바로 처리)
+    const handleStartLocalBatchProcessing = async () => {
+        if (pendingLocalFiles.length === 0) return;
+
+        setIsBatchProcessing(true);
+        setBatchResults([]);
+        setError(null);
+
+        const results: Array<{ fileName: string; success: boolean; error?: string }> = [];
+        const timestamp = Date.now();
+        const filesToProcess = [...pendingLocalFiles];
+
+        // 큐 초기화 (처리 시작 시)
+        setPendingBatchFiles([]);
+        setPendingLocalFiles([]);
+
+        for (let i = 0; i < filesToProcess.length; i++) {
+            const localFile = filesToProcess[i];
+            const localFileType = detectFileType(localFile);
+            setBatchProgress({ current: i + 1, total: filesToProcess.length, fileName: localFile.name });
+
+            try {
+                // 1. 처리 실행 (선택된 옵션 사용) - 다운로드 없이 바로 처리
+                setStatusMessage(`⚙️ [${i + 1}/${filesToProcess.length}] 처리 중: ${localFile.name}`);
+                const processResult = await processHybrid(
+                    localFile,
+                    localFileType === 'image' ? imageOptions : pdfOptions,
+                    localFileType,
+                    processingMode,
+                    [] // PDF 미리보기는 일괄 처리에서는 생략
+                );
+
+                if (!processResult.success || !processResult.outputFiles) {
+                    throw new Error(processResult.error || '처리 실패');
+                }
+
+                // 2. 저장 (로컬 + Google Drive)
+                setStatusMessage(`💾 [${i + 1}/${filesToProcess.length}] 저장 중: ${localFile.name}`);
+
+                for (let j = 0; j < processResult.outputFiles.length; j++) {
+                    const fileUrl = processResult.outputFiles[j];
+                    const ext = imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg';
+                    const baseName = localFile.name.replace(/\.[^.]+$/, '');
+                    const saveName = processResult.outputFiles.length > 1
+                        ? `${baseName}-${timestamp}-${j + 1}.${ext}`
+                        : `${baseName}-${timestamp}.${ext}`;
+
+                    const saveResponse = await fetch(fileUrl);
+                    const saveBlob = await saveResponse.blob();
+                    const blobUrl = URL.createObjectURL(saveBlob);
+
+                    // 로컬 다운로드
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = saveName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Google Drive 저장
+                    try {
+                        await saveToGoogleDrive(blobUrl);
+                    } catch (driveErr) {
+                        console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                    }
+
+                    URL.revokeObjectURL(blobUrl);
+                }
+
+                results.push({ fileName: localFile.name, success: true });
+
+            } catch (err: any) {
+                console.error(`[MPS Batch] 처리 실패: ${localFile.name}`, err);
+                results.push({ fileName: localFile.name, success: false, error: err.message });
+            }
+        }
+
+        // 결과 요약
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+
+        setBatchResults(results);
+        setBatchProgress(null);
+        setIsBatchProcessing(false);
+
+        if (failCount === 0) {
+            setStatusMessage(`✅ 일괄 처리 완료! ${successCount}개 파일 저장됨`);
+        } else {
+            setStatusMessage(`⚠️ 일괄 처리 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
+        }
+    };
+
     // 대기 중인 파일 취소
     const handleCancelBatch = () => {
         setPendingBatchFiles([]);
+        setPendingLocalFiles([]);
         setStatusMessage(null);
     };
 
@@ -493,6 +622,7 @@ const MpsEditor: React.FC = () => {
                         accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
                         onChange={handleFileInputChange}
                         className="hidden"
+                        multiple
                     />
 
                     {uploadedFile ? (
@@ -516,7 +646,7 @@ const MpsEditor: React.FC = () => {
                         <div className="space-y-2">
                             <span className="text-4xl">📁</span>
                             <p className="text-gray-400">클릭 또는 드래그하여 파일 업로드</p>
-                            <p className="text-gray-500 text-xs">Ctrl+V로 붙여넣기 가능</p>
+                            <p className="text-gray-500 text-xs">Ctrl+V로 붙여넣기 가능 | 여러 파일 동시 선택 가능</p>
                             <p className="text-gray-500 text-xs">PNG, JPG, WebP, PDF 지원</p>
                         </div>
                     )}
