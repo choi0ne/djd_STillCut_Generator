@@ -62,7 +62,7 @@ export const generateImageWithPrompt = async (
 ): Promise<string[]> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.5-flash-image';
+        const model = 'gemini-3-pro-preview';
 
         // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
         const fullPrompt = baseImage
@@ -120,7 +120,7 @@ export const generateImageWithCode = async (
 ): Promise<string[]> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.5-flash-image';
+        const model = 'gemini-3-pro-preview';
 
         // JSON인지 일반 텍스트 프롬프트인지 감지
         let isJson = false;
@@ -222,7 +222,7 @@ export const generateJsonFromImage = async (
 ): Promise<string> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-pro-preview';
 
         const prompt = `Analyze this image and create a structured JSON object for image generation. The JSON should include:
 - "subject": main subject/person in the image

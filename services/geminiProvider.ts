@@ -8,7 +8,7 @@ export async function generateWithGemini(
     request: ImageGenerationRequest,
     apiKey: string
 ): Promise<ImageGenerationResponse> {
-    const model = request.options?.model || 'gemini-2.0-flash-exp';
+    const model = request.options?.model || 'gemini-3-pro-preview';
 
     try {
         const response = await fetch(

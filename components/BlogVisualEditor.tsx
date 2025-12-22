@@ -64,8 +64,8 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                 // Gemini 이미지 생성
                 return await generateImageWithPrompt(baseImage, prompt, 4);
             } else {
-                // OpenAI DALL-E 이미지 생성
-                // DALL-E는 base image를 지원하지 않으므로 프롬프트만 사용
+                // OpenAI GPT Image 1.5 이미지 생성
+                // GPT Image 1.5는 base image를 지원하지 않으므로 프롬프트만 사용
                 const results = await Promise.all(
                     Array(4).fill(null).map(() =>
                         generateWithOpenAI(
@@ -73,7 +73,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                                 provider: 'openai',
                                 prompt,
                                 options: {
-                                    model: 'dall-e-3',
+                                    model: 'gpt-image-1.5',
                                     size: '1024x1024',
                                     quality: 'standard'
                                 }
@@ -172,7 +172,7 @@ ${negatives}
                         const { GoogleGenAI } = await import('@google/genai');
                         const ai = new GoogleGenAI({ apiKey: geminiApiKey });
                         const response = await ai.models.generateContent({
-                            model: 'gemini-2.0-flash',
+                            model: 'gemini-3-pro-preview',
                             contents: { parts: [{ text: systemPrompt }] }
                         });
                         prompt = response.text || '';
@@ -184,7 +184,7 @@ ${negatives}
                                 'Authorization': `Bearer ${openaiApiKey}`
                             },
                             body: JSON.stringify({
-                                model: 'gpt-4o-mini',
+                                model: 'gpt-5.2',
                                 messages: [{ role: 'user', content: systemPrompt }],
                                 max_tokens: 2000
                             })
@@ -285,7 +285,7 @@ ${negatives}
                 const { GoogleGenAI } = await import('@google/genai');
                 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-3-pro-preview',
                     contents: { parts: [{ text: systemPrompt }] }
                 });
                 prompt = response.text || '';
@@ -297,7 +297,7 @@ ${negatives}
                         'Authorization': `Bearer ${openaiApiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-5.2',
                         messages: [{ role: 'user', content: systemPrompt }],
                         max_tokens: 2000
                     })

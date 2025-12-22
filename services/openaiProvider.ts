@@ -1,4 +1,4 @@
-// OpenAI GPT-4o / gpt-image-1 이미지 생성 Provider
+// OpenAI GPT-5 / gpt-image-1.5 이미지 생성 Provider
 
 import type { ImageGenerationRequest, ImageGenerationResponse } from './types';
 
@@ -26,7 +26,7 @@ export async function generateWithOpenAI(
     request: ImageGenerationRequest,
     apiKey: string
 ): Promise<ImageGenerationResponse> {
-    const model = request.options?.model || 'gpt-image-1';
+    const model = request.options?.model || 'gpt-image-1.5';
     const size = request.options?.size || '1024x1024';
     const quality = request.options?.quality || 'standard';
 
@@ -95,7 +95,7 @@ export async function generateWithOpenAI(
 }
 
 /**
- * OpenAI DALL-E로 여러 이미지 생성 (순차 호출)
+ * OpenAI GPT Image 1.5로 여러 이미지 생성 (순차 호출)
  */
 export async function generateMultipleImagesWithOpenAI(
     prompt: string,
@@ -113,7 +113,7 @@ export async function generateMultipleImagesWithOpenAI(
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'dall-e-3',
+                    model: 'gpt-image-1.5',
                     prompt: prompt,
                     size: '1024x1024',
                     quality: 'standard',
@@ -141,7 +141,7 @@ export async function generateMultipleImagesWithOpenAI(
 }
 
 /**
- * OpenAI GPT-4o Vision으로 이미지 분석하여 프롬프트 생성
+ * OpenAI GPT-5.2 Vision으로 이미지 분석하여 프롬프트 생성
  */
 export async function analyzeImageWithGPT(
     imageBase64: string,
@@ -161,7 +161,7 @@ export async function analyzeImageWithGPT(
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-5.2',
             messages: [
                 {
                     role: 'user',
@@ -192,14 +192,14 @@ export async function analyzeImageWithGPT(
     const result = data.choices?.[0]?.message?.content || '';
 
     if (!result.trim()) {
-        throw new Error("GPT-4o가 응답을 생성하지 못했습니다.");
+        throw new Error("GPT-5.2가 응답을 생성하지 못했습니다.");
     }
 
     return result.trim();
 }
 
 /**
- * OpenAI GPT-4o로 텍스트 기반 프롬프트 생성
+ * OpenAI GPT-5.2로 텍스트 기반 프롬프트 생성
  */
 export async function generateTextWithGPT(
     userPrompt: string
@@ -213,7 +213,7 @@ export async function generateTextWithGPT(
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-5.2',
             messages: [
                 {
                     role: 'user',

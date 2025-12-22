@@ -10,7 +10,7 @@ export interface ImageGenerationRequest {
     size?: '512x512' | '1024x1024' | '1792x1024';
     quality?: 'standard' | 'hd';
     style?: 'natural' | 'vivid';
-    model?: string;  // 'gemini-2.0-flash' | 'gpt-image-1' | 'dall-e-3'
+    model?: string;  // 'gemini-3-pro-preview' | 'gpt-image-1.5'
   };
 }
 

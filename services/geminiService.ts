@@ -69,7 +69,7 @@ export const generateImageWithPrompt = async (
         ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`
         : `Create a high-quality, beautiful image based on the following instruction: "${prompt}".`;
 
-    // OpenAI 분기 (DALL-E는 이미지 참조 불가, 텍스트만 사용)
+    // OpenAI 분기 (GPT Image 1.5는 이미지 참조 불가, 텍스트만 사용)
     if (provider === 'openai') {
         try {
             return await generateMultipleImagesWithOpenAI(fullPrompt, count);
@@ -81,7 +81,7 @@ export const generateImageWithPrompt = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.5-flash-image';
+        const model = 'gemini-3-pro-preview';
 
         const generateSingleImage = async () => {
             const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
@@ -150,7 +150,7 @@ export const generateImageWithCode = async (
         fullPrompt = `Create the highest quality, most beautiful image possible based on the following instruction. Do not use any Korean characters.\n\n${inputText}`;
     }
 
-    // OpenAI 분기 (DALL-E는 이미지 참조 불가)
+    // OpenAI 분기 (GPT Image 1.5는 이미지 참조 불가)
     if (provider === 'openai') {
         try {
             return await generateMultipleImagesWithOpenAI(fullPrompt, 4);
@@ -162,7 +162,7 @@ export const generateImageWithCode = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.5-flash-image';
+        const model = 'gemini-3-pro-preview';
 
         const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
         let prompt: string;
@@ -240,7 +240,7 @@ Example: "majestic lion standing on rocky outcrop, golden hour lighting, warm or
 
 Generate only the prompt, no explanations.`;
 
-    // OpenAI 분기 (GPT-4o Vision)
+    // OpenAI 분기 (GPT-5.2 Vision)
     if (provider === 'openai') {
         try {
             return await analyzeImageWithGPT(image.base64, analysisPrompt);
@@ -252,7 +252,7 @@ Generate only the prompt, no explanations.`;
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-pro-preview';
 
         const response = await ai.models.generateContent({
             model,
@@ -291,7 +291,7 @@ export const generateJsonFromImage = async (
 
 Provide ONLY the JSON object, no markdown formatting, no explanations. Use English for all values.`;
 
-    // OpenAI 분기 (GPT-4o Vision)
+    // OpenAI 분기 (GPT-5.2 Vision)
     if (provider === 'openai') {
         try {
             let result = await analyzeImageWithGPT(image.base64, analysisPrompt);
@@ -312,7 +312,7 @@ Provide ONLY the JSON object, no markdown formatting, no explanations. Use Engli
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-pro-preview';
 
         const response = await ai.models.generateContent({
             model,
@@ -399,7 +399,7 @@ export const generatePromptFromTextInput = async (
 프롬프트만 출력하고 다른 설명은 하지 마세요.`;
     }
 
-    // OpenAI 분기 (GPT-4o)
+    // OpenAI 분기 (GPT-5.2)
     if (provider === 'openai') {
         try {
             let result = await generateTextWithGPT(prompt);
@@ -426,7 +426,7 @@ export const generatePromptFromTextInput = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-pro-preview';
 
         const response = await ai.models.generateContent({
             model,
@@ -521,7 +521,7 @@ export const generateCombinedPrompt = async (
 - 프롬프트만 출력하고 다른 설명은 하지 마세요.`;
     }
 
-    // OpenAI 분기 (GPT-4o Vision)
+    // OpenAI 분기 (GPT-5.2 Vision)
     if (provider === 'openai') {
         try {
             let result = await analyzeImageWithGPT(image.base64, analysisPrompt);
@@ -548,7 +548,7 @@ export const generateCombinedPrompt = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-pro-preview';
 
         const response = await ai.models.generateContent({
             model,

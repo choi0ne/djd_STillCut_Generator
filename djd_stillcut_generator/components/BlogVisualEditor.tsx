@@ -129,7 +129,7 @@ ${negatives}
                 const { GoogleGenAI } = await import('@google/genai');
                 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-3-pro-preview',
                     contents: { parts: [{ text: systemPrompt }] }
                 });
                 prompt = response.text || '';
@@ -141,7 +141,7 @@ ${negatives}
                         'Authorization': `Bearer ${openaiApiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-5.2',
                         messages: [{ role: 'user', content: systemPrompt }],
                         max_tokens: 2000
                     })

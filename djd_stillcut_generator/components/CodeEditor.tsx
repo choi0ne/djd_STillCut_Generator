@@ -151,7 +151,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3-pro-preview',
         contents: {
           parts: [
             {

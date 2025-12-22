@@ -105,7 +105,7 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                 const ai = new GoogleGenAI({ apiKey });
 
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-3-pro-preview',
                     contents: {
                         parts: [
                             {
@@ -124,7 +124,7 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o',
+                        model: 'gpt-5.2',
                         messages: [
                             { role: 'system', content: CX_MANAGER_PROMPT },
                             { role: 'user', content: reviewText }

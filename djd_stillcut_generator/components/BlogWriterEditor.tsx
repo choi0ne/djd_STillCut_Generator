@@ -304,7 +304,7 @@ ${stageData.finalDraft}
                 const { GoogleGenAI } = await import('@google/genai');
                 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-3-pro-preview',
                     contents: { parts: [{ text: prompt }] }
                 });
                 result = response.text || '';
@@ -317,7 +317,7 @@ ${stageData.finalDraft}
                         'Authorization': `Bearer ${openaiApiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-5.2',
                         messages: [{ role: 'user', content: prompt }],
                         max_tokens: 4000
                     })
