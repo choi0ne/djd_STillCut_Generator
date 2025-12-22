@@ -116,6 +116,10 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
 
   const [storedPrompts, setStoredPrompts] = useLocalStorage<StoredPrompt[]>('storedPrompts', defaultPrompts);
 
+  // Rate limit 방지용 딜레이
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const RATE_LIMIT_DELAY = 15000; // 15초 딜레이
+
   const generationWrapper = useCallback(async (
     baseImage: ImageFile,
     manualPrompt: string,
@@ -123,11 +127,22 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
   ) => {
     if (libraryPrompts.length > 1) {
       // Multi-prompt library generation (2-4 prompts): 1 image per prompt
-      const generationTasks = libraryPrompts.map(p =>
-        generateImageWithPrompt(baseImage, p.text, 1, selectedProvider)
-      );
-      const imageArrays = await Promise.all(generationTasks);
-      return imageArrays.flat().filter((img): img is string => img !== null);
+      // 순차 호출로 rate limit 방지 (병렬 호출 대신)
+      const results: string[] = [];
+      for (let i = 0; i < libraryPrompts.length; i++) {
+        // 첫 번째가 아닌 경우 딜레이 추가
+        if (i > 0) {
+          console.log(`[PromptEditor] Rate limit 방지: ${RATE_LIMIT_DELAY / 1000}초 대기 중... (${i + 1}/${libraryPrompts.length})`);
+          await delay(RATE_LIMIT_DELAY);
+        }
+        console.log(`[PromptEditor] 이미지 생성 중... (${i + 1}/${libraryPrompts.length})`);
+        const images = await generateImageWithPrompt(baseImage, libraryPrompts[i].text, 1, selectedProvider);
+        if (images && images.length > 0) {
+          results.push(...images);
+          console.log(`[PromptEditor] 이미지 ${i + 1}/${libraryPrompts.length} 생성 완료`);
+        }
+      }
+      return results.filter((img): img is string => img !== null);
     } else {
       // Single prompt generation (manual or 1 from library): 4 variations
       const promptToUse = libraryPrompts.length === 1 ? libraryPrompts[0].text : manualPrompt;

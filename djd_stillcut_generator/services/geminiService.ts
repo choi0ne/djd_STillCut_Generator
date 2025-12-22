@@ -1,6 +1,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ImageFile } from '../types';
 
+// Rate limit 방지를 위한 딜레이 함수
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const GEMINI_DELAY_MS = 15000; // Gemini: 15초 딜레이
+
 const getAiClient = () => {
     let apiKey: string | undefined;
     try {
@@ -98,10 +102,21 @@ export const generateImageWithPrompt = async (
             return null;
         }
 
-        const imagePromises = Array(count).fill(null).map(() => generateSingleImage());
-        const results = await Promise.all(imagePromises);
-        const validImages = results.filter((img): img is string => img !== null);
-
+        // 순차 호출로 rate limit 방지 (병렬 호출 대신)
+        const validImages: string[] = [];
+        for (let i = 0; i < count; i++) {
+            // 첫 번째가 아닌 경우 딜레이 추가
+            if (i > 0) {
+                console.log(`[Gemini] Rate limit 방지: ${GEMINI_DELAY_MS / 1000}초 대기 중... (${i + 1}/${count})`);
+                await delay(GEMINI_DELAY_MS);
+            }
+            console.log(`[Gemini] 이미지 생성 중... (${i + 1}/${count})`);
+            const result = await generateSingleImage();
+            if (result) {
+                validImages.push(result);
+                console.log(`[Gemini] 이미지 ${i + 1}/${count} 생성 완료`);
+            }
+        }
 
         if (validImages.length === 0) {
             throw new Error("이미지가 생성되지 않았습니다. 응답이 차단되었을 수 있습니다.");
@@ -172,9 +187,22 @@ export const generateImageWithCode = async (
             return null;
         };
 
-        const imagePromises = Array(4).fill(null).map(() => generateSingleImage());
-        const results = await Promise.all(imagePromises);
-        const validImages = results.filter((img): img is string => img !== null);
+        // 순차 호출로 rate limit 방지 (병렬 호출 대신)
+        const validImages: string[] = [];
+        const imageCount = 4;
+        for (let i = 0; i < imageCount; i++) {
+            // 첫 번째가 아닌 경우 딜레이 추가
+            if (i > 0) {
+                console.log(`[Gemini] Rate limit 방지: ${GEMINI_DELAY_MS / 1000}초 대기 중... (${i + 1}/${imageCount})`);
+                await delay(GEMINI_DELAY_MS);
+            }
+            console.log(`[Gemini] 이미지 생성 중... (${i + 1}/${imageCount})`);
+            const result = await generateSingleImage();
+            if (result) {
+                validImages.push(result);
+                console.log(`[Gemini] 이미지 ${i + 1}/${imageCount} 생성 완료`);
+            }
+        }
 
         if (validImages.length === 0) {
             throw new Error("후보에서 이미지를 생성하지 못했습니다. 응답이 차단되었을 수 있습니다.");

@@ -94,8 +94,12 @@ export async function generateWithOpenAI(
     }
 }
 
+// Rate limit 방지를 위한 딜레이 함수
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * OpenAI GPT Image 1.5로 여러 이미지 생성 (순차 호출)
+ * Rate Limit: 분당 5개 → 이미지 간 15초 딜레이 적용
  */
 export async function generateMultipleImagesWithOpenAI(
     prompt: string,
@@ -103,9 +107,17 @@ export async function generateMultipleImagesWithOpenAI(
 ): Promise<string[]> {
     const apiKey = getOpenAIApiKey();
     const results: string[] = [];
+    const DELAY_MS = 20000; // 20초 딜레이 (분당 5개 = 12초에 1개, 충분한 여유)
 
     for (let i = 0; i < count; i++) {
+        // 첫 번째 이미지가 아닌 경우 딜레이 추가
+        if (i > 0) {
+            console.log(`[OpenAI] Rate limit 방지: ${DELAY_MS / 1000}초 대기 중... (${i + 1}/${count})`);
+            await delay(DELAY_MS);
+        }
+
         try {
+            console.log(`[OpenAI] 이미지 생성 중... (${i + 1}/${count})`);
             const response = await fetch(`${OPENAI_API_BASE}/images/generations`, {
                 method: 'POST',
                 headers: {
@@ -126,7 +138,11 @@ export async function generateMultipleImagesWithOpenAI(
                 const data = await response.json();
                 if (data.data?.[0]?.b64_json) {
                     results.push(`data:image/png;base64,${data.data[0].b64_json}`);
+                    console.log(`[OpenAI] 이미지 ${i + 1}/${count} 생성 완료`);
                 }
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`[OpenAI] 이미지 ${i + 1} 생성 실패:`, errorData.error?.message || response.status);
             }
         } catch (e) {
             console.error(`Image generation ${i + 1} failed:`, e);

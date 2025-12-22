@@ -48,6 +48,10 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false); // 프롬프트 자동 생성 로딩 상태
 
 
+    // Rate limit 방지용 딜레이
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const OPENAI_DELAY_MS = 20000; // OpenAI: 20초 딜레이 (분당 5개 제한, 충분한 여유)
+
     // 이미지 생성 훅
     const {
         isLoading: isImageLoading,
@@ -65,28 +69,34 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                 return await generateImageWithPrompt(baseImage, prompt, 4);
             } else {
                 // OpenAI GPT Image 1.5 이미지 생성
-                // GPT Image 1.5는 base image를 지원하지 않으므로 프롬프트만 사용
-                const results = await Promise.all(
-                    Array(4).fill(null).map(() =>
-                        generateWithOpenAI(
-                            {
-                                provider: 'openai',
-                                prompt,
-                                options: {
-                                    model: 'gpt-image-1.5',
-                                    size: '1024x1024',
-                                    quality: 'standard'
-                                }
-                            },
-                            openaiApiKey
-                        )
-                    )
-                );
-
-                // 성공한 이미지만 필터링하여 반환
-                return results
-                    .filter(r => r.success && r.imageBase64)
-                    .map(r => `data:image/png;base64,${r.imageBase64}`);
+                // 순차 호출로 rate limit 방지 (분당 5개 제한)
+                const results: string[] = [];
+                const imageCount = 4;
+                for (let i = 0; i < imageCount; i++) {
+                    // 첫 번째가 아닌 경우 딜레이 추가
+                    if (i > 0) {
+                        console.log(`[BlogVisualEditor] Rate limit 방지: ${OPENAI_DELAY_MS / 1000}초 대기 중... (${i + 1}/${imageCount})`);
+                        await delay(OPENAI_DELAY_MS);
+                    }
+                    console.log(`[BlogVisualEditor] OpenAI 이미지 생성 중... (${i + 1}/${imageCount})`);
+                    const result = await generateWithOpenAI(
+                        {
+                            provider: 'openai',
+                            prompt,
+                            options: {
+                                model: 'gpt-image-1.5',
+                                size: '1024x1024',
+                                quality: 'standard'
+                            }
+                        },
+                        openaiApiKey
+                    );
+                    if (result.success && result.imageBase64) {
+                        results.push(`data:image/png;base64,${result.imageBase64}`);
+                        console.log(`[BlogVisualEditor] OpenAI 이미지 ${i + 1}/${imageCount} 생성 완료`);
+                    }
+                }
+                return results;
             }
         }
     });
