@@ -7,8 +7,8 @@ export interface ImageGenerationRequest {
   provider: ImageProvider;
   jsonCode?: string;  // JSON 코드 입력
   options?: {
-    size?: '512x512' | '1024x1024' | '1792x1024';
-    quality?: 'standard' | 'hd';
+    size?: '1024x1024' | '1536x1024' | '1024x1536';
+    quality?: 'low' | 'medium' | 'high' | 'auto';
     style?: 'natural' | 'vivid';
     model?: string;  // 'gemini-3-pro-preview' | 'gpt-image-1.5'
   };

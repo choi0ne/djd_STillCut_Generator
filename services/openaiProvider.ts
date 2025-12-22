@@ -28,7 +28,7 @@ export async function generateWithOpenAI(
 ): Promise<ImageGenerationResponse> {
     const model = request.options?.model || 'gpt-image-1.5';
     const size = request.options?.size || '1024x1024';
-    const quality = request.options?.quality || 'standard';
+    const quality = request.options?.quality || 'high';
 
     try {
         const response = await fetch(`${OPENAI_API_BASE}/images/generations`, {
@@ -149,7 +149,7 @@ export async function generateMultipleImagesWithOpenAI(
                     model: 'gpt-image-1.5',
                     prompt: prompt,
                     size: '1024x1024',
-                    quality: 'standard',
+                    quality: 'high',
                     n: 1
                     // gpt-image-1.5는 response_format 파라미터 미지원, URL로만 반환됨
                 })

@@ -1,5 +1,0 @@
-{
-  "name": "djd_STillCut_Generator",
-  "description": "Gemini 3.0 Pro API 기반의 고급 이미지 편집 및 생성 도구입니다. 사용자는 텍스트 프롬프트를 사용하여 기존 이미지를 수정하거나 참조 이미지와 JSON 기반 지침으로 새로운 이미지를 생성할 수 있습니다.",
-  "requestFramePermissions": []
-}
