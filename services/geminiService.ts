@@ -65,7 +65,7 @@ const handleApiError = (error: unknown) => {
 export const generateImageWithPrompt = async (
     baseImage: ImageFile | null,
     prompt: string,
-    count: number = 4,
+    count: number = 1,
     provider: ImageProvider = 'gemini'
 ): Promise<string[]> => {
     // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
@@ -222,7 +222,7 @@ export const generateImageWithCode = async (
 
         // 순차 호출로 rate limit 방지 (병렬 호출 대신)
         const validImages: string[] = [];
-        const imageCount = 4;
+        const imageCount = 1;
         for (let i = 0; i < imageCount; i++) {
             // 첫 번째가 아닌 경우 딜레이 추가
             if (i > 0) {

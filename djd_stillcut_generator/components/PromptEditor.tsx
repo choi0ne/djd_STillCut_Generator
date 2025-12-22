@@ -116,7 +116,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
     } else {
       // Single prompt generation (manual or 1 from library): 4 variations
       const promptToUse = libraryPrompts.length === 1 ? libraryPrompts[0].text : manualPrompt;
-      return generateImageWithPrompt(baseImage, promptToUse, 4);
+      return generateImageWithPrompt(baseImage, promptToUse, 1);
     }
   }, []);
 

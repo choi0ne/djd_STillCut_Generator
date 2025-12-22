@@ -68,23 +68,7 @@ const GenerationResultPanel: React.FC<GenerationResultPanelProps> = ({
             </div>
 
             <div className="w-full space-y-4">
-                {generatedImages && generatedImages.length > 0 && !isLoading && (
-                    <div>
-                        <h3 className="text-md font-semibold text-gray-400 mb-2">마음에 드는 결과물을 선택하세요</h3>
-                        <div className="grid grid-cols-4 gap-3">
-                            {generatedImages.map((imgSrc, index) => (
-                                <button
-                                    key={index}
-                                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all duration-200 focus:outline-none ${selectedImage === imgSrc ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800' : 'opacity-70 hover:opacity-100'}`}
-                                    onClick={() => onSelectImage(imgSrc)}
-                                    aria-label={`생성된 이미지 ${index + 1} 선택`}
-                                >
-                                    <img src={imgSrc} alt={`생성 옵션 ${index + 1}`} className="w-full h-full object-cover" />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                {/* 단일 이미지 생성 모드 - 재생성 버튼으로 다른 이미지 생성 */}
 
                 {selectedImage && !isLoading && (
                     <div className="w-full grid grid-cols-2 gap-3 pt-2">

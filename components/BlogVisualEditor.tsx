@@ -66,12 +66,12 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         generationFn: async (baseImage: ImageFile | null, prompt: string) => {
             if (selectedProvider === 'gemini') {
                 // Gemini 이미지 생성
-                return await generateImageWithPrompt(baseImage, prompt, 4);
+                return await generateImageWithPrompt(baseImage, prompt, 1);
             } else {
                 // OpenAI GPT Image 1.5 이미지 생성
                 // 순차 호출로 rate limit 방지 (분당 5개 제한)
                 const results: string[] = [];
-                const imageCount = 4;
+                const imageCount = 1;
                 for (let i = 0; i < imageCount; i++) {
                     // 첫 번째가 아닌 경우 딜레이 추가
                     if (i > 0) {

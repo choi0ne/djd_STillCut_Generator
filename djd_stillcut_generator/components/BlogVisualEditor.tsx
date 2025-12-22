@@ -50,7 +50,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         canRegenerate,
     } = useImageGenerator<ImageFile | null | string>({
         generationFn: async (baseImage: ImageFile | null, prompt: string) => {
-            return await generateImageWithPrompt(baseImage, prompt, 4);
+            return await generateImageWithPrompt(baseImage, prompt, 1);
         }
     });
 

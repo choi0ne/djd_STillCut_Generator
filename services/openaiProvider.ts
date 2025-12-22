@@ -103,7 +103,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  */
 export async function generateMultipleImagesWithOpenAI(
     prompt: string,
-    count: number = 4
+    count: number = 1
 ): Promise<string[]> {
     const apiKey = getOpenAIApiKey();
     const results: string[] = [];
