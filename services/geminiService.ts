@@ -75,9 +75,13 @@ export const generateImageWithPrompt = async (
 
     // OpenAI 분기 (GPT Image 1.5는 이미지 참조 불가, 텍스트만 사용)
     if (provider === 'openai') {
+        console.log('[geminiService] OpenAI 분기 진입, 프롬프트:', fullPrompt.substring(0, 100) + '...');
         try {
-            return await generateMultipleImagesWithOpenAI(fullPrompt, count);
+            const result = await generateMultipleImagesWithOpenAI(fullPrompt, count);
+            console.log('[geminiService] OpenAI 이미지 생성 완료, 결과 수:', result.length);
+            return result;
         } catch (error) {
+            console.error('[geminiService] OpenAI 에러:', error);
             throw error;
         }
     }

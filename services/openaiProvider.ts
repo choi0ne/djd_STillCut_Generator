@@ -142,10 +142,18 @@ export async function generateMultipleImagesWithOpenAI(
                 }
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                console.error(`[OpenAI] 이미지 ${i + 1} 생성 실패:`, errorData.error?.message || response.status);
+                const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
+                console.error(`[OpenAI] 이미지 ${i + 1} 생성 실패:`, errorMessage, errorData);
+                // 첫 번째 실패 시 바로 에러 throw하여 사용자에게 빠른 피드백
+                if (i === 0) {
+                    throw new Error(`OpenAI 이미지 생성 실패: ${errorMessage}`);
+                }
             }
         } catch (e) {
             console.error(`Image generation ${i + 1} failed:`, e);
+            if (i === 0) {
+                throw e; // 첫 번째 실패 시 즉시 throw
+            }
         }
     }
 

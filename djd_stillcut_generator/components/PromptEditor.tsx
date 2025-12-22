@@ -277,7 +277,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ isApiKeyReady, openSettings
               <p className="text-sm text-gray-400 mb-3">
                 {(() => {
                   if (selectedPrompts.length === 1) {
-                    return '선택된 프롬프트로 4개의 이미지를 생성합니다.';
+                    return '선택된 프롬프트로 이미지를 생성합니다. 재생성 버튼으로 다른 결과를 얻을 수 있습니다.';
                   }
                   if (selectedPrompts.length > 1) {
                     return '선택된 프롬프트들로 각각 이미지를 생성합니다.';
