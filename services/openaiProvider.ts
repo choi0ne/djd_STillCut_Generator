@@ -42,8 +42,8 @@ export async function generateWithOpenAI(
                 prompt: request.prompt,
                 size,
                 quality,
-                n: 1,
-                response_format: 'b64_json'
+                n: 1
+                // gpt-image-1.5는 response_format 미지원
             })
         });
 
@@ -69,12 +69,33 @@ export async function generateWithOpenAI(
         }
 
         if (data.data?.[0]?.url) {
-            return {
-                success: true,
-                imageUrl: data.data[0].url,
-                provider: 'openai',
-                timestamp: Date.now()
-            };
+            // URL에서 이미지를 가져와서 base64로 변환
+            try {
+                const imageResponse = await fetch(data.data[0].url);
+                const blob = await imageResponse.blob();
+                const base64 = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = reader.result as string;
+                        // data:image/png;base64, 접두사 제거하여 순수 base64만 반환
+                        resolve(result.split(',')[1] || result);
+                    };
+                    reader.readAsDataURL(blob);
+                });
+                return {
+                    success: true,
+                    imageBase64: base64,
+                    provider: 'openai',
+                    timestamp: Date.now()
+                };
+            } catch (fetchError) {
+                return {
+                    success: false,
+                    error: 'URL에서 이미지 다운로드 실패',
+                    provider: 'openai',
+                    timestamp: Date.now()
+                };
+            }
         }
 
         return {
@@ -129,14 +150,30 @@ export async function generateMultipleImagesWithOpenAI(
                     prompt: prompt,
                     size: '1024x1024',
                     quality: 'standard',
-                    n: 1,
-                    response_format: 'b64_json'
+                    n: 1
+                    // gpt-image-1.5는 response_format 파라미터 미지원, URL로만 반환됨
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                if (data.data?.[0]?.b64_json) {
+                // gpt-image-1.5는 URL만 반환함
+                if (data.data?.[0]?.url) {
+                    // URL에서 이미지를 가져와서 base64로 변환
+                    try {
+                        const imageResponse = await fetch(data.data[0].url);
+                        const blob = await imageResponse.blob();
+                        const base64 = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.readAsDataURL(blob);
+                        });
+                        results.push(base64);
+                        console.log(`[OpenAI] 이미지 ${i + 1}/${count} 생성 완료`);
+                    } catch (fetchError) {
+                        console.error(`[OpenAI] 이미지 URL 다운로드 실패:`, fetchError);
+                    }
+                } else if (data.data?.[0]?.b64_json) {
                     results.push(`data:image/png;base64,${data.data[0].b64_json}`);
                     console.log(`[OpenAI] 이미지 ${i + 1}/${count} 생성 완료`);
                 }
