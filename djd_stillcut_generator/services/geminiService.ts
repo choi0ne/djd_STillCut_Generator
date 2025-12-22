@@ -62,7 +62,7 @@ export const generateImageWithPrompt = async (
 ): Promise<string[]> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-3-pro-image-preview';  // 이미지 생성 전용 모델
 
         // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
         const fullPrompt = baseImage
@@ -120,7 +120,7 @@ export const generateImageWithCode = async (
 ): Promise<string[]> => {
     try {
         const ai = getAiClient();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-3-pro-image-preview';  // 이미지 생성 전용 모델
 
         // JSON인지 일반 텍스트 프롬프트인지 감지
         let isJson = false;

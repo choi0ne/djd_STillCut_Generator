@@ -81,7 +81,7 @@ export const generateImageWithPrompt = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-3-pro-image-preview';  // 이미지 생성 전용 모델
 
         const generateSingleImage = async () => {
             const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
@@ -162,7 +162,7 @@ export const generateImageWithCode = async (
     // Gemini 분기
     try {
         const ai = getAiClient();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-3-pro-image-preview';  // 이미지 생성 전용 모델
 
         const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
         let prompt: string;
