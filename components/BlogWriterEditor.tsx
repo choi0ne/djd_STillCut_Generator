@@ -377,13 +377,20 @@ ${stageData.finalDraft}
 
 ### TASK 1: 이미지 컨셉 (3-5개)
 
-### 사용 가능한 스타일 라이브러리 (15종)
-1. isometric-infographic: 아이소메트릭 인포그래픽 - 관계, 프로세스, 시스템을 3D 방식으로 시각화
-2. infographic-chart: 인포그래픽 차트 - 데이터와 통계를 명확하게 제시
-3. empathetic-character: 공감 캐릭터 - 감정, 증상, 자세를 친근하게 표현
-4. herbal-sketch: 약재 스케치 - 약재의 식물학적 표현
-5. empathetic-cutoon: 공감 컷툰 - 상황이나 감정을 스토리텔링 방식으로 전달
-6. artistic-thumbnail: 예술적 썸네일 - 소셜 미디어 또는 블로그 포스트 썸네일
+⚠️ **필수 규칙: 첫 번째 컨셉은 반드시 "블로그 썸네일" (blog-thumbnail) 스타일!**
+- 블로그 대표 이미지/헤더로 사용 (AI가 다른 콘텐츠에 사용 금지)
+- **글 제목을 이미지에 반드시 포함**: "${stageData.selectedTopic || '(글 제목)'}"
+- 도현체 스타일 한글 제목(굵은 고딕체) + 상징적 시각 요소 조합
+- title 필드에 반드시 글 제목 포함, keywords에도 제목 키워드 추가
+- 나머지 2-4개는 섹션 콘텐츠에 맞는 다양한 스타일 선택
+
+### 사용 가능한 스타일 라이브러리 (19종)
+1. **blog-thumbnail: 블로그 썸네일** ⭐ 첫 번째 필수 - 대표 이미지용 (제목 + 상징적 시각) - AI가 다른 용도로 사용 금지
+2. artistic-thumbnail: 예술적 썸네일 - 미니멀/세련된 소셜 미디어 썸네일 (범용)
+3. infographic-chart: 인포그래픽 차트 - 데이터와 통계를 명확하게 제시
+4. empathetic-character: 공감 캐릭터 - 감정, 증상, 자세를 친근하게 표현 (말풍선 없음)
+5. herbal-sketch: 약재 스케치 - 약재, 한약, 약국 도구의 빈티지 일러스트
+6. empathetic-cutoon: 공감 컷툰 - 상황이나 감정을 스토리텔링 방식으로 전달 (말풍선 있음)
 7. hand-drawn-diagram: 손그림 다이어그램 - 사이클, 관계, 간단한 프로세스 설명
 8. medical-illustration: 의학 일러스트레이션 - 해부학적 구조 비교 또는 생리학적 프로세스
 9. conceptual-metaphor: 개념적 은유 - 추상적인 의학 개념을 상징적인 오브제로 시각화
@@ -393,7 +400,9 @@ ${stageData.finalDraft}
 13. continuous-line-drawing: 연속적인 한 줄 드로잉 - 세련되고 감성적인 방식으로 표현
 14. conceptual-sketch: 개념적 스케치 - 복잡한 철학적/심리적 개념을 위트 있게 시각화
 15. textured-digital-painting: 텍스처 디지털 페인팅 - 따뜻하고 아날로그적인 회화 질감
-16. precision-medical: 정밀 의학도 - 해부학적 정확도, 색상 코딩, 텍스트 라벨 분리된 교과서 스타일
+16. precision-medical: 정밀 의학도 - 해부학적 정확도, 색상 코딩, 텍스트 라벨 교과서 스타일
+17. poster: 포스터 - 클리닉 홍보/이벤트/캠페인용 (3단 구조, 네이비 배경)
+18. exercise-guide: 운동법 가이드 - 스트레칭/재활운동 동작 가이드 (라인 드로잉, 화살표)
 
 ### 사용 가능한 색상 팔레트 (3종)
 1. medical: 의료 톤 (녹색 계열 - #3A5A40 primary)
