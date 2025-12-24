@@ -4,6 +4,8 @@ import remarkGfm from 'remark-gfm';
 import Panel from './common/Panel';
 import { SparklesIcon, ClipboardIcon, EditIcon, PlusIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
+import ProfileManagerModal from './ProfileManagerModal';
+import { BlogProfile, DEFAULT_PROFILES } from '../data/blogProfilePresets';
 
 interface BlogWriterEditorProps {
     isApiKeyReady: boolean;
@@ -12,7 +14,7 @@ interface BlogWriterEditorProps {
     openaiApiKey: string;
     selectedProvider: 'gemini' | 'openai';
     setSelectedProvider: (provider: 'gemini' | 'openai') => void;
-    onStage7Complete?: (data: { topic: string; concepts: Array<{ title: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }> }) => void;
+    onStage7Complete?: (data: { topic: string; concepts: Array<{ title: string; keywords: string[]; description?: string; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }> }) => void;
 }
 
 type WorkflowStage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -20,6 +22,15 @@ type WorkflowStage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 interface HashtagCategory {
     category: string;
     tags: string[];
+}
+
+interface SectionIllustration {
+    sectionNumber: number;
+    sectionTitle: string; // "Answer First", "Action" 등
+    summary: string; // 섹션 내용 요약 (짧은 버전)
+    sectionContent: string; // 실제 원고 섹션 전문 (글 기반 프롬프트용)
+    keywords: string[];
+    recommendedPalette: 'medical' | 'calm' | 'warm';
 }
 
 interface StageData {
@@ -35,6 +46,7 @@ interface StageData {
     finalDraft: string;        // Stage 6
     imageConcepts: Array<{ title: string; reason: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;  // Stage 7
     recommendedHashtags: HashtagCategory[];  // Stage 7 - AI 생성 해시태그
+    sectionIllustrations: SectionIllustration[];  // Stage 7 - 섹션별 일러스트
 }
 
 const STAGE_INFO: { [key: number]: { name: string; description: string; icon: string } } = {
@@ -49,20 +61,29 @@ const STAGE_INFO: { [key: number]: { name: string; description: string; icon: st
     7: { name: '시각 프롬프트 설계', description: '3-5개 이미지 컨셉 추천', icon: '🎨' }
 };
 
-const WORKFLOW_PROMPT = `당신은 "Patient-First Clinical Blog Production Workflow v9.0"을 따르는 한의원 블로그 전문가입니다.
+// 프로필 기반 동적 워크플로 프롬프트 생성 함수
+const getWorkflowPrompt = (profile: BlogProfile): string => {
+    return `당신은 "Patient-First Clinical Blog Production Workflow v9.0"을 따르는 블로그 전문가입니다.
+
+## 페르소나
+${profile.persona}
 
 ## 공통 규칙 (문체 DNA)
-- 시점: 1인칭 관찰자(한의사)
+- 시점: 1인칭 관찰자
 - 전개 순서: [핵심 결론 → 즉각적 행동 → 위험 신호 → 상세 이유 → 닫기]
 - 용어 원칙: 환자 용어 우선
 - 문장 길이: 10-18어
 - 톤: 친절하지만 단호
 
 ## 클리닉 포커스
-["공황장애", "메니에르병", "불면", "두드러기", "소화불량"]
+${JSON.stringify(profile.clinic_focus)}
+
+## 비즈니스 목표
+${profile.business_goal}
 
 ## 타겟 독자
-20-50대 직장인 환자`;
+${profile.audience}`;
+};
 
 const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     isApiKeyReady,
@@ -76,7 +97,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     const [currentStage, setCurrentStage] = useState<WorkflowStage>(0);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [stageData, setStageData] = useState<StageData>({
+    // stageData를 localStorage에 저장 (탭 전환해도 데이터 유지)
+    const [stageData, setStageData] = useLocalStorage<StageData>('blog-writer-stage-data', {
         ideation: [],
         selectedTopic: '',
         scoredTopics: [],
@@ -88,19 +110,32 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
         critique: '',
         finalDraft: '',
         imageConcepts: [],
-        recommendedHashtags: []
+        recommendedHashtags: [],
+        sectionIllustrations: []
     });
-    const [currentOutput, setCurrentOutput] = useState('');
+    // currentOutput도 localStorage에 저장
+    const [currentOutput, setCurrentOutput] = useLocalStorage<string>('blog-writer-output', '');
     const [copySuccess, setCopySuccess] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [savedDrafts, setSavedDrafts] = useLocalStorage<{ stage: number; content: string; date: string }[]>('blog-drafts', []);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [manualInputMode, setManualInputMode] = useState(false); // Stage 6 수동 입력 모드
 
+    // 프로필 관리 state
+    const [profiles, setProfiles] = useLocalStorage<BlogProfile[]>('blog-profiles', DEFAULT_PROFILES);
+    const [selectedProfileId, setSelectedProfileId] = useLocalStorage<string>('selected-profile-id', 'default-tkm');
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+    // 현재 선택된 프로필 가져오기
+    const selectedProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
+
+    // Stage 7 탭 state
+    const [stage7Tab, setStage7Tab] = useState<'concepts' | 'sections'>('concepts');
+
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
             case 0:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 0: 아이디에이션
 
@@ -117,7 +152,7 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
 JSON 형식으로 출력하세요.`;
 
             case 0.5:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 0.5: 주제 스코어링
 
@@ -140,7 +175,7 @@ ${stageData.ideation.join('\n')}
 ]`;
 
             case 1:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 1: 키워드 클러스터
 
@@ -156,7 +191,7 @@ ${stageData.ideation.join('\n')}
 문단별 배치 맵도 함께 작성하세요.`;
 
             case 2:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 2: 근거 설계
 
@@ -170,7 +205,7 @@ ${stageData.ideation.join('\n')}
 각 자료의 핵심 내용을 요약하세요.`;
 
             case 3:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 3: 아웃라인 & 12 블록 맵핑
 
@@ -190,7 +225,7 @@ ${stageData.ideation.join('\n')}
 선택: DRUG, METAPHOR, ANALOGY, ANCHOR, REF, INTERACTION, MEAS, CASE, DEEP_DIVE`;
 
             case 4:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 4: 집필
 
@@ -209,7 +244,7 @@ ${stageData.outline}
 - 전문 용어 70% 이상 중학생 수준으로`;
 
             case 5:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 5: 초고 비평
 
@@ -226,7 +261,7 @@ ${stageData.draft}
 수정이 필요한 부분을 구체적으로 지적하는 '수정 메모' 리스트를 작성하세요.`;
 
             case 6:
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 6: 탈고
 
@@ -250,7 +285,7 @@ ${stageData.critique}
                     ? `키워드 클러스터: ${stageData.keywords.slice(0, 15).join(', ')}`
                     : `키워드 클러스터: (아래 최종 글에서 핵심 키워드를 추출하세요)`;
 
-                return `${WORKFLOW_PROMPT}
+                return `${getWorkflowPrompt(selectedProfile)}
 
 ## Stage 7: 시각 프롬프트 설계 + 해시태그 생성
 
@@ -292,9 +327,32 @@ ${stageData.finalDraft}
 - 의학한의학: 의학/한의학 관련 태그 4-5개 (예: 건초염치료, 한의원, 침치료)
 - 페르소나톤: 페르소나/톤 태그 3-4개 (예: 한의사칼럼, 환자중심, 통증관리)
 
+### TASK 3: 섹션별 일러스트 (6개) - 글 기반 프롬프트
+
+**중요: 최종 글에서 실제 6개 섹션을 파싱하여 각 섹션의 원문 텍스트를 추출하세요.**
+
+최종 글의 6개 섹션을 식별하고, 각 섹션의 **실제 원고 내용**을 sectionContent 필드에 포함하세요.
+이 sectionContent는 이미지 생성 시 글 기반 프롬프트로 사용됩니다.
+
+섹션 구조 (## 또는 ### 헤딩으로 구분):
+1. Answer First (핵심 결론) - "결론", "핵심", "먼저" 등의 키워드로 식별
+2. Action (즉각적 행동) - "행동", "실천", "할 일", "방법" 등으로 식별  
+3. Warning (위험 신호) - "주의", "경고", "위험" 등으로 식별
+4. The 'Why' (상세 원인) - "원인", "이유", "왜", "기전" 등으로 식별
+5. Proof (사례와 근거) - "사례", "근거", "연구" 등으로 식별
+6. Closing (요약 및 격려) - "마치며", "요약", "격려" 등으로 식별
+
+각 섹션에 대해:
+- **sectionContent**: 해당 섹션의 실제 원고 텍스트 (100-300자, 헤딩 제외한 본문)
+- **summary**: 1-2문장으로 요약 (짧은 버전)
+- **keywords**: 시각적 키워드 3-5개 (한글)
+- **recommendedPalette**: 색상 팔레트 (medical/calm/warm)
+
+**중요**: sectionContent에는 원고의 실제 문장을 그대로 포함하세요. 키워드만 나열하지 마세요.
+
 ### 출력 형식 (반드시 JSON)
 {
-  "extractedTopic": "어지럼증의 원인과 관리법",  // 주제가 없을 경우 최종 글에서 추출한 주제
+  "extractedTopic": "어지럼증의 원인과 관리법",
   "imageConcepts": [
     {
       "title": "손그림 다이어그램 - 호흡법",
@@ -310,6 +368,24 @@ ${stageData.finalDraft}
     { "category": "행동솔루션", "tags": ["손목스트레칭", "손목휴식", "손목찜질"] },
     { "category": "의학한의학", "tags": ["건초염치료", "한의원건초염", "침치료"] },
     { "category": "페르소나톤", "tags": ["한의사칼럼", "환자중심", "통증관리"] }
+  ],
+  "sectionIllustrations": [
+    {
+      "sectionNumber": 1,
+      "sectionTitle": "Answer First",
+      "sectionContent": "공황장애는 갑작스럽게 찾아오는 극심한 불안 발작입니다. 심장이 터질 것 같고, 숨을 쉴 수 없을 것 같은 공포가 밀려옵니다. 하지만 이것은 치료 가능한 증상이며, 적절한 관리로 충분히 조절할 수 있습니다.",
+      "summary": "공황장애는 갑작스러운 불안 발작이 특징이며, 적절한 관리로 조절 가능합니다.",
+      "keywords": ["불안", "발작", "관리", "희망"],
+      "recommendedPalette": "calm"
+    },
+    {
+      "sectionNumber": 2,
+      "sectionTitle": "Action",
+      "sectionContent": "1. 4-7-8 호흡법: 4초 들이쉬고, 7초 참고, 8초 내쉽니다. 2. 안전한 장소를 미리 정해두세요. 3. 증상이 반복되면 전문가 상담을 받으세요.",
+      "summary": "호흡 조절, 안전 장소 확보, 전문가 상담이 즉각적으로 도움이 됩니다.",
+      "keywords": ["호흡", "안전", "상담"],
+      "recommendedPalette": "medical"
+    }
   ]
 }`;
 
@@ -510,14 +586,15 @@ ${stageData.finalDraft}
                         // JSON 파싱 시도
                         const parsed = JSON.parse(jsonStr);
 
-                        // 새 형식 (imageConcepts + hashtags 객체)
+                        // 새 형식 (imageConcepts + hashtags + sectionIllustrations 객체)
                         if (parsed.imageConcepts && Array.isArray(parsed.imageConcepts)) {
                             setStageData(prev => ({
                                 ...prev,
                                 // 숏컷 트랙에서 주제가 없을 경우 AI가 추출한 주제 사용
                                 selectedTopic: prev.selectedTopic || parsed.extractedTopic || '',
                                 imageConcepts: parsed.imageConcepts,
-                                recommendedHashtags: parsed.hashtags || []
+                                recommendedHashtags: parsed.hashtags || [],
+                                sectionIllustrations: parsed.sectionIllustrations || []
                             }));
                         }
                         // 이전 형식 호환 (배열만 있는 경우)
@@ -566,6 +643,56 @@ ${stageData.finalDraft}
         navigator.clipboard.writeText(currentOutput);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    // 리치 텍스트 복사 (백록담 블로그 스타일 - 네이버 블로그에 바로 붙여넣기 가능)
+    const handleCopyRichText = async () => {
+        // Stage 7에서도 finalDraft를 사용하도록 수정
+        const textToCopy = stageData.finalDraft || currentOutput;
+        if (!textToCopy) return;
+
+        // 마크다운을 백록담 블로그 스타일 HTML로 변환
+        let html = textToCopy
+            // H2 제목: 깔끔하고 눈에 띄는 섹션 제목
+            .replace(/^## (.+)$/gm, '<h2 style="font-size:22px;font-weight:700;color:#1a1a1a;margin:32px 0 16px 0;padding-bottom:8px;border-bottom:2px solid #e0e0e0;">$1</h2>')
+            // H3 소제목
+            .replace(/^### (.+)$/gm, '<h3 style="font-size:18px;font-weight:600;color:#333;margin:24px 0 12px 0;">$1</h3>')
+            // H1 대제목
+            .replace(/^# (.+)$/gm, '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin:40px 0 20px 0;">$1</h1>')
+            // 굵게/기울임
+            .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:#1a1a1a;">$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em style="font-style:italic;">$1</em>')
+            // 인용문: 백록담 스타일
+            .replace(/^> (.+)$/gm, '<blockquote style="border-left:4px solid #4a90a4;background:#f8fafb;padding:16px 20px;margin:20px 0;color:#555;font-style:italic;border-radius:0 8px 8px 0;">$1</blockquote>')
+            // 목록
+            .replace(/^- (.+)$/gm, '<li style="margin:8px 0;padding-left:8px;">$1</li>')
+            .replace(/^\d+\. (.+)$/gm, '<li style="margin:8px 0;padding-left:8px;">$1</li>')
+            // 코드
+            .replace(/`(.+?)`/g, '<code style="background:#f4f4f4;padding:3px 8px;border-radius:4px;font-family:monospace;font-size:14px;color:#e83e8c;">$1</code>')
+            // 문단 구분 (빈 줄)
+            .replace(/\n\n/g, '</p><p style="margin:20px 0;line-height:1.9;color:#333;font-size:16px;">')
+            // 줄바꿈
+            .replace(/\n/g, '<br>');
+
+        // li 태그를 ul로 감싸기
+        html = html.replace(/(<li[^>]*>.*?<\/li>(?:<br>)?)+/g, (match) => {
+            return '<ul style="margin:16px 0;padding-left:24px;list-style-type:disc;">' + match.replace(/<br>/g, '') + '</ul>';
+        });
+
+        // 전체 래퍼
+        html = `<div style="font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;line-height:1.9;color:#333;max-width:720px;"><p style="margin:20px 0;line-height:1.9;color:#333;font-size:16px;">${html}</p></div>`;
+
+        try {
+            const blob = new Blob([html], { type: 'text/html' });
+            const clipboardItem = new ClipboardItem({ 'text/html': blob });
+            await navigator.clipboard.write([clipboardItem]);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch {
+            navigator.clipboard.writeText(textToCopy);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        }
     };
 
     const handleSave = () => {
@@ -659,16 +786,71 @@ ${stageData.finalDraft}
             URL.revokeObjectURL(mdUrl);
         }
 
-        if (onStage7Complete && stageData.imageConcepts.length > 0) {
+        // 추천 이미지 컨셉 + 섹션 일러스트 카드 모두 합쳐서 전달
+        if (onStage7Complete && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0)) {
+            // 추천 이미지 컨셉 (3-5개)
+            const conceptCards = stageData.imageConcepts.map(c => ({
+                title: c.title,
+                keywords: c.keywords,
+                recommendedStyle: c.recommendedStyle,
+                recommendedPalette: c.recommendedPalette
+            }));
+
+            // 섹션 일러스트 카드 (6개) - section-illustration 스타일 적용
+            // 글 기반 프롬프트: sectionContent 전체를 description으로 전달
+            const sectionCards = stageData.sectionIllustrations.map(s => ({
+                title: `${s.sectionNumber}. ${s.sectionTitle}`,
+                keywords: s.keywords,
+                description: s.sectionContent || s.summary, // 실제 원고 섹션 전문
+                recommendedStyle: 'section-illustration' as const,
+                recommendedPalette: s.recommendedPalette
+            }));
+
+            // 모두 합쳐서 전달
             onStage7Complete({
                 topic: stageData.selectedTopic,
-                concepts: stageData.imageConcepts.map(c => ({
-                    title: c.title,
-                    keywords: c.keywords,
-                    recommendedStyle: c.recommendedStyle,
-                    recommendedPalette: c.recommendedPalette
-                }))
+                concepts: [...conceptCards, ...sectionCards]
             });
+        }
+    };
+
+    // 섹션 일러스트 개별 생성 (section-illustration 스타일 사용)
+    const handleGenerateSectionIllustration = (section: SectionIllustration) => {
+        if (onStage7Complete) {
+            // 글 기반 프롬프트: sectionContent 전체를 description으로 전달
+            const conceptData = {
+                title: `${section.sectionNumber}. ${section.sectionTitle}`,
+                keywords: section.keywords,
+                description: section.sectionContent || section.summary, // 실제 원고 섹션 전문
+                recommendedStyle: 'section-illustration' as const,
+                recommendedPalette: section.recommendedPalette
+            };
+
+            onStage7Complete({
+                topic: `${stageData.selectedTopic} - ${section.sectionTitle}`,
+                concepts: [conceptData]
+            });
+        }
+    };
+
+    // 프로필 관리 핸들러
+    const handleSaveProfile = (profile: BlogProfile) => {
+        const existingIndex = profiles.findIndex(p => p.id === profile.id);
+        if (existingIndex >= 0) {
+            const updatedProfiles = [...profiles];
+            updatedProfiles[existingIndex] = profile;
+            setProfiles(updatedProfiles);
+        } else {
+            setProfiles([...profiles, profile]);
+            setSelectedProfileId(profile.id);
+        }
+    };
+
+    const handleDeleteProfile = (profileId: string) => {
+        const filteredProfiles = profiles.filter(p => p.id !== profileId);
+        setProfiles(filteredProfiles);
+        if (selectedProfileId === profileId && filteredProfiles.length > 0) {
+            setSelectedProfileId(filteredProfiles[0].id);
         }
     };
 
@@ -684,321 +866,444 @@ ${stageData.finalDraft}
     const stages: WorkflowStage[] = [0, 0.5, 1, 2, 3, 4, 5, 6, 7];
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-            <Panel>
-                <div className="flex flex-col gap-4 flex-grow">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => setSelectedProvider('gemini')}
-                                className={`px-2 py-1 text-xs rounded transition-colors ${selectedProvider === 'gemini' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                            >
-                                💎 Gemini
-                            </button>
-                            <button
-                                onClick={() => setSelectedProvider('openai')}
-                                className={`px-2 py-1 text-xs rounded transition-colors ${selectedProvider === 'openai' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                            >
-                                🤖 ChatGPT
-                            </button>
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                <Panel>
+                    <div className="flex flex-col gap-4 flex-grow">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
+                            <div className="flex gap-2 items-center">
+                                {/* 프로필 선택 */}
+                                <select
+                                    value={selectedProfileId}
+                                    onChange={(e) => setSelectedProfileId(e.target.value)}
+                                    className="px-2 py-1 text-xs bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                    {profiles.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => setIsProfileModalOpen(true)}
+                                    className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                                    title="프로필 관리"
+                                >
+                                    ⚙️
+                                </button>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => setSelectedProvider('gemini')}
+                                        className={`px-2 py-1 text-xs rounded transition-colors ${selectedProvider === 'gemini' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                    >
+                                        💎 Gemini
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedProvider('openai')}
+                                        className={`px-2 py-1 text-xs rounded transition-colors ${selectedProvider === 'openai' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                    >
+                                        🤖 ChatGPT
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Stage Progress */}
-                    <div className="flex gap-1 overflow-x-auto pb-2">
-                        {stages.map((stage, idx) => (
-                            <button
-                                key={stage}
-                                onClick={() => {
-                                    saveCurrentOutputToStageData();
-                                    setCurrentStage(stage);
-                                    loadStageDataToOutput(stage);
-                                }}
-                                className={`flex-shrink-0 px-2 py-1 rounded text-xs transition-all ${currentStage === stage
-                                    ? 'bg-indigo-600 text-white'
-                                    : stage < currentStage || (stage === 0.5 && currentStage > 0.5)
-                                        ? 'bg-green-600/30 text-green-300'
-                                        : 'bg-gray-700 text-gray-400'
-                                    }`}
-                            >
-                                {STAGE_INFO[stage].icon} {stage}
-                            </button>
-                        ))}
-                    </div>
+                        {/* Stage Progress */}
+                        <div className="flex gap-1 overflow-x-auto pb-2">
+                            {stages.map((stage, idx) => (
+                                <button
+                                    key={stage}
+                                    onClick={() => {
+                                        saveCurrentOutputToStageData();
+                                        setCurrentStage(stage);
+                                        loadStageDataToOutput(stage);
+                                    }}
+                                    className={`flex-shrink-0 px-2 py-1 rounded text-xs transition-all ${currentStage === stage
+                                        ? 'bg-indigo-600 text-white'
+                                        : stage < currentStage || (stage === 0.5 && currentStage > 0.5)
+                                            ? 'bg-green-600/30 text-green-300'
+                                            : 'bg-gray-700 text-gray-400'
+                                        }`}
+                                >
+                                    {STAGE_INFO[stage].icon} {stage}
+                                </button>
+                            ))}
+                        </div>
 
-                    {/* Current Stage Info */}
-                    <div className="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-2xl">{stageInfo.icon}</span>
+                        {/* Current Stage Info */}
+                        <div className="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-2xl">{stageInfo.icon}</span>
+                                <div>
+                                    <h4 className="font-semibold text-white">Stage {currentStage}: {stageInfo.name}</h4>
+                                    <p className="text-sm text-gray-300">{stageInfo.description}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Input Area */}
+                        {currentStage === 0 && (
                             <div>
-                                <h4 className="font-semibold text-white">Stage {currentStage}: {stageInfo.name}</h4>
-                                <p className="text-sm text-gray-300">{stageInfo.description}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Input Area */}
-                    {currentStage === 0 && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                                아이디어/키워드 입력
-                            </label>
-                            <textarea
-                                value={userInput}
-                                onChange={(e) => setUserInput(e.target.value)}
-                                placeholder="예: 공황장애, 출근길 불안, 30대 직장인..."
-                                rows={3}
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
-                            />
-                        </div>
-                    )}
-
-                    {/* Stage 6: Manual Input Mode */}
-                    {currentStage === 6 && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <label className="block text-sm font-medium text-gray-300">
-                                    입력 방식 선택
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    아이디어/키워드 입력
                                 </label>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setManualInputMode(false)}
-                                        className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${!manualInputMode ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                                    >
-                                        🤖 AI 생성
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setManualInputMode(true);
-                                            setIsEditMode(true); // 수동 입력 모드 활성화 시 자동으로 편집 모드 활성화
-                                        }}
-                                        className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${manualInputMode ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                                    >
-                                        ✍️ 직접 입력
-                                    </button>
-                                </div>
-                            </div>
-
-                            {manualInputMode && (
-                                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
-                                    <p className="text-sm text-green-300">
-                                        💡 <strong>직접 입력 모드</strong>: 오른쪽 출력 패널에서 원고를 직접 입력/붙여넣기 하세요.
-                                    </p>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        입력 후 "다음 →" 버튼을 클릭하면 7단계에서 이미지 카드와 태그가 생성됩니다.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Stage 0.5: Topic Selection Cards */}
-                    {currentStage === 0.5 && stageData.scoredTopics.length > 0 && (
-                        <div className="space-y-2">
-                            <p className="text-sm text-gray-400">평가된 주제 ({stageData.scoredTopics.length}개):</p>
-                            <div className="space-y-2 max-h-96 overflow-y-auto">
-                                {stageData.scoredTopics.map((topic, idx) => (
-                                    <div
-                                        key={idx}
-                                        onClick={() => handleSelectTopic(idx)}
-                                        className={`cursor-pointer p-3 rounded-lg border transition-all ${stageData.selectedTopicIndex === idx
-                                            ? 'border-green-500 bg-green-900/30 shadow-lg'
-                                            : 'border-gray-600 bg-gray-800/30 hover:border-indigo-500 hover:bg-indigo-900/20'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="font-semibold text-white flex-1">{topic.title}</span>
-                                            <span className="text-yellow-400 font-bold ml-2">{topic.score}점</span>
-                                        </div>
-                                        <p className="text-sm text-gray-400">{topic.summary}</p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            {idx === 0 && <span className="text-xs text-green-400">🥇 AI 추천</span>}
-                                            {stageData.selectedTopicIndex === idx && (
-                                                <span className="text-xs text-green-300">✅ 선택됨</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Stage Data Summary */}
-                    {currentStage > 0.5 && currentStage !== 7 && stageData.selectedTopic && (
-                        <div className="bg-gray-800/50 rounded-lg p-3 text-sm">
-                            <p className="text-gray-400">선정된 주제:</p>
-                            <p className="text-white truncate">{stageData.selectedTopic.substring(0, 100)}...</p>
-                        </div>
-                    )}
-
-                    {/* Stage 7: Concept Cards */}
-                    {currentStage === 7 && stageData.imageConcepts.length > 0 && (
-                        <div className="space-y-2">
-                            <p className="text-sm text-gray-400">생성된 이미지 컨셉 ({stageData.imageConcepts.length}개):</p>
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                                {stageData.imageConcepts.map((concept, idx) => (
-                                    <div key={idx} className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-lg p-3">
-                                        <h4 className="text-white font-semibold text-sm">{concept.title}</h4>
-                                        <p className="text-gray-300 text-xs mt-1">{concept.reason}</p>
-                                        <div className="flex gap-1 mt-2">
-                                            {concept.keywords.map((kw, kidx) => (
-                                                <span key={kidx} className="px-2 py-0.5 bg-indigo-600/40 text-indigo-200 text-xs rounded">
-                                                    {kw}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handlePrevStage}
-                            disabled={currentStage === 0}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            ← 이전
-                        </button>
-                        <button
-                            onClick={handleExecuteStage}
-                            disabled={
-                                isLoading ||
-                                (currentStage === 6 && manualInputMode ? !currentOutput.trim() : !isApiKeyReady) ||
-                                (currentStage === 0 && !userInput.trim())
-                            }
-                            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isLoading ? (
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                            ) : (
-                                <SparklesIcon className="w-5 h-5" />
-                            )}
-                            <span>{isLoading ? '생성 중...' : '실행'}</span>
-                        </button>
-                        <button
-                            onClick={handleNextStage}
-                            disabled={currentStage === 7 || !currentOutput}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            다음 →
-                        </button>
-                        {currentStage === 7 && stageData.imageConcepts.length > 0 && (
-                            <button
-                                onClick={handleCompleteStage7}
-                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                                🎨 블로그 이미지에 카드 생성
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </Panel>
-
-            <Panel>
-                <div className="flex flex-col gap-4 flex-grow h-full">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-300">
-                            {stageInfo.icon} {stageInfo.name} 결과
-                        </h3>
-                        {(currentOutput || (currentStage === 6 && manualInputMode)) && (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handleToggleEdit}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${isEditMode ? 'bg-yellow-600 text-white' : 'bg-gray-600 text-white hover:bg-gray-500'}`}
-                                >
-                                    <EditIcon className="w-4 h-4" />
-                                    <span>{isEditMode ? '수정 중' : '수정'}</span>
-                                </button>
-                                <button
-                                    onClick={handleCopy}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 transition-colors"
-                                >
-                                    <ClipboardIcon className="w-4 h-4" />
-                                    <span>{copySuccess ? '복사됨!' : '복사'}</span>
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-500 transition-colors"
-                                >
-                                    <PlusIcon className="w-4 h-4" />
-                                    <span>{saveSuccess ? '저장됨!' : '저장'}</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex-grow bg-gray-900/50 rounded-lg p-4 overflow-auto max-h-[60vh]">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center h-full text-gray-400">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mr-2"></div>
-                                <span>Gemini 3.0으로 생성 중...</span>
-                            </div>
-                        ) : (currentOutput || (currentStage === 6 && manualInputMode)) ? (
-                            (isEditMode || (currentStage === 6 && manualInputMode && !currentOutput)) ? (
                                 <textarea
-                                    value={currentOutput}
-                                    onChange={(e) => setCurrentOutput(e.target.value)}
-                                    placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
-                                    className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
+                                    value={userInput}
+                                    onChange={(e) => setUserInput(e.target.value)}
+                                    placeholder="예: 공황장애, 출근길 불안, 30대 직장인..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
                                 />
-                            ) : currentStage === 6 ? (
-                                <div className="notion-style-output prose prose-invert max-w-none">
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                            h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-white border-b border-gray-700 pb-2">{children}</h1>,
-                                            h2: ({ children }) => <h2 className="text-xl font-semibold mb-3 text-gray-100 mt-6">{children}</h2>,
-                                            h3: ({ children }) => <h3 className="text-lg font-medium mb-2 text-gray-200 mt-4">{children}</h3>,
-                                            p: ({ children }) => <p className="text-base text-gray-300 mb-3 leading-relaxed">{children}</p>,
-                                            ul: ({ children }) => <ul className="list-disc pl-6 mb-3 text-gray-300 space-y-1">{children}</ul>,
-                                            ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 text-gray-300 space-y-1">{children}</ol>,
-                                            li: ({ children }) => <li className="text-gray-300">{children}</li>,
-                                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                                            em: ({ children }) => <em className="italic text-gray-200">{children}</em>,
-                                            blockquote: ({ children }) => (
-                                                <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-3 bg-gray-800/50 text-gray-300 italic rounded-r">{children}</blockquote>
-                                            ),
-                                            code: ({ children, className }) => {
-                                                const isInline = !className;
-                                                return isInline
-                                                    ? <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm text-indigo-300">{children}</code>
-                                                    : <code className="block bg-gray-800 p-3 rounded my-2 text-sm text-gray-200 overflow-x-auto">{children}</code>;
-                                            },
-                                            hr: () => <hr className="my-6 border-gray-700" />,
-                                        }}
-                                    >
-                                        {currentOutput}
-                                    </ReactMarkdown>
+                            </div>
+                        )}
+
+                        {/* Stage 6: Manual Input Mode */}
+                        {currentStage === 6 && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        입력 방식 선택
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setManualInputMode(false)}
+                                            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${!manualInputMode ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                        >
+                                            🤖 AI 생성
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setManualInputMode(true);
+                                                setIsEditMode(true); // 수동 입력 모드 활성화 시 자동으로 편집 모드 활성화
+                                            }}
+                                            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${manualInputMode ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                        >
+                                            ✍️ 직접 입력
+                                        </button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <pre className="text-sm text-gray-200 whitespace-pre-wrap font-mono">
-                                    {currentOutput}
-                                </pre>
-                            )
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                                <span className="text-4xl mb-2">{stageInfo.icon}</span>
-                                <p>{stageInfo.name} 단계</p>
-                                {currentStage === 6 && manualInputMode ? (
-                                    <div className="text-center mt-4">
-                                        <p className="text-sm text-green-400">✍️ 직접 입력 모드</p>
-                                        <p className="text-xs text-gray-400 mt-2">
-                                            [수정] 버튼을 클릭하여 원고를 입력하세요
+
+                                {manualInputMode && (
+                                    <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                                        <p className="text-sm text-green-300">
+                                            💡 <strong>직접 입력 모드</strong>: 오른쪽 출력 패널에서 원고를 직접 입력/붙여넣기 하세요.
+                                        </p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            입력 후 "다음 →" 버튼을 클릭하면 7단계에서 이미지 카드와 태그가 생성됩니다.
                                         </p>
                                     </div>
-                                ) : (
-                                    <p className="text-sm">[실행] 버튼을 클릭하세요</p>
                                 )}
                             </div>
                         )}
+
+                        {/* Stage 0.5: Topic Selection Cards */}
+                        {currentStage === 0.5 && stageData.scoredTopics.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-gray-400">평가된 주제 ({stageData.scoredTopics.length}개):</p>
+                                <div className="space-y-2 max-h-96 overflow-y-auto">
+                                    {stageData.scoredTopics.map((topic, idx) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => handleSelectTopic(idx)}
+                                            className={`cursor-pointer p-3 rounded-lg border transition-all ${stageData.selectedTopicIndex === idx
+                                                ? 'border-green-500 bg-green-900/30 shadow-lg'
+                                                : 'border-gray-600 bg-gray-800/30 hover:border-indigo-500 hover:bg-indigo-900/20'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className="font-semibold text-white flex-1">{topic.title}</span>
+                                                <span className="text-yellow-400 font-bold ml-2">{topic.score}점</span>
+                                            </div>
+                                            <p className="text-sm text-gray-400">{topic.summary}</p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                {idx === 0 && <span className="text-xs text-green-400">🥇 AI 추천</span>}
+                                                {stageData.selectedTopicIndex === idx && (
+                                                    <span className="text-xs text-green-300">✅ 선택됨</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Stage Data Summary */}
+                        {currentStage > 0.5 && currentStage !== 7 && stageData.selectedTopic && (
+                            <div className="bg-gray-800/50 rounded-lg p-3 text-sm">
+                                <p className="text-gray-400">선정된 주제:</p>
+                                <p className="text-white truncate">{stageData.selectedTopic.substring(0, 100)}...</p>
+                            </div>
+                        )}
+
+                        {/* Stage 7: Tabs and Cards */}
+                        {currentStage === 7 && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0) && (
+                            <div className="space-y-3">
+                                {/* Tab Navigation */}
+                                <div className="flex gap-2 border-b border-gray-700">
+                                    <button
+                                        onClick={() => setStage7Tab('concepts')}
+                                        className={`px-4 py-2 text-sm font-medium transition-colors ${stage7Tab === 'concepts'
+                                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                                            : 'text-gray-400 hover:text-gray-300'
+                                            }`}
+                                    >
+                                        🎨 추천 이미지 컨셉 ({stageData.imageConcepts.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setStage7Tab('sections')}
+                                        className={`px-4 py-2 text-sm font-medium transition-colors ${stage7Tab === 'sections'
+                                            ? 'text-green-400 border-b-2 border-green-400'
+                                            : 'text-gray-400 hover:text-gray-300'
+                                            }`}
+                                    >
+                                        📚 섹션별 일러스트 ({stageData.sectionIllustrations.length})
+                                    </button>
+                                </div>
+
+                                {/* Tab Content: Image Concepts */}
+                                {stage7Tab === 'concepts' && stageData.imageConcepts.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm text-gray-400">생성된 이미지 컨셉 ({stageData.imageConcepts.length}개):</p>
+                                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                                            {stageData.imageConcepts.map((concept, idx) => (
+                                                <div key={idx} className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-lg p-3">
+                                                    <h4 className="text-white font-semibold text-sm">{concept.title}</h4>
+                                                    <p className="text-gray-300 text-xs mt-1">{concept.reason}</p>
+                                                    <div className="flex gap-1 mt-2">
+                                                        {concept.keywords.map((kw, kidx) => (
+                                                            <span key={kidx} className="px-2 py-0.5 bg-indigo-600/40 text-indigo-200 text-xs rounded">
+                                                                {kw}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    {concept.recommendedStyle && (
+                                                        <p className="text-xs text-purple-300 mt-2">🎨 {concept.recommendedStyle}</p>
+                                                    )}
+                                                    {concept.recommendedPalette && (
+                                                        <p className="text-xs text-purple-300">🎨 {concept.recommendedPalette} 팔레트</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Tab Content: Section Illustrations */}
+                                {stage7Tab === 'sections' && stageData.sectionIllustrations.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm text-gray-400">섹션별 일러스트 ({stageData.sectionIllustrations.length}개):</p>
+                                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                                            {stageData.sectionIllustrations.map((section, idx) => (
+                                                <div key={idx} className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30 rounded-lg p-4">
+                                                    {/* 섹션 헤더 */}
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-bold rounded-full">
+                                                            {section.sectionNumber}
+                                                        </span>
+                                                        <h4 className="text-white font-semibold text-sm">{section.sectionTitle}</h4>
+                                                    </div>
+
+                                                    {/* 요약 */}
+                                                    <p className="text-gray-300 text-xs mb-2 leading-relaxed">{section.summary}</p>
+
+                                                    {/* 키워드 */}
+                                                    <div className="flex flex-wrap gap-1 mb-2">
+                                                        {section.keywords.map((kw, kidx) => (
+                                                            <span key={kidx} className="px-2 py-0.5 bg-green-600/40 text-green-200 text-xs rounded">
+                                                                🏷️ {kw}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* 팔레트 및 스타일 */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex gap-2 text-xs">
+                                                            <span className="text-green-300">🎨 {section.recommendedPalette} 팔레트</span>
+                                                            <span className="text-green-300">📖 section-illustration</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleGenerateSectionIllustration(section)}
+                                                            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded transition-colors"
+                                                        >
+                                                            → 이미지 생성
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handlePrevStage}
+                                disabled={currentStage === 0}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                ← 이전
+                            </button>
+                            <button
+                                onClick={handleExecuteStage}
+                                disabled={
+                                    isLoading ||
+                                    (currentStage === 6 && manualInputMode ? !currentOutput.trim() : !isApiKeyReady) ||
+                                    (currentStage === 0 && !userInput.trim())
+                                }
+                                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                ) : (
+                                    <SparklesIcon className="w-5 h-5" />
+                                )}
+                                <span>{isLoading ? '생성 중...' : '실행'}</span>
+                            </button>
+                            <button
+                                onClick={handleNextStage}
+                                disabled={currentStage === 7 || !currentOutput}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                다음 →
+                            </button>
+                            {currentStage === 7 && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0) && (
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="text-xs text-yellow-400">💡 서식 복사 먼저 하세요!</span>
+                                    <button
+                                        onClick={handleCompleteStage7}
+                                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+                                        title="먼저 '서식 복사' 버튼으로 최종 글을 복사하세요"
+                                    >
+                                        🎨 블로그 이미지에 카드 생성
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </Panel>
-        </div>
+                </Panel>
+
+                <Panel>
+                    <div className="flex flex-col gap-4 flex-grow h-full">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-300">
+                                {stageInfo.icon} {stageInfo.name} 결과
+                            </h3>
+                            {(currentOutput || (currentStage === 6 && manualInputMode)) && (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleToggleEdit}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${isEditMode ? 'bg-yellow-600 text-white' : 'bg-gray-600 text-white hover:bg-gray-500'}`}
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                        <span>{isEditMode ? '수정 중' : '수정'}</span>
+                                    </button>
+                                    <button
+                                        onClick={handleCopy}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 transition-colors"
+                                    >
+                                        <ClipboardIcon className="w-4 h-4" />
+                                        <span>{copySuccess ? '복사됨!' : '복사'}</span>
+                                    </button>
+                                    <button
+                                        onClick={handleCopyRichText}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors"
+                                        title="네이버 블로그에 바로 붙여넣기 가능"
+                                    >
+                                        <ClipboardIcon className="w-4 h-4" />
+                                        <span>서식 복사</span>
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-500 transition-colors"
+                                    >
+                                        <PlusIcon className="w-4 h-4" />
+                                        <span>{saveSuccess ? '저장됨!' : '저장'}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-grow bg-gray-900/50 rounded-lg p-4 overflow-auto max-h-[60vh]">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mr-2"></div>
+                                    <span>Gemini 3.0으로 생성 중...</span>
+                                </div>
+                            ) : (currentOutput || (currentStage === 6 && manualInputMode)) ? (
+                                (isEditMode || (currentStage === 6 && manualInputMode && !currentOutput)) ? (
+                                    <textarea
+                                        value={currentOutput}
+                                        onChange={(e) => setCurrentOutput(e.target.value)}
+                                        placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
+                                        className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
+                                    />
+                                ) : currentStage === 6 ? (
+                                    <div className="notion-style-output prose prose-invert max-w-none">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-white border-b border-gray-700 pb-2">{children}</h1>,
+                                                h2: ({ children }) => <h2 className="text-xl font-semibold mb-3 text-gray-100 mt-6">{children}</h2>,
+                                                h3: ({ children }) => <h3 className="text-lg font-medium mb-2 text-gray-200 mt-4">{children}</h3>,
+                                                p: ({ children }) => <p className="text-base text-gray-300 mb-3 leading-relaxed">{children}</p>,
+                                                ul: ({ children }) => <ul className="list-disc pl-6 mb-3 text-gray-300 space-y-1">{children}</ul>,
+                                                ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 text-gray-300 space-y-1">{children}</ol>,
+                                                li: ({ children }) => <li className="text-gray-300">{children}</li>,
+                                                strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                                em: ({ children }) => <em className="italic text-gray-200">{children}</em>,
+                                                blockquote: ({ children }) => (
+                                                    <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-3 bg-gray-800/50 text-gray-300 italic rounded-r">{children}</blockquote>
+                                                ),
+                                                code: ({ children, className }) => {
+                                                    const isInline = !className;
+                                                    return isInline
+                                                        ? <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm text-indigo-300">{children}</code>
+                                                        : <code className="block bg-gray-800 p-3 rounded my-2 text-sm text-gray-200 overflow-x-auto">{children}</code>;
+                                                },
+                                                hr: () => <hr className="my-6 border-gray-700" />,
+                                            }}
+                                        >
+                                            {currentOutput}
+                                        </ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    <pre className="text-sm text-gray-200 whitespace-pre-wrap font-mono">
+                                        {currentOutput}
+                                    </pre>
+                                )
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                                    <span className="text-4xl mb-2">{stageInfo.icon}</span>
+                                    <p>{stageInfo.name} 단계</p>
+                                    {currentStage === 6 && manualInputMode ? (
+                                        <div className="text-center mt-4">
+                                            <p className="text-sm text-green-400">✍️ 직접 입력 모드</p>
+                                            <p className="text-xs text-gray-400 mt-2">
+                                                [수정] 버튼을 클릭하여 원고를 입력하세요
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm">[실행] 버튼을 클릭하세요</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Panel>
+            </div>
+
+            {/* 프로필 관리 모달 */}
+            <ProfileManagerModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                profiles={profiles}
+                selectedProfileId={selectedProfileId}
+                onSelectProfile={setSelectedProfileId}
+                onSaveProfile={handleSaveProfile}
+                onDeleteProfile={handleDeleteProfile}
+            />
+        </>
     );
 };
 

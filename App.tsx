@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const [selectedProvider, setSelectedProvider] = useState<ImageProvider>('gemini');
   const [blogImageContext, setBlogImageContext] = useState<{
     topic: string;
-    concepts: Array<{ title: string; keywords: string[] }>;
+    concepts: Array<{ title: string; keywords: string[]; description?: string }>;
   } | null>(null);
 
   const [geminiApiKey, setGeminiApiKey] = useLocalStorage<string>('gemini-api-key', '');
@@ -38,7 +38,7 @@ const App: React.FC = () => {
 
   const isKeyReady = !!geminiApiKey || !!openaiApiKey;
 
-  const handleStage7Complete = (data: { topic: string; concepts: Array<{ title: string; keywords: string[] }> }) => {
+  const handleStage7Complete = (data: { topic: string; concepts: Array<{ title: string; keywords: string[]; description?: string }> }) => {
     setBlogImageContext(data);
     setMode('blog-image');
   };

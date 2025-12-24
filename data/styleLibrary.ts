@@ -187,6 +187,17 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
             BACKGROUND_PROMPT: "A detailed anatomical illustration in medical textbook style with subtle shading. Color-coded structures: arteries in #E53935 (red), veins in #1E88E5 (blue), organs in natural tones. Clean white background with no gradients. Cross-section or anterior view with realistic anatomical proportions. Style: conservative medical textbook, Netter's Atlas inspired, precise line art, minimal shading, educational clarity. Labels should be placed as vector text layer separately.",
             NEGATIVES: ['stylization drift', 'artistic interpretation', '3D rendering', 'photographs', 'cartoon style', 'anime', 'fantasy elements', 'incorrect anatomy']
         }
+    },
+    {
+        id: 'section-illustration',
+        displayName: '섹션 일러스트',
+        icon: '📖',
+        description: '블로그 섹션별 요약 일러스트 - 배너 헤더, 귀여운 캐릭터, 말풍선',
+        keywords: ['section', 'cute', 'character', 'banner', 'speech bubble', 'pastel', 'Korean text'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: 'A warm pastel-colored illustration with a decorative banner/ribbon header at the top containing Korean text. Below, cute minimalist characters in a clean cartoon style with speech bubbles. The layout includes card-style boxes with icons and simple Korean text labels. Style: cute educational illustration, soft flat colors, warm beige/cream background, clean line art, friendly and approachable aesthetic. IMPORTANT: Korean text should be rendered in clear, bold, sans-serif font, large enough to be easily readable. Text placement should be clearly defined (centered, top, bottom). Keep Korean phrases short and simple (1-2 sentences maximum).',
+            NEGATIVES: ['realistic style', 'complex backgrounds', 'small text', 'cursive fonts', 'overlapping text', 'too much detail']
+        }
     }
 ];
 

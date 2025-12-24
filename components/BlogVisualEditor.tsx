@@ -18,7 +18,7 @@ interface BlogVisualEditorProps {
     setSelectedProvider: (provider: 'gemini' | 'openai') => void;
     initialContext?: {
         topic: string;
-        concepts: Array<{ title: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;
+        concepts: Array<{ title: string; keywords: string[]; description?: string; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;
     } | null;
 }
 
@@ -174,8 +174,15 @@ ${negatives}
 ## 사용자 주제: ${initialContext.topic}
 ## 컨셉 제목: ${concept.title}
 ## 키워드: ${concept.keywords.join(', ')}
+${concept.description ? `\n## 섹션 원고 전문 (글 기반 프롬프트 핵심):\n${concept.description}\n\n**중요**: 위 섹션 원고의 구체적인 내용과 메시지를 시각적으로 표현하세요. 텍스트 그대로가 아닌 의미와 감정을 일러스트로 전달하세요.` : ''}
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 스타일 키워드와 색상 지침을 포함하세요.`;
+위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요. 스타일 키워드와 색상 지침을 포함하세요.
+
+**한글 텍스트 렌더링 최적화 지침:**
+- 한글 텍스트는 명확하고 읽기 쉬운 산세리프 폰트로 지정 (clear, legible sans-serif Korean font)
+- 텍스트는 크고 굵게 표시 (large, bold text for high visibility)
+- 가능한 짧고 단순한 단어나 구문 사용 (simple, short phrases preferred)
+- 텍스트 위치를 명확히 지정 (clearly specify text placement: centered, top, bottom, etc.)`;
 
                     let prompt = '';
                     if (selectedProvider === 'gemini') {
@@ -288,7 +295,13 @@ ${negatives}
 ## 사용자 주제: ${topic}
 ## 사용자 내용: ${content || '(추가 내용 없음)'}
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 스타일 키워드와 색상 지침을 포함하세요.`;
+위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요. 스타일 키워드와 색상 지침을 포함하세요.
+
+**한글 텍스트 렌더링 최적화 지침:**
+- 한글 텍스트는 명확하고 읽기 쉬운 산세리프 폰트로 지정 (clear, legible sans-serif Korean font)
+- 텍스트는 크고 굵게 표시 (large, bold text for high visibility)
+- 가능한 짧고 단순한 단어나 구문 사용 (simple, short phrases preferred)
+- 텍스트 위치를 명확히 지정 (clearly specify text placement: centered, top, bottom, etc.)`;
 
             let prompt = '';
             if (selectedProvider === 'gemini') {
