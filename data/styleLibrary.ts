@@ -17,10 +17,10 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         displayName: '아이소메트릭 인포그래픽',
         icon: '📊',
         description: '관계, 프로세스 또는 시스템을 3D 방식으로 시각화',
-        keywords: ['isometric', 'infographic', '3D', 'vector', 'clean'],
+        keywords: ['isometric', 'infographic', '3D', 'vector', 'clean', 'premium'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: 'A clean isometric illustration showing a stylized brain on a platform connected by a glowing data-line to a stylized stomach on another platform below. Style: isometric vector art, clean, minimalist, soft aesthetic.',
-            NEGATIVES: ['text', 'letters', 'writing', 'signatures']
+            BACKGROUND_PROMPT: 'Premium isometric 3D vector infographic illustration. Floating hexagonal or rounded platforms at different heights with soft realistic drop shadows. Stylized minimalist flat-design icons connected by glowing animated data stream lines with subtle neon glow effects. Clean pastel gradient background transitioning from soft white to light grey. Modern healthcare visualization aesthetic with glassmorphism accents. Professional scientific illustration quality, sleek and polished finish. If Korean text is included: render in bold, clean sans-serif Korean font (Pretendard or Noto Sans KR style), large and highly readable, placed on clean label areas.',
+            NEGATIVES: ['cluttered', 'busy backgrounds', 'realistic photos', 'low quality', 'blurry text', 'cursive fonts', 'small illegible text']
         }
     },
     {
@@ -61,10 +61,10 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         displayName: '공감 컷툰',
         icon: '💬',
         description: '상황이나 감정을 스토리텔링 방식으로 전달',
-        keywords: ['cut-toon', 'comic', 'character', 'storytelling', 'speech bubble'],
+        keywords: ['cut-toon', 'comic', 'character', 'storytelling', 'speech bubble', 'Korean'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: 'A clean, minimalist single-panel comic illustration of a character sitting at a desk, looking tired, with one hand on their forehead. Style: clean line art with soft, flat colors.',
-            NEGATIVES: ['text', 'letters', 'writing', 'signatures']
+            BACKGROUND_PROMPT: `[그림체] 깔끔한 2D 캐릭터 일러스트. 단순화된 얼굴 표정(눈썹, 입 모양으로 감정 표현). 굵은 검정 외곽선(2-3px), 내부는 플랫 컬러로 채움. 따뜻한 피부톤, 차분한 의상 컬러(파란색, 베이지 계열). [레이아웃] 싱글 패널 구성. 캐릭터가 화면 좌측 2/3 차지. 우측 상단에 말풍선 또는 생각풍선 배치. 배경은 심플하게(침대, 의자 등 최소 소품). [글씨체] 말풍선 안에 둥근 고딕체(Rounded Gothic). 굵기 Medium. 2-3줄 이내 짧은 대사. 느낌표나 말줄임표로 감정 강조. [분위기] 따뜻한 크림/베이지 배경(#F5F0E8). 부드러운 그림자 없이 플랫하게. 공감되는 일상 상황 묘사. Style: warm empathetic cartoon, clean line art, flat colors, speech bubble with rounded Korean text.`,
+            NEGATIVES: ['realistic style', 'complex shading', '3D effects', 'small illegible text', 'cluttered background']
         }
     },
     {
@@ -83,10 +83,10 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         displayName: '손그림 다이어그램',
         icon: '✍️',
         description: '사이클, 관계, 간단한 프로세스 설명',
-        keywords: ['hand-drawn', 'monotone', 'notebook', 'sketch', 'ink'],
+        keywords: ['hand-drawn', 'flowchart', 'notebook', 'sketch', 'ink', 'icons', 'Korean'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: 'A hand-drawn diagram on off-white paper with faint integrated grid, resembling a page from a personal notebook. Style: monotone hand-drawn outlines with no fills, authentic notebook sketch feel.',
-            NEGATIVES: ['3D effects', 'shadows', 'gradients', 'digital text']
+            BACKGROUND_PROMPT: `[그림체] 손그림 느낌의 다이어그램. 검정 잉크 펜으로 그린 듯한 스케치 라인. 둥근 사각형 박스들이 화살표로 연결된 플로우차트 구조. 각 박스 안에 심플한 아이콘(구름, 저울, 시계, 위장 등). 선 굵기 1-2px, 약간의 손떨림 텍스처. [레이아웃] 중앙에 핵심 개념, 주변에 4-5개 연결 요소가 방사형 또는 순환형 배치. 화살표는 부드러운 곡선. 전체적으로 대칭적이고 균형잡힌 구도. [글씨체] 각 박스 안에 손글씨 느낌의 고딕체. 굵기 Bold. 2-4글자 핵심 키워드. 상단에 제목(더 큰 사이즈). 우측 하단에 작은 로고/서명 공간. [분위기] 연한 아이보리 배경(#FAF8F5)에 희미한 격자 텍스처. 노트북/메모장 위에 그린 느낌. 교육적이면서 친근함. Style: hand-drawn flowchart diagram, notebook paper texture, simple icons in rounded boxes, arrows connecting concepts, Korean labels in bold handwritten gothic font.`,
+            NEGATIVES: ['3D effects', 'photo-realistic', 'gradients', 'complex shading', 'small illegible text']
         }
     },
     {
@@ -105,10 +105,10 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         displayName: '개념적 은유',
         icon: '💭',
         description: '추상적인 의학 개념을 상징적인 오브제로 시각화',
-        keywords: ['conceptual', 'metaphor', 'abstract', '3D render', 'symbolic'],
+        keywords: ['conceptual', 'metaphor', 'silhouette', 'gears', 'mechanism', 'symbolic', 'Korean'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: 'A highly realistic 3D render of a stylized, transparent glass human head silhouette, viewed in profile. The inside of the head is filled with dense, swirling fog. Style: conceptual metaphor, 3D render, minimalist, photorealistic.',
-            NEGATIVES: ['text', 'letters', 'busy background', 'cluttered', 'people']
+            BACKGROUND_PROMPT: `[그림체] 인체 실루엣(측면 프로필) 안에 기계적 요소(톱니바퀴, 연결선, 파이프)로 신체 시스템을 표현. 실루엣은 따뜻한 베이지/살색 톤으로 채움. 내부 기계 요소는 네이비/차콜 컬러. 외곽선은 테라코타/브릭 레드(#A0522D). 손그림 텍스처가 살짝 느껴지는 일러스트 스타일. [레이아웃] 인체 실루엣이 화면 중앙에 크게 배치. 머리(뇌)와 몸통(장기) 사이를 톱니바퀴와 연결선이 이어줌. 기계 요소 주변에 작은 번개/진동 효과로 활성화 상태 표현. [글씨체] 하단에 제목 텍스트. 굵은 세리프 또는 고딕체. 검정색, 큰 사이즈(24pt 이상). 필요시 콜론(:)으로 부제 연결. [분위기] 따뜻한 크림/오프화이트 배경(#F5F0E8). 전체적으로 교육적이면서 따뜻한 의학 일러스트 느낌. Style: conceptual body-mechanism metaphor, human silhouette with gears and connection lines inside, warm cream background, educational medical illustration, Korean title at bottom in bold font.`,
+            NEGATIVES: ['photo-realistic', 'cold colors', 'cluttered', '3D rendering', 'complex background']
         }
     },
     {
