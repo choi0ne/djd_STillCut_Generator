@@ -339,34 +339,40 @@ const MpsEditor: React.FC = () => {
                 // 3. 저장 (로컬 + Google Drive)
                 setStatusMessage(`💾 [${i + 1}/${filesToProcess.length}] 저장 중: ${driveFile.fileName}`);
 
+                // 출력 포맷에 따른 저장 (both면 webp+jpg 모두)
+                const formatsToSave: ('webp' | 'jpg')[] =
+                    imageOptions.outputFormat === 'both' ? ['webp', 'jpg'] : [imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg'];
+
                 for (let j = 0; j < processResult.outputFiles.length; j++) {
                     const fileUrl = processResult.outputFiles[j];
-                    const ext = imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg';
                     const baseName = driveFile.fileName.replace(/\.[^.]+$/, '');
-                    const saveName = processResult.outputFiles.length > 1
-                        ? `${baseName}-${timestamp}-${j + 1}.${ext}`
-                        : `${baseName}-${timestamp}.${ext}`;
 
-                    const saveResponse = await fetch(fileUrl);
-                    const saveBlob = await saveResponse.blob();
-                    const blobUrl = URL.createObjectURL(saveBlob);
+                    for (const ext of formatsToSave) {
+                        const saveName = processResult.outputFiles.length > 1
+                            ? `${baseName}-${timestamp}-${j + 1}.${ext}`
+                            : `${baseName}-${timestamp}.${ext}`;
 
-                    // 로컬 다운로드
-                    const link = document.createElement('a');
-                    link.href = blobUrl;
-                    link.download = saveName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                        const saveResponse = await fetch(fileUrl);
+                        const saveBlob = await saveResponse.blob();
+                        const blobUrl = URL.createObjectURL(saveBlob);
 
-                    // Google Drive 저장
-                    try {
-                        await saveToGoogleDrive(blobUrl);
-                    } catch (driveErr) {
-                        console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                        // 로컬 다운로드
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = saveName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        // Google Drive 저장
+                        try {
+                            await saveToGoogleDrive(blobUrl);
+                        } catch (driveErr) {
+                            console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                        }
+
+                        URL.revokeObjectURL(blobUrl);
                     }
-
-                    URL.revokeObjectURL(blobUrl);
                 }
 
                 results.push({ fileName: driveFile.fileName, success: true });
@@ -431,34 +437,40 @@ const MpsEditor: React.FC = () => {
                 // 2. 저장 (로컬 + Google Drive)
                 setStatusMessage(`💾 [${i + 1}/${filesToProcess.length}] 저장 중: ${localFile.name}`);
 
+                // 출력 포맷에 따른 저장 (both면 webp+jpg 모두)
+                const formatsToSave: ('webp' | 'jpg')[] =
+                    imageOptions.outputFormat === 'both' ? ['webp', 'jpg'] : [imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg'];
+
                 for (let j = 0; j < processResult.outputFiles.length; j++) {
                     const fileUrl = processResult.outputFiles[j];
-                    const ext = imageOptions.outputFormat === 'webp' ? 'webp' : 'jpg';
                     const baseName = localFile.name.replace(/\.[^.]+$/, '');
-                    const saveName = processResult.outputFiles.length > 1
-                        ? `${baseName}-${timestamp}-${j + 1}.${ext}`
-                        : `${baseName}-${timestamp}.${ext}`;
 
-                    const saveResponse = await fetch(fileUrl);
-                    const saveBlob = await saveResponse.blob();
-                    const blobUrl = URL.createObjectURL(saveBlob);
+                    for (const ext of formatsToSave) {
+                        const saveName = processResult.outputFiles.length > 1
+                            ? `${baseName}-${timestamp}-${j + 1}.${ext}`
+                            : `${baseName}-${timestamp}.${ext}`;
 
-                    // 로컬 다운로드
-                    const link = document.createElement('a');
-                    link.href = blobUrl;
-                    link.download = saveName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                        const saveResponse = await fetch(fileUrl);
+                        const saveBlob = await saveResponse.blob();
+                        const blobUrl = URL.createObjectURL(saveBlob);
 
-                    // Google Drive 저장
-                    try {
-                        await saveToGoogleDrive(blobUrl);
-                    } catch (driveErr) {
-                        console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                        // 로컬 다운로드
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = saveName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        // Google Drive 저장
+                        try {
+                            await saveToGoogleDrive(blobUrl);
+                        } catch (driveErr) {
+                            console.error(`[MPS Batch] Drive 저장 실패: ${saveName}`, driveErr);
+                        }
+
+                        URL.revokeObjectURL(blobUrl);
                     }
-
-                    URL.revokeObjectURL(blobUrl);
                 }
 
                 results.push({ fileName: localFile.name, success: true });
@@ -741,7 +753,7 @@ const MpsEditor: React.FC = () => {
             )}
 
             {/* 이미지 옵션 (단일 이미지 또는 일괄 처리 대기 중) */}
-            {(fileType === 'image' || pendingBatchFiles.length > 0) && (
+            {(fileType === 'image' || pendingBatchFiles.length > 0 || pendingLocalFiles.length > 0) && (
                 <div className="bg-[#111827] rounded-xl border border-white/5 p-5">
                     <ImageOptionsPanel options={imageOptions} onChange={setImageOptions} />
                 </div>

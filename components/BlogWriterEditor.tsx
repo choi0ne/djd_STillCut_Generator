@@ -47,6 +47,7 @@ interface StageData {
     imageConcepts: Array<{ title: string; reason: string; keywords: string[]; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;  // Stage 7
     recommendedHashtags: HashtagCategory[];  // Stage 7 - AI 생성 해시태그
     sectionIllustrations: SectionIllustration[];  // Stage 7 - 섹션별 일러스트
+    seriesKeywords: Array<{ title: string; type: string; reason: string }>;  // Stage 7 - 시리즈 키워드
 }
 
 const STAGE_INFO: { [key: number]: { name: string; description: string; icon: string } } = {
@@ -54,11 +55,11 @@ const STAGE_INFO: { [key: number]: { name: string; description: string; icon: st
     0.5: { name: '주제 스코어링', description: '4대 축 기준 주제 선정', icon: '📊' },
     1: { name: '키워드 클러스터', description: 'SEO 롱테일 키워드 20개+', icon: '🔍' },
     2: { name: '근거 설계', description: 'WM/KM 참고 자료 수집', icon: '📚' },
-    3: { name: '아웃라인', description: '12 블록 맵핑', icon: '📝' },
-    4: { name: '집필', description: '초고 작성', icon: '✍️' },
+    3: { name: '아웃라인', description: '8섹션 + 12블록 맵핑', icon: '📝' },
+    4: { name: '집필', description: '8섹션 + FAQ + 참고자료', icon: '✍️' },
     5: { name: '초고 비평', description: '5C 체크리스트 검증', icon: '🔎' },
     6: { name: '탈고', description: '최종본 완성', icon: '✅' },
-    7: { name: '시각 프롬프트 설계', description: '3-5개 이미지 컨셉 추천', icon: '🎨' }
+    7: { name: '시각 프롬프트 설계', description: '이미지 + 시리즈 키워드', icon: '🎨' }
 };
 
 // 프로필 기반 동적 워크플로 프롬프트 생성 함수
@@ -111,7 +112,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
         finalDraft: '',
         imageConcepts: [],
         recommendedHashtags: [],
-        sectionIllustrations: []
+        sectionIllustrations: [],
+        seriesKeywords: []
     });
     // currentOutput도 localStorage에 저장
     const [currentOutput, setCurrentOutput] = useLocalStorage<string>('blog-writer-output', '');
@@ -131,6 +133,10 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
 
     // Stage 7 탭 state
     const [stage7Tab, setStage7Tab] = useState<'concepts' | 'sections'>('concepts');
+
+    // 일괄처리 state
+    const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
@@ -159,18 +165,23 @@ JSON 형식으로 출력하세요.`;
 주제 후보들:
 ${stageData.ideation.join('\n')}
 
-각 주제를 4대 축으로 평가하세요:
-1. 행동성 (Actionability / 5점)
-2. 검색 의도 (Intent Match / 5점)
-3. 진료 연관성 (Relevancy / 5점)
-4. 긴급성/차별성 (Urgency / 5점)
+각 주제를 **5대 축**으로 평가하세요:
+1. 행동성 (Actionability / 5점) - 즉시 실천 가능한 정보 제공
+2. 검색 의도 (Intent Match / 5점) - 환자 검색 의도와 일치
+3. 진료 연관성 (Relevancy / 5점) - 클리닉 포커스와 연관
+4. 긴급성/차별성 (Urgency / 5점) - 경쟁 콘텐츠 대비 차별성
+5. **시리즈화 적합성 (Serializability / 5점)** - 후속 글로 확장 가능성
+   - 세부 주제로 쪼갤 수 있는가?
+   - 관련 상황/타겟으로 확장 가능한가?
+   - 꼬리를 무는 연속 질문이 있는가?
 
-반드시 JSON 배열 형식으로 출력하세요 (점수 높은 순으로 정렬):
+반드시 JSON 배열 형식으로 출력하세요 (총점 높은 순으로 정렬):
 [
   {
     "title": "주제명",
-    "score": 18,
-    "summary": "핵심 질문이나 요약 한 줄"
+    "score": 23,
+    "summary": "핵심 질문이나 요약 한 줄",
+    "seriesHint": "시리즈 확장 가능성 한 줄 설명"
   }
 ]`;
 
@@ -212,13 +223,49 @@ ${stageData.ideation.join('\n')}
 주제: "${stageData.selectedTopic}"
 키워드: ${stageData.keywords.slice(0, 10).join(', ')}
 
-환자 중심 6단락 구조로 아웃라인을 작성하세요:
+환자 중심 **8단락 구조**로 아웃라인을 작성하세요:
+
+### 본문 섹션 (1-6)
 1. Answer First (핵심 결론)
 2. Action (즉각적 행동) - PATH Top 3
 3. Warning (위험 신호) - CONTRA
 4. The 'Why' (상세 원인)
 5. Proof (사례와 근거)
-6. Closing (요약 및 격려)
+6. Closing (요약 및 격려) + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+
+### 7. FAQ (자주 묻는 질문) - JSON-LD FAQPage 호환
+
+**필수 요소:**
+- 환자 질문형 소제목 **최소 3개**
+- 각 질문의 첫 문장에서 **핵심 답변 제시**
+
+**형식:**
+## Q. 공황장애 초기증상은 무엇인가요?
+갑작스러운 심장 뛰, 호흡 곤란, 어지러움이 대표적입니다.
+(상세 설명 2-3문장...)
+
+## Q. 약 없이 공황장애 관리가 가능한가요?
+네, 생활 루틴과 호흡법으로 증상 완화가 가능합니다.
+(상세 설명 2-3문장...)
+
+## Q. 한의원에서 공황장애 치료가 가능한가요?
+네, 침치료와 한약으로 자율신경 안정에 효과가 있습니다.
+(상세 설명 2-3문장...)
+
+### 8. 참고 자료 (글 하단 일괄 명시)
+
+**형식:**
+---
+## 📚 참고 자료
+
+**[서양의학 (WM)]** - 최소 1개
+- NICE (2023). "Generalised anxiety disorder and panic disorder"
+- BMJ Best Practice (2022). "Panic disorder - Management"
+
+**[한의학 (KM)]** - 최소 1개
+- 대한한의학회 CPG (2021). "공황장애 한의 임상진료지침"
+- NIKOM (2020). "불안장애의 한의학적 치료"
+---
 
 12 블록 중 사용할 블록을 지정하세요:
 필수: VOC, PATH, CONTRA
@@ -227,21 +274,55 @@ ${stageData.ideation.join('\n')}
             case 4:
                 return `${getWorkflowPrompt(selectedProfile)}
 
-## Stage 4: 집필
+## Stage 4: 집필 (8섹션 완전체)
 
 주제: "${stageData.selectedTopic}"
 아웃라인:
 ${stageData.outline}
 
-위 아웃라인을 바탕으로 블로그 초고를 작성하세요.
+위 아웃라인을 바탕으로 **8개 섹션 완전체** 블로그 초고를 작성하세요.
 
-집필 규칙:
+### 집필 규칙
 - 병리/기전은 'DEEP_DIVE' 블록으로 분리
 - 증상–루틴–결과가 한 문단 내 인과로 연결
 - 수치 예시 포함
 - 레드플래그/내원 기준 명시
 - 느낌표 ≤2
-- 전문 용어 70% 이상 중학생 수준으로`;
+- 전문 용어 70% 이상 중학생 수준으로
+
+### 글 내 참고문헌 인용 형식
+- 핵심 주장 뒤에 출처 번호: "...효과가 있습니다[1]."
+- 또는 괄호 형식: "...(NICE 2023)"
+
+### 8개 섹션 구조 (반드시 모두 포함)
+
+**[본문 섹션 1-6]**
+1. **Answer First** - 핵심 결론
+2. **Action** - PATH Top 3 즉각 실천
+3. **Warning** - CONTRA 위험 신호
+4. **The 'Why'** - 상세 원인/기전
+5. **Proof** - 사례와 근거
+6. **Closing** - 요약 및 격려 + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+
+**[텍스트 전용 섹션 7-8]**
+
+7. **FAQ** (최소 3개 질문)
+   - 각 질문은 "## Q. [질문]?" 형식
+   - 첫 문장에서 핵심 답변 제시
+   - 이어서 상세 설명 2-3문장
+
+8. **참고 자료** (글 하단 일괄)
+---
+## 📚 참고 자료
+
+**[서양의학 (WM)]**
+[1] 출처명 (연도). "제목"
+[2] 출처명 (연도). "제목"
+
+**[한의학 (KM)]**
+[3] 출처명 (연도). "제목"
+[4] 출처명 (연도). "제목"
+---`;
 
             case 5:
                 return `${getWorkflowPrompt(selectedProfile)}
@@ -350,6 +431,24 @@ ${stageData.finalDraft}
 
 **중요**: sectionContent에는 원고의 실제 문장을 그대로 포함하세요. 키워드만 나열하지 마세요.
 
+### TASK 4: 시리즈 키워드 (다음 글 후보)
+
+현재 글: "${stageData.selectedTopic || '(최종 글에서 추출)'}"
+
+**꼬리를 무는 연속 주제 5개**를 제안하세요:
+- drill-down: 더 구체적인 세부 주제
+- lateral: 관련 상황/타겟 확장
+- follow-up: 후속 질문 형태
+- treatment: 치료/해결 방법
+- management: 장기 관리/예방
+
+예시:
+현재 글: "공황장애 초기증상"
+→ 시리즈 후보:
+  - "공황장애 자가 진단 방법" (drill-down)
+  - "직장인 출근길 공황 대처법" (lateral)
+  - "공황장애 약 없이 치료 가능할까" (follow-up)
+
 ### 출력 형식 (반드시 JSON)
 {
   "extractedTopic": "어지럼증의 원인과 관리법",
@@ -373,19 +472,18 @@ ${stageData.finalDraft}
     {
       "sectionNumber": 1,
       "sectionTitle": "Answer First",
-      "sectionContent": "공황장애는 갑작스럽게 찾아오는 극심한 불안 발작입니다. 심장이 터질 것 같고, 숨을 쉴 수 없을 것 같은 공포가 밀려옵니다. 하지만 이것은 치료 가능한 증상이며, 적절한 관리로 충분히 조절할 수 있습니다.",
-      "summary": "공황장애는 갑작스러운 불안 발작이 특징이며, 적절한 관리로 조절 가능합니다.",
-      "keywords": ["불안", "발작", "관리", "희망"],
+      "sectionContent": "공황장애는 갑작스럽게 찾아오는 극심한 불안 발작입니다...",
+      "summary": "공황장애는 갑작스러운 불안 발작이 특징",
+      "keywords": ["불안", "발작", "관리"],
       "recommendedPalette": "calm"
-    },
-    {
-      "sectionNumber": 2,
-      "sectionTitle": "Action",
-      "sectionContent": "1. 4-7-8 호흡법: 4초 들이쉬고, 7초 참고, 8초 내쉽니다. 2. 안전한 장소를 미리 정해두세요. 3. 증상이 반복되면 전문가 상담을 받으세요.",
-      "summary": "호흡 조절, 안전 장소 확보, 전문가 상담이 즉각적으로 도움이 됩니다.",
-      "keywords": ["호흡", "안전", "상담"],
-      "recommendedPalette": "medical"
     }
+  ],
+  "seriesKeywords": [
+    { "title": "공황장애 자가 진단 방법", "type": "drill-down", "reason": "초기증상 확인 후 자가 체크 욕구" },
+    { "title": "직장인 출근길 공황 대처법", "type": "lateral", "reason": "타겟 독자 상황 확장" },
+    { "title": "공황장애 약 없이 치료 가능할까", "type": "follow-up", "reason": "약물 거부감 있는 환자 대응" },
+    { "title": "공황장애 한의원 치료 효과", "type": "treatment", "reason": "한방 치료 관심 환자" },
+    { "title": "공황장애 재발 방지법", "type": "management", "reason": "장기 관리 정보 욕구" }
   ]
 }`;
 
@@ -594,7 +692,8 @@ ${stageData.finalDraft}
                                 selectedTopic: prev.selectedTopic || parsed.extractedTopic || '',
                                 imageConcepts: parsed.imageConcepts,
                                 recommendedHashtags: parsed.hashtags || [],
-                                sectionIllustrations: parsed.sectionIllustrations || []
+                                sectionIllustrations: parsed.sectionIllustrations || [],
+                                seriesKeywords: parsed.seriesKeywords || []
                             }));
                         }
                         // 이전 형식 호환 (배열만 있는 경우)
@@ -734,6 +833,15 @@ ${stageData.finalDraft}
             content += '\n[전체 태그 - 복사용]\n';
             content += allTags.join(' ');
 
+            // 시리즈 키워드 추가 (다음 글 후보)
+            if (stageData.seriesKeywords && stageData.seriesKeywords.length > 0) {
+                content += '\n\n📌 다음 글 시리즈 키워드\n\n';
+                stageData.seriesKeywords.forEach((kw, i) => {
+                    content += `${i + 1}. ${kw.title} (${kw.type})\n`;
+                    content += `   └ ${kw.reason}\n`;
+                });
+            }
+
             // 파일명 생성 (해시태그_YYYYMMDD_HHmmss.txt)
             const now = new Date();
             const timestamp = now.getFullYear().toString() +
@@ -854,6 +962,346 @@ ${stageData.finalDraft}
         }
     };
 
+    // 1~6단계 일괄처리 함수
+    const handleBatchProcess = async () => {
+        if (!geminiApiKey) {
+            openSettings();
+            return;
+        }
+
+        // Stage 0.5에서 선택된 주제가 있어야 시작 가능
+        if (!stageData.selectedTopic) {
+            alert('먼저 Stage 0.5에서 주제를 선택해주세요.');
+            return;
+        }
+
+        if (!confirm('1~6단계를 일괄 실행합니다. 진행하시겠습니까?')) {
+            return;
+        }
+
+        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6];
+        setIsBatchProcessing(true);
+        setBatchProgress({ current: 0, total: batchStages.length });
+
+        // 로컬 accumulator로 중간 결과 추적 (React 상태의 비동기 업데이트 문제 해결)
+        const batchAccumulator = {
+            keywords: stageData.keywords,
+            references: stageData.references,
+            outline: stageData.outline,
+            draft: stageData.draft,
+            critique: stageData.critique,
+            finalDraft: stageData.finalDraft
+        };
+
+        // 일괄처리용 프롬프트 생성 함수 (로컬 accumulator 참조)
+        const getBatchStagePrompt = (stage: WorkflowStage): string => {
+            switch (stage) {
+                case 1:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 1: 키워드 클러스터
+
+선정된 주제: "${stageData.selectedTopic}"
+
+롱테일 키워드 20개 이상을 생성하세요:
+- 약물 관련 5개
+- 한약 관련 5개
+- 증상 관련 5개
+- 상황 관련 5개
+- 생활요법 관련 5개
+
+문단별 배치 맵도 함께 작성하세요.`;
+
+                case 2:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 2: 근거 설계
+
+주제: "${stageData.selectedTopic}"
+
+참고 자료 3-6개를 제안하세요:
+- WM (서양의학): NICE, BMJ, APA 등
+- KM (한의학): 대한한의학회 CPG, NIKOM 등
+- 5년 이내 문헌 우선
+
+각 자료의 핵심 내용을 요약하세요.`;
+
+                case 3:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 3: 아웃라인 & 12 블록 맵핑
+
+주제: "${stageData.selectedTopic}"
+키워드: ${batchAccumulator.keywords.slice(0, 10).join(', ')}
+
+환자 중심 **8단락 구조**로 아웃라인을 작성하세요:
+
+### 본문 섹션 (1-6)
+1. Answer First (핵심 결론)
+2. Action (즉각적 행동) - PATH Top 3
+3. Warning (위험 신호) - CONTRA
+4. The 'Why' (상세 원인)
+5. Proof (사례와 근거)
+6. Closing (요약 및 격려) + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+
+### 7. FAQ (자주 묻는 질문) - JSON-LD FAQPage 호환
+
+**필수 요소:**
+- 환자 질문형 소제목 **최소 3개**
+- 각 질문의 첫 문장에서 **핵심 답변 제시**
+
+**형식:**
+## Q. 공황장애 초기증상은 무엇인가요?
+갑작스러운 심장 뛰, 호흡 곤란, 어지러움이 대표적입니다.
+(상세 설명 2-3문장...)
+
+## Q. 약 없이 공황장애 관리가 가능한가요?
+네, 생활 루틴과 호흡법으로 증상 완화가 가능합니다.
+(상세 설명 2-3문장...)
+
+## Q. 한의원에서 공황장애 치료가 가능한가요?
+네, 침치료와 한약으로 자율신경 안정에 효과가 있습니다.
+(상세 설명 2-3문장...)
+
+### 8. 참고 자료 (글 하단 일괄 명시)
+
+**형식:**
+---
+## 📚 참고 자료
+
+**[서양의학 (WM)]** - 최소 1개
+- NICE (2023). "Generalised anxiety disorder and panic disorder"
+- BMJ Best Practice (2022). "Panic disorder - Management"
+
+**[한의학 (KM)]** - 최소 1개
+- 대한한의학회 CPG (2021). "공황장애 한의 임상진료지침"
+- NIKOM (2020). "불안장애의 한의학적 치료"
+---
+
+12 블록 중 사용할 블록을 지정하세요:
+필수: VOC, PATH, CONTRA
+선택: DRUG, METAPHOR, ANALOGY, ANCHOR, REF, INTERACTION, MEAS, CASE, DEEP_DIVE`;
+
+                case 4:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 4: 집필 (8섹션 완전체)
+
+주제: "${stageData.selectedTopic}"
+아웃라인:
+${batchAccumulator.outline}
+
+위 아웃라인을 바탕으로 **8개 섹션 완전체** 블로그 초고를 작성하세요.
+
+### 집필 규칙
+- 병리/기전은 'DEEP_DIVE' 블록으로 분리
+- 증상–루틴–결과가 한 문단 내 인과로 연결
+- 수치 예시 포함
+- 레드플래그/내원 기준 명시
+- 느낌표 ≤2
+- 전문 용어 70% 이상 중학생 수준으로
+
+### 글 내 참고문헌 인용 형식
+- 핵심 주장 뒤에 출처 번호: "...효과가 있습니다[1]."
+- 또는 괄호 형식: "...(NICE 2023)"
+
+### 8개 섹션 구조 (반드시 모두 포함)
+
+**[본문 섹션 1-6]**
+1. **Answer First** - 핵심 결론
+2. **Action** - PATH Top 3 즉각 실천
+3. **Warning** - CONTRA 위험 신호
+4. **The 'Why'** - 상세 원인/기전
+5. **Proof** - 사례와 근거
+6. **Closing** - 요약 및 격려 + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+
+**[텍스트 전용 섹션 7-8]**
+
+7. **FAQ** (최소 3개 질문)
+   - 각 질문은 "## Q. [질문]?" 형식
+   - 첫 문장에서 핵심 답변 제시
+   - 이어서 상세 설명 2-3문장
+
+8. **참고 자료** (글 하단 일괄)
+---
+## 📚 참고 자료
+
+**[서양의학 (WM)]**
+[1] 출처명 (연도). "제목"
+[2] 출처명 (연도). "제목"
+
+**[한의학 (KM)]**
+[3] 출처명 (연도). "제목"
+[4] 출처명 (연도). "제목"
+---`;
+
+                case 5:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 5: 초고 비평
+
+초고:
+${batchAccumulator.draft}
+
+5C 체크리스트로 비평하세요:
+1. Clarity (명료성): 전문 용어가 순화되었는가?
+2. Compassion (공감): 톤이 공감적이면서 단호한가?
+3. Actionability (행동성): Top 3 루틴이 즉시 실행 가능한가?
+4. Structure (구조): Answer First 구조가 지켜졌는가?
+5. Urgency (긴급성): Red Flag가 명확히 강조되었는가?
+
+수정이 필요한 부분을 구체적으로 지적하는 '수정 메모' 리스트를 작성하세요.`;
+
+                case 6:
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 6: 탈고
+
+초고:
+${batchAccumulator.draft}
+
+수정 메모:
+${batchAccumulator.critique}
+
+수정 메모를 100% 반영하여 최종본을 완성하세요.
+문장 흐름과 오탈자를 검토하세요.`;
+
+                default:
+                    return '';
+            }
+        };
+
+        try {
+            for (let i = 0; i < batchStages.length; i++) {
+                const stage = batchStages[i];
+                setBatchProgress({ current: i + 1, total: batchStages.length });
+                setCurrentStage(stage);
+
+                // 일괄처리용 프롬프트 (로컬 accumulator 참조)
+                const prompt = getBatchStagePrompt(stage);
+                let result = '';
+
+                if (selectedProvider === 'gemini') {
+                    const { GoogleGenAI } = await import('@google/genai');
+                    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+                    const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: { parts: [{ text: prompt }] }
+                    });
+                    result = response.text || '';
+                } else {
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${openaiApiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o',
+                            messages: [{ role: 'user', content: prompt }],
+                            max_tokens: 4000
+                        })
+                    });
+                    const data = await response.json();
+                    result = data.choices?.[0]?.message?.content || '';
+                }
+
+                setCurrentOutput(result);
+
+                // 로컬 accumulator 업데이트 (다음 단계에서 즉시 참조 가능)
+                switch (stage) {
+                    case 1:
+                        batchAccumulator.keywords = result.split('\n').filter(l => l.trim());
+                        break;
+                    case 2:
+                        batchAccumulator.references = result.split('\n').filter(l => l.trim());
+                        break;
+                    case 3:
+                        batchAccumulator.outline = result;
+                        break;
+                    case 4:
+                        batchAccumulator.draft = result;
+                        break;
+                    case 5:
+                        batchAccumulator.critique = result;
+                        break;
+                    case 6:
+                        batchAccumulator.finalDraft = result;
+                        break;
+                }
+
+                // React 상태도 업데이트 (UI 반영용)
+                switch (stage) {
+                    case 1:
+                        setStageData(prev => ({ ...prev, keywords: batchAccumulator.keywords }));
+                        break;
+                    case 2:
+                        setStageData(prev => ({ ...prev, references: batchAccumulator.references }));
+                        break;
+                    case 3:
+                        setStageData(prev => ({ ...prev, outline: batchAccumulator.outline }));
+                        break;
+                    case 4:
+                        setStageData(prev => ({ ...prev, draft: batchAccumulator.draft }));
+                        break;
+                    case 5:
+                        setStageData(prev => ({ ...prev, critique: batchAccumulator.critique }));
+                        break;
+                    case 6:
+                        setStageData(prev => ({ ...prev, finalDraft: batchAccumulator.finalDraft }));
+                        break;
+                }
+            }
+
+            // 완료 후 Stage 6 유지
+            loadStageDataToOutput(6);
+            alert('✅ 1~6단계 일괄처리가 완료되었습니다!');
+        } catch (error: any) {
+            setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
+            alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
+        } finally {
+            setIsBatchProcessing(false);
+            setBatchProgress(null);
+        }
+    };
+
+    // 새 글 작성 - localStorage 데이터 초기화
+    const handleNewPost = () => {
+        if (!confirm('현재 작업 중인 내용이 모두 삭제됩니다. 새 글을 작성하시겠습니까?')) {
+            return;
+        }
+
+        // stageData 초기화
+        setStageData({
+            ideation: [],
+            selectedTopic: '',
+            scoredTopics: [],
+            selectedTopicIndex: 0,
+            keywords: [],
+            references: [],
+            outline: '',
+            draft: '',
+            critique: '',
+            finalDraft: '',
+            imageConcepts: [],
+            recommendedHashtags: [],
+            sectionIllustrations: [],
+            seriesKeywords: []
+        });
+
+        // 현재 출력 초기화
+        setCurrentOutput('');
+
+        // Stage 0으로 이동
+        setCurrentStage(0);
+
+        // 사용자 입력 초기화
+        setUserInput('');
+
+        // 수동 입력 모드 해제
+        setManualInputMode(false);
+    };
+
     const handleSelectTopic = (index: number) => {
         setStageData(prev => ({
             ...prev,
@@ -871,7 +1319,35 @@ ${stageData.finalDraft}
                 <Panel>
                     <div className="flex flex-col gap-4 flex-grow">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
+                                <button
+                                    onClick={handleNewPost}
+                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
+                                    title="새 글 작성 (모든 데이터 초기화)"
+                                >
+                                    <PlusIcon className="w-3 h-3" />
+                                    새 글 작성
+                                </button>
+                                <button
+                                    onClick={handleBatchProcess}
+                                    disabled={isBatchProcessing || isLoading || !stageData.selectedTopic}
+                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="1~6단계 일괄 실행 (주제 선택 후 사용 가능)"
+                                >
+                                    {isBatchProcessing ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                            {batchProgress?.current}/{batchProgress?.total}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SparklesIcon className="w-3 h-3" />
+                                            일괄처리
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                             <div className="flex gap-2 items-center">
                                 {/* 프로필 선택 */}
                                 <select
