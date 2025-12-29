@@ -919,13 +919,98 @@ ${stageData.finalDraft}
         setTimeout(() => setCopySuccess(false), 2000);
     };
 
-    // 리치 텍스트 복사 (백록담 블로그 스타일 - 네이버 블로그에 바로 붙여넣기 가능)
+    // Notion 편집 지침 v2.4에 맞는 마크다운 포맷터
+    const formatForNotion = (text: string): string => {
+        let formatted = text;
+
+        // 1. 섹션 헤더 아이콘 매핑 (## 섹션명 -> ## 아이콘 섹션명 | 부제)
+        const sectionIconMap: { [key: string]: string } = {
+            'Answer First': '🧾 Answer First | 핵심 결론',
+            '핵심 결론': '🧾 Answer First | 핵심 결론',
+            'Action': '✅ Action | 즉각 실천',
+            '즉각 실천': '✅ Action | 즉각 실천',
+            '즉각적 행동': '✅ Action | 즉각 실천',
+            'Warning': '🚨 Warning | 반드시 체크해야 할 위험 신호',
+            '위험 신호': '🚨 Warning | 반드시 체크해야 할 위험 신호',
+            'The Why': '🧠 The Why',
+            '상세 원인': '🧠 The Why | 상세 원인',
+            'Deep Dive': '🔬 Deep Dive',
+            'Proof': '📊 Proof | 사례와 근거',
+            '사례와 근거': '📊 Proof | 사례와 근거',
+            'Closing': '🔚 Closing | 요약 및 격려',
+            '요약 및 격려': '🔚 Closing | 요약 및 격려',
+            'FAQ': '❓ FAQ',
+            '참고 자료': '📚 참고 자료',
+            '같이 보시면 좋은 글': '📌 같이 보시면 좋은 글',
+        };
+
+        // H2 섹션 헤더에 아이콘 적용
+        Object.entries(sectionIconMap).forEach(([key, value]) => {
+            // 정확한 매칭을 위해 다양한 패턴 처리
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            formatted = formatted.replace(
+                new RegExp(`^## (?:${escapedKey})(?:\\s*[|:].*)?$`, 'gm'),
+                `## ${value}`
+            );
+        });
+
+        // 2. • 불릿 마크 제거 (- 로 변경)
+        formatted = formatted.replace(/^[•●○◦⦁]\s*/gm, '- ');
+
+        // 3. 제목에서 숫자 제거 (## 1. 제목 -> ## 제목)
+        formatted = formatted.replace(/^(#+)\s*\d+[.)]\s*/gm, '$1 ');
+
+        // 4. 제목에서 괄호 제거
+        formatted = formatted.replace(/^(#+\s*[^\n]+)\s*\([^)]+\)\s*$/gm, '$1');
+
+        // 5. 마침표 기준 한 문장 한 줄 (문단 내 처리)
+        // 문단 구분자(빈줄)는 유지하면서 문장 단위로 분리
+        formatted = formatted.split('\n\n').map(paragraph => {
+            // 제목, 목록, 인용문 등은 건드리지 않음
+            if (paragraph.startsWith('#') ||
+                paragraph.startsWith('-') ||
+                paragraph.startsWith('>') ||
+                paragraph.startsWith('1') ||
+                paragraph.startsWith('2') ||
+                paragraph.startsWith('3') ||
+                paragraph.startsWith('[') ||
+                paragraph.startsWith('✔') ||
+                paragraph.startsWith('1️⃣') ||
+                paragraph.startsWith('2️⃣') ||
+                paragraph.startsWith('3️⃣')) {
+                return paragraph;
+            }
+            // 일반 문단: 마침표 뒤에 줄바꿈 추가
+            return paragraph
+                .replace(/\.\s+(?=[가-힣A-Za-z])/g, '.\n')
+                .replace(/\?\s+(?=[가-힣A-Za-z])/g, '?\n')
+                .replace(/!\s+(?=[가-힣A-Za-z])/g, '!\n');
+        }).join('\n\n');
+
+        // 6. FAQ 아래 "같이 보시면 좋은 글" 섹션 추가 (없으면)
+        if (!formatted.includes('같이 보시면 좋은 글')) {
+            const faqIndex = formatted.indexOf('## ❓ FAQ');
+            const refIndex = formatted.indexOf('## 📚 참고 자료');
+            if (faqIndex !== -1 && refIndex !== -1 && refIndex > faqIndex) {
+                // FAQ 섹션 끝과 참고자료 섹션 사이에 삽입
+                const beforeRef = formatted.substring(0, refIndex);
+                const afterRef = formatted.substring(refIndex);
+                formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n\n- \n- \n- \n\n' + afterRef;
+            }
+        }
+
+        return formatted;
+    };
+    // 리치 텍스트 복사 (Notion 편집 지침 v2.4 + 네이버 블로그 호환)
     const handleCopyRichText = async () => {
         // Stage 7에서도 finalDraft를 사용하도록 수정
-        const textToCopy = stageData.finalDraft || currentOutput;
-        if (!textToCopy) return;
+        const rawText = stageData.finalDraft || currentOutput;
+        if (!rawText) return;
 
-        // 마크다운을 백록담 블로그 스타일 HTML로 변환
+        // Notion 편집 지침 v2.4 적용
+        const textToCopy = formatForNotion(rawText);
+
+        // 마크다운을 HTML로 변환
         let html = textToCopy
             // H2 제목: 깔끔하고 눈에 띄는 섹션 제목
             .replace(/^## (.+)$/gm, '<h2 style="font-size:22px;font-weight:700;color:#1a1a1a;margin:32px 0 16px 0;padding-bottom:8px;border-bottom:2px solid #e0e0e0;">$1</h2>')
@@ -1065,13 +1150,16 @@ ${stageData.finalDraft}
             URL.revokeObjectURL(url);
         }
 
-        // 최종 글(finalDraft)도 마크다운 파일로 자동 저장
+        // 최종 글(finalDraft)도 마크다운 파일로 자동 저장 (Notion 편집 지침 v2.4 적용)
         if (stageData.finalDraft) {
+            // Notion 편집 지침 v2.4 적용
+            const formattedDraft = formatForNotion(stageData.finalDraft);
+
             // 마크다운 파일 내용 구성
             let mdContent = `# ${stageData.selectedTopic || '블로그 글'}\n\n`;
             mdContent += `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
             mdContent += '---\n\n';
-            mdContent += stageData.finalDraft;
+            mdContent += formattedDraft;
 
             // 파일명 생성 (최종글_YYYYMMDD_HHmmss.md)
             const now = new Date();
