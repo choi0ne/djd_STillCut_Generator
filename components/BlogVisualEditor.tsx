@@ -18,6 +18,7 @@ interface BlogVisualEditorProps {
     setSelectedProvider: (provider: 'gemini' | 'openai') => void;
     initialContext?: {
         topic: string;
+        finalDraft?: string;  // 원고 전문 (이미지 프롬프트 생성 시 참조)
         concepts: Array<{ title: string; keywords: string[]; description?: string; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;
     } | null;
 }
@@ -118,9 +119,12 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         if (initialContext && initialContext.concepts[index]) {
             const concept = initialContext.concepts[index];
 
-            // 주제와 키워드 자동 설정
+            // 🔴 핵심 변경: 키워드가 아닌 원고 요약(description)을 주 입력으로 사용
+            // description = manuscriptSummary (원고 기반 서술형 요약)
             setTopic(initialContext.topic);
-            setContent(concept.keywords.join(', '));
+            // 원고 요약이 있으면 주 입력으로 사용, 없으면 키워드로 fallback
+            const manuscriptContent = concept.description || concept.keywords.join(', ');
+            setContent(manuscriptContent);
 
             // AI 추천 스타일 자동 적용 (사용자가 나중에 변경 가능)
             let selectedStyleForPrompt: StyleTemplate | null = null;
@@ -156,14 +160,13 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                     const negatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES.join(', ');
 
                     const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
-사용자가 제공한 주제와 내용을 바탕으로, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
+**원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
 
-## 🎯 핵심 원칙: 단일 이미지 통합
-**원고 내용이 아무리 많더라도 반드시 하나의 통합된 이미지로 표현해야 합니다.**
-- 여러 개념이 있다면 하나의 조화로운 구도로 통합하세요
-- 핵심 메시지 1-2개를 추출하여 시각적으로 표현하세요
-- 복잡한 내용은 상징적/은유적 표현으로 단순화하세요
-- 텍스트는 최대 1-2줄로 제한하세요
+## 🎯 핵심 원칙: 원고 기반 이미지 생성
+**키워드 나열이 아닌, 원고의 실제 내용과 메시지를 시각화해야 합니다.**
+1. 아래 원고 전문을 꼼꼼히 읽으세요
+2. 해당 섹션(${concept.title})의 핵심 메시지를 파악하세요
+3. 그 메시지를 시각적으로 표현하는 이미지 프롬프트를 작성하세요
 
 ## 스타일: ${selectedStyleForPrompt.displayName}
 ## 기본 프롬프트 템플릿:
@@ -178,12 +181,20 @@ ${basePrompt}
 ## 제외할 요소 (NEGATIVES):
 ${negatives}
 
-## 사용자 주제: ${initialContext.topic}
-## 컨셉 제목: ${concept.title}
-## 키워드: ${concept.keywords.join(', ')}
-${concept.description ? `\n## 섹션 원고 전문 (요약하여 단일 이미지로 표현):\n${concept.description}\n\n**중요**: 위 원고의 핵심 메시지 1-2개만 추출하여 단일 이미지로 표현하세요. 모든 내용을 담으려 하지 말고, 가장 중요한 감정/메시지를 상징적으로 전달하세요.` : ''}
+## 📄 원고 전문 (아래 내용을 기반으로 이미지 프롬프트 생성):
+---
+${initialContext.finalDraft || concept.description || '원고 내용 없음'}
+---
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요. 스타일 키워드와 색상 지침을 포함하세요.
+## 현재 섹션: ${concept.title}
+## 참고 키워드: ${concept.keywords.join(', ')}
+
+**프롬프트 작성 지침:**
+1. 원고에서 "${concept.title}" 섹션의 핵심 내용을 찾아 시각화하세요
+2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
+3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
+
+위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
 
 **단일 이미지 최적화 지침:**
 - 하나의 명확한 초점(focal point)을 가진 구도 설계
@@ -290,14 +301,13 @@ ${concept.description ? `\n## 섹션 원고 전문 (요약하여 단일 이미�
             const negatives = selectedStyle.goldStandardExample.NEGATIVES.join(', ');
 
             const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
-사용자가 제공한 주제와 내용을 바탕으로, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
+**원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
 
-## 🎯 핵심 원칙: 단일 이미지 통합
-**내용이 아무리 많더라도 반드시 하나의 통합된 이미지로 표현해야 합니다.**
-- 여러 개념이 있다면 하나의 조화로운 구도로 통합하세요
-- 핵심 메시지 1-2개를 추출하여 시각적으로 표현하세요
-- 복잡한 내용은 상징적/은유적 표현으로 단순화하세요
-- 텍스트는 최대 1-2줄로 제한하세요
+## 🎯 핵심 원칙: 원고 기반 이미지 생성
+**키워드 나열이 아닌, 원고의 실제 내용과 메시지를 시각화해야 합니다.**
+1. 아래 원고/내용을 꼼꼼히 읽으세요
+2. 핵심 메시지를 파악하세요
+3. 그 메시지를 시각적으로 표현하는 이미지 프롬프트를 작성하세요
 
 ## 스타일: ${selectedStyle.displayName}
 ## 기본 프롬프트 템플릿:
@@ -312,10 +322,20 @@ ${basePrompt}
 ## 제외할 요소 (NEGATIVES):
 ${negatives}
 
-## 사용자 주제: ${topic}
-## 사용자 내용: ${content || '(추가 내용 없음)'}
+## 📄 원고/내용 (아래 내용을 기반으로 이미지 프롬프트 생성):
+---
+${initialContext?.finalDraft || content || '원고 내용 없음'}
+---
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요. 스타일 키워드와 색상 지침을 포함하세요.
+## 주제: ${topic}
+${content ? `## 추가 키워드/내용: ${content}` : ''}
+
+**프롬프트 작성 지침:**
+1. 원고의 핵심 메시지를 찾아 시각화하세요
+2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
+3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
+
+위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
 
 **단일 이미지 최적화 지침:**
 - 하나의 명확한 초점(focal point)을 가진 구도 설계

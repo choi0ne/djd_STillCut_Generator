@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [selectedProvider, setSelectedProvider] = useState<ImageProvider>('gemini');
   const [blogImageContext, setBlogImageContext] = useState<{
     topic: string;
+    finalDraft: string;
     concepts: Array<{ title: string; keywords: string[]; description?: string }>;
   } | null>(null);
 
@@ -38,7 +39,7 @@ const App: React.FC = () => {
 
   const isKeyReady = !!geminiApiKey || !!openaiApiKey;
 
-  const handleStage7Complete = (data: { topic: string; concepts: Array<{ title: string; keywords: string[]; description?: string }> }) => {
+  const handleStage7Complete = (data: { topic: string; finalDraft: string; concepts: Array<{ title: string; keywords: string[]; description?: string }> }) => {
     setBlogImageContext(data);
     setMode('blog-image');
   };
