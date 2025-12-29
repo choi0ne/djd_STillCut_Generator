@@ -957,15 +957,41 @@ ${stageData.finalDraft}
         html = `<div style="font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;line-height:1.9;color:#333;max-width:720px;"><p style="margin:20px 0;line-height:1.9;color:#333;font-size:16px;">${html}</p></div>`;
 
         try {
+            // 1차 시도: ClipboardItem API (모던 브라우저)
             const blob = new Blob([html], { type: 'text/html' });
             const clipboardItem = new ClipboardItem({ 'text/html': blob });
             await navigator.clipboard.write([clipboardItem]);
             setCopySuccess(true);
             setTimeout(() => setCopySuccess(false), 2000);
         } catch {
-            navigator.clipboard.writeText(textToCopy);
-            setCopySuccess(true);
-            setTimeout(() => setCopySuccess(false), 2000);
+            // 2차 시도: execCommand 방식 (localhost/HTTP 환경용)
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                tempDiv.style.position = 'fixed';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.opacity = '0';
+                document.body.appendChild(tempDiv);
+
+                const range = document.createRange();
+                range.selectNodeContents(tempDiv);
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    document.execCommand('copy');
+                    selection.removeAllRanges();
+                }
+                document.body.removeChild(tempDiv);
+
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+            } catch {
+                // 3차 시도: 일반 텍스트 복사
+                navigator.clipboard.writeText(textToCopy);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+            }
         }
     };
 
@@ -1891,7 +1917,7 @@ ${batchAccumulator.critique}
                                         placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
                                         className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
                                     />
-                                ) : currentStage === 6 ? (
+                                ) : (currentStage === 6 || currentStage === 7) ? (
                                     <div className="notion-style-output prose prose-invert max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm]}
@@ -1917,7 +1943,8 @@ ${batchAccumulator.critique}
                                                 hr: () => <hr className="my-6 border-gray-700" />,
                                             }}
                                         >
-                                            {currentOutput}
+                                            {/* Stage 7에서는 finalDraft를 표시, Stage 6에서는 currentOutput을 표시 */}
+                                            {currentStage === 7 ? stageData.finalDraft : currentOutput}
                                         </ReactMarkdown>
                                     </div>
                                 ) : (
