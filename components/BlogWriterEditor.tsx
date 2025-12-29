@@ -923,6 +923,11 @@ ${stageData.finalDraft}
     const formatForNotion = (text: string): string => {
         let formatted = text;
 
+        // 0. 최종글 시작에 제목이 없으면 추가 (selectedTopic 사용)
+        if (!formatted.startsWith('# ') && stageData.selectedTopic) {
+            formatted = `# ${stageData.selectedTopic}\n\n${formatted}`;
+        }
+
         // 1. 섹션 헤더 아이콘 매핑 (## 섹션명 -> ## 아이콘 섹션명 | 부제)
         const sectionIconMap: { [key: string]: string } = {
             'Answer First': '🧾 Answer First | 핵심 결론',
@@ -975,6 +980,7 @@ ${stageData.finalDraft}
                 paragraph.startsWith('3') ||
                 paragraph.startsWith('[') ||
                 paragraph.startsWith('✔') ||
+                paragraph.startsWith('✍️') ||
                 paragraph.startsWith('1️⃣') ||
                 paragraph.startsWith('2️⃣') ||
                 paragraph.startsWith('3️⃣')) {
@@ -988,14 +994,59 @@ ${stageData.finalDraft}
         }).join('\n\n');
 
         // 6. FAQ 아래 "같이 보시면 좋은 글" 섹션 추가 (없으면)
+        // FAQ 검색 패턴을 더 유연하게 (아이콘 유무 모두 처리)
         if (!formatted.includes('같이 보시면 좋은 글')) {
-            const faqIndex = formatted.indexOf('## ❓ FAQ');
-            const refIndex = formatted.indexOf('## 📚 참고 자료');
+            // 다양한 FAQ 패턴 검색
+            const faqPatterns = ['## ❓ FAQ', '## FAQ', '## ❓FAQ'];
+            const refPatterns = ['## 📚 참고 자료', '## 참고 자료', '## 📚참고 자료'];
+
+            let faqIndex = -1;
+            let refIndex = -1;
+
+            for (const pattern of faqPatterns) {
+                const idx = formatted.indexOf(pattern);
+                if (idx !== -1) {
+                    faqIndex = idx;
+                    break;
+                }
+            }
+
+            for (const pattern of refPatterns) {
+                const idx = formatted.indexOf(pattern);
+                if (idx !== -1) {
+                    refIndex = idx;
+                    break;
+                }
+            }
+
             if (faqIndex !== -1 && refIndex !== -1 && refIndex > faqIndex) {
                 // FAQ 섹션 끝과 참고자료 섹션 사이에 삽입
                 const beforeRef = formatted.substring(0, refIndex);
                 const afterRef = formatted.substring(refIndex);
                 formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n\n- \n- \n- \n\n' + afterRef;
+            }
+        }
+
+        // 7. "한의사 최장혁 감수" 고정 추가 (Closing 섹션 끝 또는 글 끝에)
+        if (!formatted.includes('한의사 최장혁')) {
+            // 참고 자료 섹션 앞에 추가하거나, 없으면 글 끝에 추가
+            const refPatterns = ['## 📚 참고 자료', '## 참고 자료', '## 📌 같이 보시면 좋은 글'];
+            let insertIndex = -1;
+
+            for (const pattern of refPatterns) {
+                const idx = formatted.indexOf(pattern);
+                if (idx !== -1) {
+                    insertIndex = idx;
+                    break;
+                }
+            }
+
+            const supervisorText = '\n\n---\n\n✍️ **한의사 최장혁 감수**\n\n';
+
+            if (insertIndex !== -1) {
+                formatted = formatted.substring(0, insertIndex) + supervisorText + formatted.substring(insertIndex);
+            } else {
+                formatted += supervisorText;
             }
         }
 
