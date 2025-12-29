@@ -172,7 +172,7 @@ export const generateImageWithCode = async (
     // OpenAI 분기 (GPT Image 1.5는 이미지 참조 불가)
     if (provider === 'openai') {
         try {
-            return await generateMultipleImagesWithOpenAI(fullPrompt, 4);
+            return await generateMultipleImagesWithOpenAI(fullPrompt, 1);
         } catch (error) {
             throw error;
         }

@@ -105,6 +105,21 @@ const requestAccessToken = (): Promise<void> => {
     });
 };
 
+// 일괄 처리 전 Google Drive 인증을 미리 확보하는 함수
+export const ensureGoogleDriveAuth = async (): Promise<void> => {
+    const { apiKey, clientId } = getGoogleKeys();
+
+    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+        throw new Error('Google API 스크립트를 로드하지 못했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+    }
+
+    await initGapiClient(apiKey);
+    initTokenClient(clientId);
+    await requestAccessToken();
+
+    console.log('[GoogleDrive] 인증 확보 완료');
+};
+
 
 export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
     const { apiKey, clientId } = getGoogleKeys();

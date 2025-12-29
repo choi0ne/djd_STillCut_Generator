@@ -100,6 +100,18 @@ export async function processImageWithBackend(
         }
 
         const data = await response.json();
+        console.log('[MPS Backend] 응답 데이터:', data);
+
+        // outputFiles 유효성 검사
+        if (!data.outputFiles || !Array.isArray(data.outputFiles) || data.outputFiles.length === 0) {
+            console.error('[MPS Backend] 출력 파일 없음:', data);
+            return {
+                success: false,
+                error: '백엔드에서 출력 파일을 생성하지 못했습니다.',
+                timestamp: Date.now()
+            };
+        }
+
         const outputFiles = data.outputFiles.map((path: string) => `${BACKEND_URL}${path}`);
 
         return {
@@ -147,6 +159,18 @@ export async function processPdfWithBackend(
         }
 
         const data = await response.json();
+        console.log('[MPS Backend] PDF 응답 데이터:', data);
+
+        // outputFiles 유효성 검사
+        if (!data.outputFiles || !Array.isArray(data.outputFiles) || data.outputFiles.length === 0) {
+            console.error('[MPS Backend] PDF 출력 파일 없음:', data);
+            return {
+                success: false,
+                error: '백엔드에서 PDF 출력 파일을 생성하지 못했습니다.',
+                timestamp: Date.now()
+            };
+        }
+
         const outputFiles = data.outputFiles.map((path: string) => `${BACKEND_URL}${path}`);
 
         return {
@@ -201,6 +225,10 @@ export async function processImageClient(
         canvas.height = targetHeight;
         const ctx = canvas.getContext('2d')!;
 
+        // 최고 품질 렌더링 설정
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
         // 워터마크 제거 (우측 하단 15% 영역 블러 처리)
@@ -217,14 +245,14 @@ export async function processImageClient(
             ctx.fillRect(wmX, wmY, wmWidth, wmHeight);
         }
 
-        // 출력 포맷별 Data URL 생성
+        // 출력 포맷별 Data URL 생성 (최대 품질 1.0)
         const outputFiles: string[] = [];
 
         if (options.outputFormat === 'webp' || options.outputFormat === 'both') {
-            outputFiles.push(canvas.toDataURL('image/webp', 0.9));
+            outputFiles.push(canvas.toDataURL('image/webp', 1.0));
         }
         if (options.outputFormat === 'jpg' || options.outputFormat === 'both') {
-            outputFiles.push(canvas.toDataURL('image/jpeg', 0.9));
+            outputFiles.push(canvas.toDataURL('image/jpeg', 1.0));
         }
 
         URL.revokeObjectURL(imageUrl);
@@ -358,7 +386,7 @@ export async function processPdfClient(
 
 /**
  * 하이브리드 처리 (자동 폴백 지원)
- * - auto: 백엔드 시도 → 실패 시 클라이언트 폴백
+ * - auto: 클라이언트 시도 → 실패 시 백엔드 폴백 (빠른 처리 우선)
  * - backend: 백엔드만 사용
  * - client: 클라이언트만 사용
  */
@@ -370,49 +398,49 @@ export async function processHybrid(
     pdfPageImages?: string[] // PDF 클라이언트 처리용
 ): Promise<MpsResult & { fallbackUsed?: boolean }> {
 
-    // 클라이언트 전용 모드
-    if (mode === 'client') {
+    // 백엔드 전용 모드
+    if (mode === 'backend') {
         if (fileType === 'image') {
-            return await processImageClient(file, options as MpsImageOptions);
+            return await processImageWithBackend(file, options as MpsImageOptions);
         } else if (fileType === 'pdf') {
-            return await processPdfClient(file, options as MpsPdfOptions, pdfPageImages);
+            return await processPdfWithBackend(file, options as MpsPdfOptions);
         }
         return { success: false, error: '지원하지 않는 파일 형식', timestamp: Date.now() };
     }
 
-    // 백엔드 처리 시도
-    let backendResult: MpsResult;
-
-    if (fileType === 'image') {
-        backendResult = await processImageWithBackend(file, options as MpsImageOptions);
-    } else if (fileType === 'pdf') {
-        backendResult = await processPdfWithBackend(file, options as MpsPdfOptions);
-    } else {
-        return { success: false, error: '지원하지 않는 파일 형식', timestamp: Date.now() };
-    }
-
-    // 백엔드 성공 또는 backend 전용 모드
-    if (backendResult.success || mode === 'backend') {
-        return backendResult;
-    }
-
-    // Auto 모드: 백엔드 실패 시 클라이언트 폴백
-    console.log('[MPS Hybrid] 백엔드 실패, 클라이언트 폴백 시도...');
-
+    // 클라이언트 처리 시도 (Auto 및 Client 모드)
     let clientResult: MpsResult;
 
     if (fileType === 'image') {
         clientResult = await processImageClient(file, options as MpsImageOptions);
-    } else {
+    } else if (fileType === 'pdf') {
         clientResult = await processPdfClient(file, options as MpsPdfOptions, pdfPageImages);
+    } else {
+        return { success: false, error: '지원하지 않는 파일 형식', timestamp: Date.now() };
+    }
+
+    // 클라이언트 성공 또는 client 전용 모드
+    if (clientResult.success || mode === 'client') {
+        return clientResult;
+    }
+
+    // Auto 모드: 클라이언트 실패 시 백엔드 폴백
+    console.log('[MPS Hybrid] 클라이언트 실패, 백엔드 폴백 시도...');
+
+    let backendResult: MpsResult;
+
+    if (fileType === 'image') {
+        backendResult = await processImageWithBackend(file, options as MpsImageOptions);
+    } else {
+        backendResult = await processPdfWithBackend(file, options as MpsPdfOptions);
     }
 
     return {
-        ...clientResult,
+        ...backendResult,
         fallbackUsed: true,
-        error: clientResult.success
+        error: backendResult.success
             ? undefined
-            : `백엔드: ${backendResult.error} / 클라이언트: ${clientResult.error}`
+            : `클라이언트: ${clientResult.error} / 백엔드: ${backendResult.error}`
     };
 }
 

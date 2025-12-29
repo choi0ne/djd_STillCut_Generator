@@ -9,7 +9,7 @@ import {
     type FileType,
     type MpsResult
 } from '../services/mpsService';
-import { saveToGoogleDrive, downloadImageFromGoogleDrive } from '../services/googleDriveService';
+import { saveToGoogleDrive, downloadImageFromGoogleDrive, ensureGoogleDriveAuth } from '../services/googleDriveService';
 import GoogleDrivePickerModal, { type SelectedDriveFile } from './GoogleDrivePickerModal';
 
 // PDF.js worker 설정 (ES Module 호환)
@@ -298,6 +298,15 @@ const MpsEditor: React.FC = () => {
 
         if (pendingBatchFiles.length === 0) return;
 
+        // 🔐 일괄 처리 전 Google Drive 인증 먼저 확보
+        try {
+            setStatusMessage('🔐 Google Drive 인증 확인 중...');
+            await ensureGoogleDriveAuth();
+        } catch (authErr: any) {
+            setError(`Google Drive 인증 실패: ${authErr.message}`);
+            return;
+        }
+
         setIsBatchProcessing(true);
         setBatchResults([]);
         setError(null);
@@ -401,6 +410,15 @@ const MpsEditor: React.FC = () => {
     // 일괄 처리 실행 (로컬 파일용 - 다운로드 없이 바로 처리)
     const handleStartLocalBatchProcessing = async () => {
         if (pendingLocalFiles.length === 0) return;
+
+        // 🔐 일괄 처리 전 Google Drive 인증 먼저 확보
+        try {
+            setStatusMessage('🔐 Google Drive 인증 확인 중...');
+            await ensureGoogleDriveAuth();
+        } catch (authErr: any) {
+            setError(`Google Drive 인증 실패: ${authErr.message}`);
+            return;
+        }
 
         setIsBatchProcessing(true);
         setBatchResults([]);
@@ -736,7 +754,7 @@ const MpsEditor: React.FC = () => {
                     </button>
                 </div>
                 <p className="mt-3 text-xs text-gray-500">
-                    {processingMode === 'auto' && '백엔드 우선 처리, 실패 시 클라이언트 폴백'}
+                    {processingMode === 'auto' && '클라이언트 우선 처리, 실패 시 백엔드 폴백'}
                     {processingMode === 'backend' && '고품질 워터마크 제거 & PDF 변환 (pytesseract, pdf2image)'}
                     {processingMode === 'client' && '빠른 처리, 서버 부하 0 (Canvas API)'}
                 </p>

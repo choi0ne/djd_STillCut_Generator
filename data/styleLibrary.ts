@@ -83,15 +83,22 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         displayName: '블로그 썸네일',
         icon: '📰',
         description: '⚠️ 첫 번째 컨셉 전용 - 블로그 대표 이미지 (제목 필수)',
-        keywords: ['blog', 'header', 'title', 'Korean', 'Do Hyeon', 'first-concept-only'],
+        keywords: ['blog', 'header', 'title', 'Korean', 'Do Hyeon', 'first-concept-only', 'papercraft'],
         goldStandardExample: {
             BACKGROUND_PROMPT: `[크기/비율] 가로형 4:3 또는 3:2 비율. 권장 해상도: 1200x800 또는 1200x900. 
 
 [레이아웃] ⭐ 상하 분할 구조 필수:
-- 상단 60%: 상징적 일러스트 영역 (개념적 은유 스타일 - 인체 실루엣, 톱니바퀴, 장기 아이콘 등)
+- 상단 60%: 페이퍼크래프트 일러스트 영역 (레이어드 종이 컷아웃 효과)
 - 하단 40%: 텍스트 영역 (제목 + 부제)
 
-[일러스트 영역] 중앙에 주제를 상징하는 핵심 시각 요소. 개념적 은유 스타일 권장(인체 실루엣 안에 톱니바퀴/연결선으로 신체 시스템 표현). 깔끔한 벡터 스타일. 따뜻한 베이지/살색 톤 + 네이비/차콜 기계 요소. 테라코타/브릭 레드 외곽선.
+[일러스트 영역 - 페이퍼크래프트 스타일] 
+- 레이어드 페이퍼크래프트 3D 일러스트
+- 종이를 오려 붙인 듯한 질감과 층층이 쌓인 레이어 표현
+- 부드러운 그림자로 입체감 연출
+- 따뜻한 파스텔 컬러 팔레트 (연한 핑크, 민트, 베이지, 살색, 연노랑)
+- 신체 기관이나 의학 개념을 귀엽고 친근하게 단순화
+- 손으로 만든 듯한 핸드메이드 느낌
+- 배경에 간단한 레이어드 요소 (구름, 하트, 별 등) 추가 가능
 
 [글씨체] ⭐ 도현체(Do Hyeon) 스타일 - 굵고 둥근 한글 고딕체 필수.
 - 메인 제목: Extra Bold, 검정색(#333333), 화면 폭의 80% 차지
@@ -99,10 +106,10 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
 - 예시: "40대 여성 만성 소화불량:" / "단순한 위장 문제가 아닙니다."
 - 글자 간격 약간 넓게, 줄 간격 1.2~1.4
 
-[분위기] 완전 흰색 배경(#FFFFFF). 전문적이고 신뢰감 있는 한의원 블로그 느낌. 클릭을 유도하는 명확한 제목. 
+[분위기] 완전 흰색 또는 연한 크림색 배경(#FFFFFF ~ #FFF8F0). 따뜻하고 포근한 느낌. 환자에게 친근하고 무섭지 않은 의학 개념 전달. 어린이 교육 자료 같은 귀여운 스타일이면서 전문적 신뢰감. 
 
-Style: blog thumbnail, top 60% conceptual illustration with body silhouette and gear mechanism, bottom 40% Korean title in Do Hyeon style bold gothic font, white background, 4:3 or 3:2 aspect ratio, professional healthcare blog header.`,
-            NEGATIVES: ['vertical layout', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area']
+Style: blog thumbnail, top 60% whimsical papercraft 3D illustration with layered paper cutout effect and soft shadows, warm pastel colors (pink, mint, beige), friendly medical visualization of the topic, bottom 40% Korean title in Do Hyeon style bold gothic font, white or light cream background, 4:3 or 3:2 aspect ratio, professional yet friendly healthcare blog header.`,
+            NEGATIVES: ['vertical layout', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area', 'cold colors', 'scary imagery', 'mechanical/gear style']
         }
     },
     {
