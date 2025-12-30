@@ -34,11 +34,38 @@ interface SectionIllustration {
     recommendedPalette: 'medical' | 'calm' | 'warm';
 }
 
+// ⭐ 클러스터 시리즈 제안 인터페이스
+interface ClusterSuggestion {
+    type: 'main' | 'drill-down' | 'lateral' | 'follow-up';
+    title: string;
+    reason: string;
+    estimatedSearchVolume: 'high' | 'medium' | 'low';
+    priority: number;  // 1-4 (1이 가장 높음)
+}
+
+// ⭐ 확장된 ScoredTopic 인터페이스
+interface ScoredTopic {
+    title: string;
+    score: number;
+    summary: string;
+    seriesHint?: string;                    // 시리즈 확장 가능성 힌트
+    clusterSuggestions?: ClusterSuggestion[];  // AI 생성 시리즈 제안
+}
+
 interface StageData {
     ideation: string[];        // Stage 0
     selectedTopic: string;     // Stage 0.5
-    scoredTopics: Array<{ title: string; score: number; summary: string }>;  // Stage 0.5
+    scoredTopics: ScoredTopic[];  // Stage 0.5 - 확장된 타입
     selectedTopicIndex: number; // Stage 0.5
+    // ⭐ 클러스터 관련 필드 추가
+    selectedCluster?: {
+        main: string;
+        series: ClusterSuggestion[];
+    };
+    currentSeriesContext?: {
+        type: 'main' | 'drill-down' | 'lateral' | 'follow-up';
+        cluster: ClusterSuggestion[];
+    };
     keywords: string[];        // Stage 1
     references: string[];      // Stage 2
     outline: string;           // Stage 3
@@ -105,6 +132,8 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
         selectedTopic: '',
         scoredTopics: [],
         selectedTopicIndex: 0,
+        selectedCluster: undefined,
+        currentSeriesContext: undefined,
         keywords: [],
         references: [],
         outline: '',
@@ -161,7 +190,7 @@ JSON 형식으로 출력하세요.`;
             case 0.5:
                 return `${getWorkflowPrompt(selectedProfile)}
 
-## Stage 0.5: 주제 스코어링
+## Stage 0.5: 주제 스코어링 + 시리즈 클러스터
 
 주제 후보들:
 ${stageData.ideation.join('\n')}
@@ -172,9 +201,12 @@ ${stageData.ideation.join('\n')}
 3. 진료 연관성 (Relevancy / 5점) - 클리닉 포커스와 연관
 4. 긴급성/차별성 (Urgency / 5점) - 경쟁 콘텐츠 대비 차별성
 5. **시리즈화 적합성 (Serializability / 5점)** - 후속 글로 확장 가능성
-   - 세부 주제로 쪼갤 수 있는가?
-   - 관련 상황/타겟으로 확장 가능한가?
-   - 꼬리를 무는 연속 질문이 있는가?
+
+⭐ **각 주제에 대해 4개 시리즈 클러스터를 제안하세요:**
+- main: 핵심 주제 (허브 역할)
+- drill-down: 더 구체적인 세부 주제
+- lateral: 관련 상황/타겟 확장
+- follow-up: 다음 단계 (치료/관리/예방)
 
 반드시 JSON 배열 형식으로 출력하세요 (총점 높은 순으로 정렬):
 [
@@ -182,7 +214,37 @@ ${stageData.ideation.join('\n')}
     "title": "주제명",
     "score": 23,
     "summary": "핵심 질문이나 요약 한 줄",
-    "seriesHint": "시리즈 확장 가능성 한 줄 설명"
+    "seriesHint": "시리즈 확장 가능성 한 줄 설명",
+    "clusterSuggestions": [
+      {
+        "type": "main",
+        "title": "공황장애 초기증상 - 이런 증상이면 의심하세요",
+        "reason": "핵심 키워드, 시리즈 허브 역할",
+        "estimatedSearchVolume": "high",
+        "priority": 1
+      },
+      {
+        "type": "drill-down",
+        "title": "공황장애 자가 진단법 - 체크리스트 10가지",
+        "reason": "초기증상 확인 후 자연스러운 다음 질문",
+        "estimatedSearchVolume": "medium",
+        "priority": 2
+      },
+      {
+        "type": "lateral",
+        "title": "직장인 출근길 공황 대처법",
+        "reason": "타겟 독자(직장인) 상황 확장",
+        "estimatedSearchVolume": "medium",
+        "priority": 3
+      },
+      {
+        "type": "follow-up",
+        "title": "공황장애 약 없이 관리 가능할까?",
+        "reason": "약물 거부감 있는 환자 대응, 한방 치료 연결",
+        "estimatedSearchVolume": "high",
+        "priority": 4
+      }
+    ]
   }
 ]`;
 
@@ -459,14 +521,30 @@ ${stageData.critique}
 3. 각 섹션에 지정된 아이콘 헤더를 적용하세요.
 4. 한 문장 한 줄 원칙을 준수하세요.
 5. 문장 흐름과 오탈자를 검토하세요.
+${stageData.currentSeriesContext ? `
+### 📌 시리즈 글 연결 (필수 추가)
 
+이 글은 시리즈의 일부입니다. 글의 마지막 부분(Closing 섹션 이후)에 아래 섹션을 추가하세요:
+
+---
+📌 **같이 읽으면 좋은 글**
+
+${stageData.currentSeriesContext.cluster
+                            .filter(s => s.title !== stageData.selectedTopic)
+                            .map(s => `- ${s.title}`)
+                            .join('\n')}
+
+---
+
+(위 제목들을 그대로 복사하세요. 링크는 블로그 업로드 후 수동 설정 예정)
+` : ''}
 ### 내부 검증 체크리스트 (출력 전 반드시 확인)
 - [ ] Warning 항목에서 제목+설명이 모두 존재하는가
 - [ ] \`✔\` 단일 아이콘만 사용했는가
 - [ ] 내용 삭제가 없는가
 - [ ] 한 문장 한 줄을 지켰는가
 - [ ] Action 항목이 3개이며 1️⃣2️⃣3️⃣을 사용했는가
-- [ ] 주석 번호가 참고자료와 일치하는가`;
+- [ ] 주석 번호가 참고자료와 일치하는가${stageData.currentSeriesContext ? '\n- [ ] "같이 읽으면 좋은 글" 섹션이 Closing 이후에 추가되었는가' : ''}`;
 
             case 7:
                 // 숏컷 트랙(Stage 6 직접 입력)인 경우 주제가 없을 수 있음
@@ -1151,10 +1229,13 @@ ${stageData.finalDraft}
     };
 
     const handleCompleteStage7 = () => {
-        // AI가 생성한 해시태그를 로컬 텍스트 파일로 자동 저장 (# 제외)
+        // AI가 생성한 해시태그를 로컬 마크다운 파일로 자동 저장 (# 제외)
         if (stageData.recommendedHashtags.length > 0) {
-            // 분류별로 해시태그 정리
-            let content = '🏷️ 블로그 게시용 추천 태그\n\n';
+            // 마크다운 형식으로 해시태그 정리
+            let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+            content += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
+            content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+            content += `---\n\n`;
 
             stageData.recommendedHashtags.forEach(category => {
                 // # 제거하고 태그만 추출
@@ -1162,27 +1243,29 @@ ${stageData.finalDraft}
                     tag.replace(/^#/, '').trim()
                 ).filter(tag => tag.length > 0);
 
-                content += `[${category.category}]\n`;
-                content += cleanedTags.join(', ') + '\n\n';
+                content += `## ${category.category}\n\n`;
+                content += cleanedTags.map(tag => `- ${tag}`).join('\n') + '\n\n';
             });
 
             // 모든 태그를 한 줄로 (복사 편의용)
             const allTags = stageData.recommendedHashtags
                 .flatMap(cat => cat.tags.map(tag => tag.replace(/^#/, '').trim()))
                 .filter(tag => tag.length > 0);
-            content += '\n[전체 태그 - 복사용]\n';
-            content += allTags.join(' ');
+            content += `---\n\n`;
+            content += `## 📋 전체 태그 (복사용)\n\n`;
+            content += '```\n' + allTags.join(' ') + '\n```\n';
 
             // 시리즈 키워드 추가 (다음 글 후보)
             if (stageData.seriesKeywords && stageData.seriesKeywords.length > 0) {
-                content += '\n\n📌 다음 글 시리즈 키워드\n\n';
+                content += `\n---\n\n`;
+                content += `## 📌 다음 글 시리즈 키워드\n\n`;
                 stageData.seriesKeywords.forEach((kw, i) => {
-                    content += `${i + 1}. ${kw.title} (${kw.type})\n`;
-                    content += `   └ ${kw.reason}\n`;
+                    content += `${i + 1}. **${kw.title}** _(${kw.type})_\n`;
+                    content += `   - ${kw.reason}\n\n`;
                 });
             }
 
-            // 파일명 생성 (해시태그_YYYYMMDD_HHmmss.txt)
+            // 파일명 생성 (해시태그_YYYYMMDD_HHmmss.md)
             const now = new Date();
             const timestamp = now.getFullYear().toString() +
                 (now.getMonth() + 1).toString().padStart(2, '0') +
@@ -1190,10 +1273,10 @@ ${stageData.finalDraft}
                 now.getHours().toString().padStart(2, '0') +
                 now.getMinutes().toString().padStart(2, '0') +
                 now.getSeconds().toString().padStart(2, '0');
-            const filename = `해시태그_${timestamp}.txt`;
+            const filename = `해시태그_${timestamp}.md`;
 
-            // Blob으로 파일 다운로드
-            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            // Blob으로 마크다운 파일 다운로드
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1750,6 +1833,47 @@ ${batchAccumulator.critique}
                             ))}
                         </div>
 
+                        {/* ⭐ 시리즈 진행 배너 (시리즈 컨텍스트가 있을 때) */}
+                        {stageData.currentSeriesContext && (
+                            <div className="bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg">📦</span>
+                                        <div>
+                                            <p className="text-sm text-purple-200">
+                                                <strong>시리즈 진행 중</strong>
+                                                <span className={`ml-2 text-xs px-2 py-0.5 rounded ${stageData.currentSeriesContext.type === 'main' ? 'bg-green-600' :
+                                                    stageData.currentSeriesContext.type === 'drill-down' ? 'bg-blue-600' :
+                                                        stageData.currentSeriesContext.type === 'lateral' ? 'bg-orange-600' :
+                                                            'bg-pink-600'
+                                                    }`}>
+                                                    {stageData.currentSeriesContext.type === 'main' ? '🎯 메인' :
+                                                        stageData.currentSeriesContext.type === 'drill-down' ? '🔍 세부' :
+                                                            stageData.currentSeriesContext.type === 'lateral' ? '↔️ 확장' :
+                                                                '➡️ 후속'}
+                                                </span>
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-md">
+                                                {stageData.selectedTopic}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        {stageData.currentSeriesContext.cluster.map((s, i) => (
+                                            <span
+                                                key={i}
+                                                className={`w-2 h-2 rounded-full ${s.title === stageData.selectedTopic
+                                                    ? 'bg-purple-400 ring-2 ring-purple-300'
+                                                    : 'bg-gray-600'
+                                                    }`}
+                                                title={s.title}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Current Stage Info */}
                         <div className="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-3">
                             <div className="flex items-center gap-2">
@@ -1816,11 +1940,11 @@ ${batchAccumulator.critique}
                             </div>
                         )}
 
-                        {/* Stage 0.5: Topic Selection Cards */}
+                        {/* Stage 0.5: Topic Selection Cards + Cluster Series */}
                         {currentStage === 0.5 && stageData.scoredTopics.length > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-sm text-gray-400">평가된 주제 ({stageData.scoredTopics.length}개):</p>
-                                <div className="space-y-2 max-h-96 overflow-y-auto">
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-400">📊 평가된 주제 ({stageData.scoredTopics.length}개) - 클릭하면 시리즈 클러스터 표시:</p>
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
                                     {stageData.scoredTopics.map((topic, idx) => (
                                         <div
                                             key={idx}
@@ -1832,9 +1956,19 @@ ${batchAccumulator.critique}
                                         >
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className="font-semibold text-white flex-1">{topic.title}</span>
-                                                <span className="text-yellow-400 font-bold ml-2">{topic.score}점</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-yellow-400 font-bold">{topic.score}점</span>
+                                                    {topic.clusterSuggestions && topic.clusterSuggestions.length > 0 && (
+                                                        <span className="text-xs bg-purple-600/50 text-purple-200 px-2 py-0.5 rounded">
+                                                            📦×{topic.clusterSuggestions.length}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-sm text-gray-400">{topic.summary}</p>
+                                            {topic.seriesHint && (
+                                                <p className="text-xs text-purple-300 mt-1">💡 {topic.seriesHint}</p>
+                                            )}
                                             <div className="flex items-center gap-2 mt-2">
                                                 {idx === 0 && <span className="text-xs text-green-400">🥇 AI 추천</span>}
                                                 {stageData.selectedTopicIndex === idx && (
@@ -1844,6 +1978,93 @@ ${batchAccumulator.critique}
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* ⭐ 클러스터 시리즈 표시 (주제 선택 시) */}
+                                {stageData.selectedTopicIndex >= 0 && stageData.scoredTopics[stageData.selectedTopicIndex]?.clusterSuggestions && (
+                                    <div className="mt-4 border-t border-gray-700 pt-4">
+                                        <p className="text-sm text-gray-300 mb-3">
+                                            📦 <strong>시리즈 클러스터</strong> (원하는 글 선택 → 1-7단계 진행)
+                                        </p>
+                                        <div className="space-y-2">
+                                            {stageData.scoredTopics[stageData.selectedTopicIndex].clusterSuggestions!.map((series, sIdx) => (
+                                                <div
+                                                    key={sIdx}
+                                                    className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-lg p-3 hover:border-purple-400 transition-colors"
+                                                >
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${series.type === 'main' ? 'bg-green-600 text-white' :
+                                                                    series.type === 'drill-down' ? 'bg-blue-600 text-white' :
+                                                                        series.type === 'lateral' ? 'bg-orange-600 text-white' :
+                                                                            'bg-pink-600 text-white'
+                                                                    }`}>
+                                                                    {series.type === 'main' ? '🎯 메인' :
+                                                                        series.type === 'drill-down' ? '🔍 세부' :
+                                                                            series.type === 'lateral' ? '↔️ 확장' :
+                                                                                '➡️ 후속'}
+                                                                </span>
+                                                                <span className={`text-xs px-1.5 py-0.5 rounded ${series.estimatedSearchVolume === 'high' ? 'bg-green-700/50 text-green-300' :
+                                                                    series.estimatedSearchVolume === 'medium' ? 'bg-yellow-700/50 text-yellow-300' :
+                                                                        'bg-gray-700/50 text-gray-300'
+                                                                    }`}>
+                                                                    검색량: {series.estimatedSearchVolume}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-white text-sm font-medium">{series.title}</p>
+                                                            <p className="text-xs text-gray-400 mt-1">{series.reason}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                // 시리즈 선택하여 1단계로 진행
+                                                                setStageData(prev => ({
+                                                                    ...prev,
+                                                                    selectedTopic: series.title,
+                                                                    currentSeriesContext: {
+                                                                        type: series.type,
+                                                                        cluster: stageData.scoredTopics[stageData.selectedTopicIndex].clusterSuggestions!
+                                                                    }
+                                                                }));
+                                                                setCurrentStage(1);
+                                                            }}
+                                                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-md transition-colors whitespace-nowrap"
+                                                        >
+                                                            ▶️ 1-7단계 시작
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* 시리즈 일괄 생성 버튼 */}
+                                        <button
+                                            onClick={() => {
+                                                const cluster = stageData.scoredTopics[stageData.selectedTopicIndex]?.clusterSuggestions;
+                                                if (cluster && cluster.length > 0) {
+                                                    // 첫 번째 시리즈 (메인)부터 시작
+                                                    const firstSeries = cluster[0];
+                                                    setStageData(prev => ({
+                                                        ...prev,
+                                                        selectedTopic: firstSeries.title,
+                                                        selectedCluster: {
+                                                            main: firstSeries.title,
+                                                            series: cluster
+                                                        },
+                                                        currentSeriesContext: {
+                                                            type: firstSeries.type,
+                                                            cluster: cluster
+                                                        }
+                                                    }));
+                                                    setCurrentStage(1);
+                                                }
+                                            }}
+                                            className="mt-3 w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-medium rounded-md transition-colors"
+                                        >
+                                            📦 시리즈 첫 번째 글(메인)부터 시작
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -2085,8 +2306,8 @@ ${batchAccumulator.critique}
                                                 hr: () => <hr className="my-6 border-gray-700" />,
                                             }}
                                         >
-                                            {/* Stage 7에서는 finalDraft를 표시, Stage 6에서는 currentOutput을 표시 */}
-                                            {currentStage === 7 ? stageData.finalDraft : currentOutput}
+                                            {/* Stage 6/7에서 Notion 스타일 적용하여 표시 */}
+                                            {formatForNotion(currentStage === 7 ? stageData.finalDraft : currentOutput)}
                                         </ReactMarkdown>
                                     </div>
                                 ) : (
