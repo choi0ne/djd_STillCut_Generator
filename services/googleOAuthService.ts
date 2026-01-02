@@ -104,14 +104,28 @@ function clearTokens(): void {
 }
 
 /**
- * Client ID 가져오기
+ * Client ID 가져오기 (안전한 버전 - 없으면 null 반환)
+ */
+function getClientIdSafe(): string | null {
+    try {
+        const stored = localStorage.getItem('google-client-id');
+        if (!stored) return null;
+        const parsed = JSON.parse(stored);
+        return parsed || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Client ID 가져오기 (필수 - 없으면 에러)
  */
 function getClientId(): string {
-    const stored = localStorage.getItem('google-client-id');
-    if (!stored) {
+    const clientId = getClientIdSafe();
+    if (!clientId) {
         throw new Error('Google Client ID가 설정되지 않았습니다. 설정 메뉴에서 입력해주세요.');
     }
-    return JSON.parse(stored);
+    return clientId;
 }
 
 /**
@@ -347,6 +361,15 @@ export async function handleOAuthCallback(): Promise<boolean> {
 
     if (!callback) {
         return false; // callback이 아님
+    }
+
+    // Client ID 체크 - 없으면 콜백 처리 불가
+    const clientId = getClientIdSafe();
+    if (!clientId) {
+        console.warn('[OAuth] Client ID가 없어 콜백 처리를 건너뜁니다.');
+        // URL 정리
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return false;
     }
 
     // State 검증
