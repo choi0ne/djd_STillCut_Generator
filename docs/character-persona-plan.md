@@ -1,408 +1,337 @@
-# 📋 프로필별 캐릭터 페르소나 계획서
+# 📋 프로필별 캐릭터 페르소나 계획서 v2.2
 
 > 작성일: 2025-12-30
-> 목적: 블로그 섹션 일러스트 6개에서 일관된 캐릭터가 등장하도록 프로필별 페르소나 정의
+> 수정일: 2026-01-02
+> 목적: 블로그 섹션 일러스트에서 **전문적인 의학 콘텐츠 중심**, 환자 캐릭터는 **독자 대리인**으로 활용
 
 ---
 
-## 🩺 공통 캐릭터: 한의사 최장혁 (권장)
+## 🎯 핵심 구조
 
-> **모든 프로필에서 공통으로 사용하는 한의사 캐릭터**
-> 브랜딩 일관성을 위해 환자 캐릭터 대신 한의사가 설명하는 형식으로 고정
-> 
-> ⭐ **참조 이미지**: `assets/doctor-reference.jpg` (실제 프로필 사진)
-
-### 📸 실제 프로필 사진 기반 캐릭터 분석
-
-| 항목 | 특징 |
-|------|------|
-| **나이대** | 30대 후반 ~ 40대 초반 |
-| **안경** | 검정 테 둥근 사각형 프레임 안경 (특징적 요소!) |
-| **머리** | 웨이브가 있는 짧은 검은 머리, 옆으로 살짝 넘긴 스타일 |
-| **의상** | 밝은 회색/연청색 재킷 + 네이비 V넥 수술복(스크럽) |
-| **표정** | 부드럽고 친근한 미소, 신뢰감 있는 눈매 |
-| **인상** | 전문적이면서 따뜻한 한의사 |
-
-### 이미지 프롬프트 (영문) - 마스터 프롬프트
+### 📝 블로그 = 한의사 1인칭 서술
 
 ```
-Main character (FIXED - use in ALL section illustrations): 
-A Korean Traditional Medicine doctor (한의사) named "Dr. Choi" in his late 30s to early 40s.
+┌─────────────────────────────────────────────────────────┐
+│ 블로그 텍스트                                            │
+│ • 한의사가 1인칭으로 설명 ("제가 환자분들께 드리는 말씀...") │
+│ • 마지막에 "한의사 최장혁 감수" 서명                      │
+│ • 전문가의 권위 = 글에서 확보                            │
+└─────────────────────────────────────────────────────────┘
+```
 
-KEY IDENTIFYING FEATURES (must be consistent):
-- Black-framed round-rectangular glasses (distinctive feature)
-- Short black wavy hair, slightly swept to the side
-- Warm, trustworthy eyes with a gentle professional smile
-- Light gray/pale blue blazer over navy V-neck medical scrubs
+### 🖼️ 이미지 = 콘텐츠 요약 + 환자 캐릭터 (독자 대리인)
 
-STYLE:
-- Minimalist cartoon style, clean thick outlines (2-3px)
-- Flat pastel colors, warm cream background (#F5F0E8)
-- Friendly and approachable aesthetic
-- The doctor appears in various explaining poses across all 6 section illustrations
-- Maintains consistent appearance with different gestures for each section
+```
+┌─────────────────────────────────────────────────────────┐
+│ 섹션 일러스트                                            │
+│                                                         │
+│   ┌──────────────────┐    ┌──────────────┐             │
+│   │  콘텐츠 시각화    │    │  환자 캐릭터  │             │
+│   │  (다이어그램,     │    │  (독자 대리인) │             │
+│   │   인포그래픽)     │    │              │             │
+│   └──────────────────┘    └──────────────┘             │
+│                                                         │
+│ → 환자 = 글을 읽는 독자의 감정/상황을 대변               │
+│ → 의사 캐릭터 ❌ (글로 충분히 권위 확보)                 │
+└─────────────────────────────────────────────────────────┘
+```
 
-TYPOGRAPHY (Korean text if any):
-- Font: Do Hyeon (도현체) style - bold, rounded Korean gothic
+---
+
+## ✅ 역할 분담
+
+| 요소 | 위치 | 역할 |
+|------|------|------|
+| **한의사** | 📝 텍스트만 | 1인칭 서술자 + "감수" 서명 → 전문성/권위 |
+| **환자 캐릭터** | 🖼️ 이미지 | 독자 대리인 → 공감/감정 표현 |
+| **의학 일러스트** | 🖼️ 이미지 | 콘텐츠 시각화 → 이해 도움 |
+
+---
+
+## 📊 섹션별 환자 캐릭터 활용 예시
+
+| 섹션 | 콘텐츠 시각화 | 환자 캐릭터 역할 |
+|------|--------------|-----------------|
+| **핵심 답변** | 키포인트 아이콘/텍스트 | 고개 끄덕이는 표정 (이해) |
+| **주의사항** | ⚠️ 경고 아이콘 + 리스트 | 걱정/주의 기울이는 표정 |
+| **증상 설명** | 해부도/증상 다이어그램 | 해당 부위 통증 표현 |
+| **실천법** | 스텝 가이드 (1-2-3) | 동작 수행하는 모습 |
+| **연구/근거** | 인포그래픽/차트 | ❌ 캐릭터 불필요 (데이터가 주인공) |
+| **마무리** | 격려 메시지 | 밝은 미소, 희망적 표정 |
+
+---
+
+## 🎨 일러스트 우선순위
+
+| 순위 | 스타일 | 설명 | 전문성 |
+|:----:|--------|------|:------:|
+| 1️⃣ | **의학 다이어그램** | 해부도, 기전 설명 | ⭐⭐⭐ |
+| 2️⃣ | **인포그래픽** | 데이터, 통계, 비교 | ⭐⭐⭐ |
+| 3️⃣ | **콘텐츠 + 환자 캐릭터** | 시각화 + 독자 대리인 | ⭐⭐⭐ |
+| 4️⃣ | **스텝 가이드** | 운동법, 실천법 (환자가 수행) | ⭐⭐⭐ |
+| 5️⃣ | **개념 스케치** | 추상적 개념 시각화 | ⭐⭐ |
+
+---
+
+## 🤖 AI 프롬프트 생성 시스템
+
+### 핵심 개념: 환자 캐릭터 = 독자 대리인
+
+```
+환자 캐릭터의 역할:
+- 콘텐츠를 "설명하는" 것이 아님 (설명은 텍스트에서 한의사가 함)
+- 콘텐츠를 "듣고 반응하는" 독자의 대리인
+- 독자가 해당 섹션을 읽을 때 느낄 감정/상황을 시각적으로 표현
+```
+
+### 프롬프트 생성 로직
+
+```typescript
+// AI에게 프롬프트 생성 요청 시
+const generateIllustrationPrompt = async (sectionContent: string, sectionTitle: string, profile: BlogProfile) => {
+    
+    const systemPrompt = `
+당신은 의료 블로그 섹션 일러스트 프롬프트 작성 전문가입니다.
+
+## 핵심 구조
+- 블로그 글 = 한의사가 1인칭으로 서술 (텍스트)
+- 섹션 이미지 = 콘텐츠 시각화 + 환자 캐릭터 (독자 대리인)
+- ⚠️ 의사/한의사 캐릭터는 절대 사용하지 않음 (글로 충분히 권위 확보)
+
+## 환자 캐릭터 역할
+- "설명하는" 역할 ❌ → "반응하는" 역할 ✅
+- 독자가 글을 읽을 때 느낄 감정을 시각적으로 표현
+- 콘텐츠 옆에서 해당 상황을 경험/이해하는 모습
+
+## 입력
+- 섹션 제목: ${sectionTitle}
+- 섹션 내용: ${sectionContent}
+- 타겟 독자 (환자 캐릭터 기준): ${profile.audience}
+
+## 섹션별 환자 캐릭터 감정/포즈 가이드
+| 섹션 유형 | 콘텐츠 시각화 | 환자 캐릭터 역할 |
+|----------|--------------|-----------------|
+| 핵심 답변 | 키포인트 아이콘 | 고개 끄덕임, 이해한 표정 |
+| 주의사항 | 경고 아이콘/리스트 | 걱정/주의 기울이는 표정 |
+| 증상 설명 | 해부도/다이어그램 | 해당 부위 통증 표현 |
+| 실천법 | 스텝 가이드 | 동작 수행하는 모습 |
+| 연구/근거 | 인포그래픽 | ❌ 캐릭터 불필요 |
+| 마무리 | 격려 메시지 | 밝은 미소, 희망적 표정 |
+
+## 출력 형식 (JSON)
+{
+    "includePatient": true,       // 대부분 true (연구/근거 섹션만 false)
+    "patientEmotion": "이해/안심",  // 환자 캐릭터의 감정/표정
+    "patientPose": "고개 끄덕임",    // 환자 캐릭터의 포즈
+    "contentVisualization": "키포인트 3개를 아이콘으로 정리",  // 콘텐츠 시각화 방식
+    "recommendedStyle": "content-with-patient",  // 권장 스타일
+    "prompt": "영문 이미지 생성 프롬프트"
+}
+`;
+    
+    const result = await generateWithGemini(systemPrompt);
+    return JSON.parse(result);
+};
+```
+
+### AI 판단 예시
+
+| 섹션 내용 | 콘텐츠 시각화 | 환자 캐릭터 | 감정/포즈 |
+|----------|--------------|:----------:|----------|
+| "공황장애 핵심 답변" | 키포인트 아이콘 | ✅ | 이해한 표정, 고개 끄덕임 |
+| "디스크가 신경 압박" | 척추 해부도 | ✅ | 허리 통증 표현 |
+| "허리 스트레칭 3단계" | 스텝 가이드 | ✅ | 스트레칭 동작 수행 |
+| "연구에 따르면 78%" | 인포그래픽 | ❌ | 데이터가 주인공 |
+| "주의사항 3가지" | 경고 아이콘 | ✅ | 걱정/주의 표정 |
+| "함께 건강해져요" | 격려 메시지 | ✅ | 밝은 미소, 희망 |
+
+---
+
+## 👤 환자 캐릭터 프리셋 (필요시에만 사용)
+
+> **핵심**: 같은 블로그 글 내에서는 동일한 환자 캐릭터 유지
+
+### 프로필별 환자 캐릭터 자동 선택
+
+| 프로필 | 타겟 독자 | 자동 선택 환자 캐릭터 |
+|--------|----------|---------------------|
+| **기본 한의원** | 20-50대 직장인 | 30대 중반, 피로한 눈, 오피스 캐주얼 |
+| **통증 클리닉** | 30-60대 만성 통증 | 45-50대 남성, 폴로셔츠, 허리/어깨 통증 표현 |
+| **여성 건강** | 20-50대 여성 | 30대 초반 여성, 민트/핑크 니트, 따뜻한 느낌 |
+
+### 프로필별 환자 캐릭터 프롬프트
+
+```typescript
+const PATIENT_PRESETS: Record<string, string> = {
+    'default-tkm': `
+Korean office worker in their mid-30s (gender-neutral).
+Short neat black hair, slightly tired but hopeful eyes, soft smile.
+Wearing a beige cardigan over a white collared shirt.
+Minimalist cartoon style, clean thick outlines, flat pastel colors.
+No doctor or medical professional in the image.
+`,
+    'pain-clinic': `
+Korean man in his late 40s to early 50s.
+Short black hair with hints of gray, slightly furrowed brow, determined expression.
+Wearing a navy blue polo shirt and comfortable pants.
+May be shown holding lower back, neck, or shoulder to indicate pain.
+Minimalist cartoon style, clean thick outlines, flat muted colors.
+No doctor or medical professional in the image.
+`,
+    'womens-health': `
+Korean woman in her early 30s.
+Shoulder-length wavy black hair, soft gentle eyes, warm caring smile.
+Wearing a cozy mint-green or soft pink knit sweater.
+Minimalist cartoon style, clean thick outlines, soft pastel flat colors.
+Feminine but not overly stylized, relatable and approachable.
+No doctor or medical professional in the image.
+`
+};
+```
+
+---
+
+## 🔄 캐릭터 일관성 유지 (같은 글 내에서)
+
+### 작동 흐름
+
+```
+1. 블로그 작성 시작
+   └─ 선택된 프로필: "여성 건강"
+
+2. AI가 섹션별 프롬프트 생성
+   └─ 대부분: 의학 일러스트/인포그래픽 (캐릭터 없음)
+   └─ 특정 섹션: "환자 캐릭터 필요" 판단
+   └─ 프로필 기반 자동 선택: 30대 여성 캐릭터
+   └─ 세션에 캐릭터 정보 저장
+
+3. 같은 글의 다른 섹션에서 환자 등장 시
+   └─ 저장된 캐릭터 정보 재사용
+   └─ 동일한 30대 여성 캐릭터 (일관성 유지)
+
+4. 새 글 작성 시
+   └─ 캐릭터 정보 초기화
+   └─ 다시 AI 판단 시작
+```
+
+### 세션 관리 코드
+
+```typescript
+interface IllustrationSession {
+    blogId: string;
+    profileId: string;
+    selectedPatientCharacter: string | null;  // 환자 캐릭터 프롬프트 (한 번 선택 시 고정)
+}
+
+// 같은 글 내에서 캐릭터 일관성 유지
+const getPatientCharacterPrompt = (session: IllustrationSession, profile: BlogProfile) => {
+    // 이미 선택된 환자 캐릭터가 있으면 재사용
+    if (session.selectedPatientCharacter) {
+        return session.selectedPatientCharacter;
+    }
+    
+    // 처음이면 프로필 기반으로 선택 후 저장
+    const patientPrompt = PATIENT_PRESETS[profile.id] || PATIENT_PRESETS['default-tkm'];
+    session.selectedPatientCharacter = patientPrompt;
+    return patientPrompt;
+};
+```
+
+---
+
+## 🎨 스타일 일관성 (캐릭터 유무와 무관)
+
+### 모든 일러스트 공통 스타일
+
+```typescript
+const COMMON_STYLE_RULES = `
+STYLE (apply to ALL illustrations):
+- Minimalist, clean design
+- Warm cream background (#F5F0E8)
+- Flat pastel colors
+- Clean thick outlines (2-3px)
+- Professional medical aesthetic
+- No cluttered elements
+- NO doctor/medical professional characters
+
+TYPOGRAPHY (if any Korean text):
+- Font style: Do Hyeon (도현체) - bold, rounded Korean gothic
 - Large, legible text (minimum 24pt equivalent)
 - High contrast against background
 - Short phrases only (1-2 sentences max)
-
-IMPORTANT: 
-- Always include the distinctive black-framed glasses as the key identifying feature.
-- Any Korean text must use Do Hyeon style bold rounded gothic font.
+`;
 ```
-
-
-### 섹션별 포즈 가이드
-
-| 섹션 | 포즈 | 표정 |
-|------|------|------|
-| **1. Answer First** | 손바닥을 펴서 핵심을 강조하는 제스처 | 확신에 찬 미소 |
-| **2. Action** | 체크리스트를 들고 있거나, 손가락으로 1-2-3 카운트 | 격려하는 표정 |
-| **3. Warning** | 손을 들어 주의를 환기, 살짝 손가락 흔들기 | 걱정스러운 표정 |
-| **4. The Why** | 턱을 괴고 생각하거나, 다이어그램을 가리키는 포즈 | 설명하는 표정 |
-| **5. Proof** | 책이나 연구 자료를 들고 있는 모습 | 학구적인 표정 |
-| **6. Closing** | 따뜻하게 미소 지으며 격려하는 포즈, 엄지척 | 밝은 미소 |
-
-### 🔧 기술 구현: 참조 이미지 활용
-
-**Gemini API는 참조 이미지 지원!**
-
-```typescript
-// 섹션 일러스트 생성 시 참조 이미지 자동 주입
-const doctorReferenceImage = '/assets/doctor-reference.jpg';
-
-// generateImageWithPrompt 호출 시 baseImage로 전달
-await generateImageWithPrompt(
-    doctorReferenceImage,  // 참조 이미지
-    characterPrompt + sectionPrompt,
-    1,
-    'gemini'
-);
-```
-
-**기대 효과:**
-- 참조 이미지 + 상세 프롬프트 조합으로 80~90% 캐릭터 일관성 확보
-- 안경, 머리 스타일, 의상 등 핵심 특징 유지
 
 ---
 
-## 🎯 핵심: 출력 일관성 강제 전략
+## 🛠️ 기술 구현 계획
 
-> ⚠️ **가장 중요한 목표: 6개 섹션 일러스트에서 동일한 요소들이 일관되게 출력되어야 함**
-
-### 일관성 강제 대상
-
-| 요소 | 고정 값 | 중요도 |
-|------|---------|--------|
-| **캐릭터** | 한의사 Dr. Choi (안경, 머리, 의상) | ⭐⭐⭐ |
-| **서체** | 도현체 (Do Hyeon) - 굵은 둥근 고딕 | ⭐⭐⭐ |
-| **배경색** | 크림색 (#F5F0E8) | ⭐⭐ |
-| **스타일** | 미니멀 카툰, 플랫 파스텔 | ⭐⭐ |
-
-### 1. 마스터 프롬프트 강제 주입
-
-**모든 섹션 일러스트 생성 시 캐릭터 프롬프트가 맨 앞에 강제 삽입됨**
+### 1단계: `BlogProfile` 인터페이스 확장
 
 ```typescript
-// BlogVisualEditor.tsx 또는 이미지 생성 로직에서
-
-const DOCTOR_CHOI_MASTER_PROMPT = `
-[CHARACTER LOCK - DO NOT DEVIATE]
-Main character: Korean male doctor "Dr. Choi", late 30s to early 40s.
-MANDATORY FEATURES (must appear in EVERY image):
-✓ Black-framed round-rectangular glasses
-✓ Short black wavy hair, swept to side
-✓ Light gray/pale blue blazer
-✓ Navy V-neck medical scrubs underneath
-✓ Warm professional smile
-STYLE: Minimalist cartoon, clean thick outlines (2-3px), flat pastel colors.
-[END CHARACTER LOCK]
-
-`;
-
-// 섹션 일러스트 생성 시 강제 결합
-const buildPrompt = (sectionPrompt: string) => {
-    return DOCTOR_CHOI_MASTER_PROMPT + sectionPrompt;
-};
-```
-
-### 2. 참조 이미지 필수 사용
-
-```typescript
-// 섹션 일러스트 생성 시 참조 이미지는 항상 포함
-const generateSectionIllustration = async (sectionPrompt: string) => {
-    const referenceImage = await loadDoctorReferenceImage();  // assets/doctor-reference.jpg
+export interface BlogProfile {
+    id: string;
+    name: string;
+    persona: string;
+    clinic_focus: string[];
+    business_goal: string;
+    audience: string;
     
-    // 참조 이미지 없으면 생성 차단
-    if (!referenceImage) {
-        throw new Error('한의사 참조 이미지가 필요합니다. assets/doctor-reference.jpg를 확인하세요.');
-    }
-    
-    return generateImageWithPrompt(
-        referenceImage,              // ⭐ 참조 이미지 필수
-        buildPrompt(sectionPrompt),  // ⭐ 마스터 프롬프트 강제 결합
-        1,
-        'gemini'
-    );
-};
-```
-
-### 3. 네거티브 프롬프트로 불일치 차단
-
-```typescript
-const STYLE_NEGATIVES = [
-    // 캐릭터 관련
-    'different face',
-    'different glasses',
-    'no glasses',
-    'different hair',
-    'blonde hair',
-    'long hair',
-    'female doctor',
-    'young doctor',
-    'old doctor',
-    'different outfit',
-    'white coat',
-    'casual clothes',
-    'multiple characters',
-    'crowd',
-    'realistic style',
-    'photo-realistic',
-    // 서체 관련
-    'thin font',
-    'cursive font',
-    'serif font',
-    'handwritten font',
-    'small text',
-    'illegible text',
-    'decorative font'
-];
-
-// 프롬프트에 네거티브 추가
-const fullPrompt = `${MASTER_PROMPT}
-${sectionPrompt}
-
-AVOID: ${STYLE_NEGATIVES.join(', ')}`;
-```
-
-### 3-1. 서체 일관성 강제 전략
-
-**한글 텍스트가 포함될 경우 도현체(Do Hyeon) 스타일 강제**
-
-```typescript
-const TYPOGRAPHY_RULES = `
-TYPOGRAPHY LOCK (for any Korean text):
-- Font style: Do Hyeon (도현체) - bold, rounded Korean gothic
-- Weight: Extra Bold / Black
-- Size: Large and legible (minimum 24pt equivalent)
-- Color: High contrast (#333333 on light, #FFFFFF on dark)
-- Placement: Clear separation from illustration
-- Length: Short phrases only (1-2 sentences maximum)
-
-DO NOT USE:
-- Thin or light weight fonts
-- Cursive or handwritten styles
-- Serif fonts
-- Decorative or fancy fonts
-- Small or illegible text sizes
-`;
-
-// 텍스트가 포함된 이미지 생성 시 서체 규칙 강제 주입
-const buildPromptWithText = (basePrompt: string, koreanText: string) => {
-    return `${MASTER_PROMPT}
-${TYPOGRAPHY_RULES}
-
-Korean text to include: "${koreanText}"
-
-${basePrompt}`;
-};
-```
-
-### 서체 일관성 체크 포인트
-
-| 요소 | 고정 값 | 네거티브 |
-|------|---------|----------|
-| 서체 스타일 | 도현체 (Do Hyeon) | thin, cursive, serif, handwritten |
-| 굵기 | Extra Bold / Black | light, regular, medium |
-| 크기 | 24pt 이상 (대형) | small, tiny, illegible |
-| 색상 | 고대비 (#333 또는 #FFF) | low contrast, pastel text |
-
-### 4. 섹션별 변형은 포즈/표정만
-
-```typescript
-// 각 섹션별로 포즈와 표정만 다르게 지정
-const SECTION_VARIATIONS = {
-    1: { pose: 'palm open, emphasizing gesture', expression: 'confident smile' },
-    2: { pose: 'holding checklist, counting fingers', expression: 'encouraging' },
-    3: { pose: 'hand raised warning, finger wagging', expression: 'concerned' },
-    4: { pose: 'chin on hand thinking, pointing at diagram', expression: 'explaining' },
-    5: { pose: 'holding book or research paper', expression: 'scholarly' },
-    6: { pose: 'thumbs up, warmly smiling', expression: 'bright encouraging smile' }
-};
-
-// 최종 프롬프트 구성
-const buildSectionPrompt = (sectionNumber: number, contentSummary: string) => {
-    const variation = SECTION_VARIATIONS[sectionNumber];
-    return `
-${DOCTOR_CHOI_MASTER_PROMPT}
-
-SECTION ${sectionNumber} ILLUSTRATION:
-- Pose: ${variation.pose}
-- Expression: ${variation.expression}
-- Context: ${contentSummary}
-
-REMEMBER: Keep the character's face, glasses, hair, and outfit EXACTLY the same as the reference image.
-Only change the pose and expression as specified above.
-`;
-};
-```
-
-### 5. 프롬프트 구조 강제 (코드 레벨)
-
-```typescript
-// styleLibrary.ts의 section-illustration 스타일 수정
-
-{
-    id: 'section-illustration',
-    displayName: '섹션 일러스트',
-    icon: '📖',
-    description: '블로그 섹션별 요약 일러스트 - 한의사 캐릭터 고정',
-    keywords: ['section', 'doctor', 'consistent character', 'Korean TKM'],
-    goldStandardExample: {
-        // ⭐ 캐릭터 프롬프트가 항상 맨 앞에 위치
-        BACKGROUND_PROMPT: `[CHARACTER LOCK]
-Main character: Korean male TKM doctor "Dr. Choi", late 30s-40s.
-MANDATORY: Black-framed glasses, short black wavy hair, light gray blazer, navy scrubs.
-Style: Minimalist cartoon, clean outlines, flat pastel colors, cream background (#F5F0E8).
-[END LOCK]
-
-{SECTION_CONTENT}  // 이 자리에 섹션별 내용 삽입
-
-Keep character appearance IDENTICAL across all images. Only vary pose and expression.`,
-        NEGATIVES: [
-            'different character',
-            'no glasses',
-            'different hair',
-            'female',
-            'white coat',
-            'realistic',
-            'photo'
-        ]
-    }
+    // ✨ 캐릭터 설정 (v2.0)
+    patientCharacterPrompt?: string;  // 프로필별 환자 캐릭터 프롬프트
 }
 ```
 
-### 일관성 체크 포인트
-
-| 요소 | 고정 여부 | 확인 방법 |
-|------|----------|----------|
-| 안경 | ✅ 고정 | 검정 테 둥근 사각형 |
-| 머리 | ✅ 고정 | 짧은 검은 웨이브, 옆으로 넘김 |
-| 의상 | ✅ 고정 | 연회색 재킷 + 네이비 스크럽 |
-| 얼굴형 | ✅ 참조 이미지 기반 | 동일 인상 유지 |
-| 포즈 | ❌ 변형 | 섹션별로 다름 |
-| 표정 | ❌ 변형 | 섹션별로 다름 |
-| 배경 | ✅ 고정 | 크림색 (#F5F0E8) |
-
----
-
-## 🎭 조건부 캐릭터 등장 로직
-
-> ⚠️ **중요: 한의사 캐릭터는 모든 장면에 등장하는 것이 아님!**
-> 한의사가 필요한 장면에만 등장하고, 그 외에는 개념 일러스트로 대체
-
-### 섹션별 캐릭터 등장 여부
-
-| 섹션 | 한의사 등장 | 이유 | 대안 이미지 |
-|------|------------|------|------------|
-| **1. Answer First** | ✅ 등장 | 핵심 결론을 전달하는 역할 | - |
-| **2. Action** | ⚪ 선택적 | 실천법 설명 또는 동작 일러스트 | 스텝 다이어그램, 동작 가이드 |
-| **3. Warning** | ✅ 등장 | 주의사항 경고 역할 | - |
-| **4. The Why** | ⚪ 선택적 | 기전 설명 또는 개념 다이어그램 | 의학 일러스트, 해부도 |
-| **5. Proof** | ❌ 미등장 | 연구/근거 데이터가 주인공 | 인포그래픽, 차트 |
-| **6. Closing** | ✅ 등장 | 격려/마무리 인사 역할 | - |
-
-### 등장 여부 판단 로직
+### 2단계: AI 프롬프트 생성 함수
 
 ```typescript
-// 섹션별 한의사 등장 여부 결정
-const SECTION_CHARACTER_CONFIG = {
-    1: { doctorRequired: true,  description: 'Answer First - 핵심 결론 전달' },
-    2: { doctorRequired: false, description: 'Action - 실천법 (선택적)' },
-    3: { doctorRequired: true,  description: 'Warning - 주의사항 경고' },
-    4: { doctorRequired: false, description: 'The Why - 기전 설명 (선택적)' },
-    5: { doctorRequired: false, description: 'Proof - 연구/근거 데이터' },
-    6: { doctorRequired: true,  description: 'Closing - 격려/마무리' }
-};
-
-// 일러스트 생성 시 캐릭터 포함 여부 결정
-const buildIllustrationPrompt = (sectionNumber: number, contentSummary: string) => {
-    const config = SECTION_CHARACTER_CONFIG[sectionNumber];
-    
-    if (config.doctorRequired) {
-        // 한의사 캐릭터 포함 프롬프트
-        return DOCTOR_CHOI_MASTER_PROMPT + buildSectionPose(sectionNumber, contentSummary);
-    } else {
-        // 개념 일러스트 프롬프트 (한의사 미등장)
-        return buildConceptIllustrationPrompt(sectionNumber, contentSummary);
-    }
+// services/geminiService.ts에 추가
+export const generateIllustrationPromptWithAI = async (
+    sectionContent: string,
+    sectionTitle: string,
+    profile: BlogProfile,
+    session: IllustrationSession
+): Promise<IllustrationPromptResult> => {
+    // AI가 캐릭터 필요 여부 판단
+    // 필요시 프로필 기반 캐릭터 프롬프트 주입
+    // 같은 세션 내 캐릭터 일관성 유지
 };
 ```
 
-### 개념 일러스트 스타일 (한의사 미등장 시)
-
-```typescript
-const buildConceptIllustrationPrompt = (sectionNumber: number, contentSummary: string) => {
-    // 섹션별 적합한 스타일 선택
-    const styleMap: Record<number, string> = {
-        2: '2d-step-diagram',      // Action: 단계별 가이드
-        4: 'medical-illustration', // The Why: 의학 개념도
-        5: 'infographic-chart'     // Proof: 데이터 시각화
-    };
-    
-    const style = styleMap[sectionNumber] || 'conceptual-sketch';
-    const styleTemplate = STYLE_LIBRARY.find(s => s.id === style);
-    
-    return `${styleTemplate?.goldStandardExample.BACKGROUND_PROMPT}
-
-CONTENT: ${contentSummary}
-
-Style: ${style}, no human characters, focus on concept visualization.
-Warm cream background (#F5F0E8), clean minimalist design.`;
-};
-```
-
-### UI에서 캐릭터 등장 설정
+### 3단계: UI 수정 (BlogWriterEditor.tsx)
 
 ```tsx
-// 섹션 일러스트 생성 모달에서 토글 제공
-<div className="character-toggle">
+// 캐릭터 포함 여부 토글 (AI 추천 기반)
+<div className="illustration-options">
+    <div className="ai-recommendation">
+        {aiResult.includeCharacter 
+            ? '💡 AI 추천: 캐릭터 포함' 
+            : '💡 AI 추천: 개념 일러스트'}
+    </div>
     <label>
         <input 
             type="checkbox" 
-            checked={includeDoctor}
-            onChange={(e) => setIncludeDoctor(e.target.checked)}
+            checked={includeCharacter}
+            onChange={(e) => setIncludeCharacter(e.target.checked)}
         />
-        한의사 캐릭터 포함
+        캐릭터 포함 (수동 선택)
     </label>
-    <span className="hint">
-        {SECTION_CHARACTER_CONFIG[sectionNumber].doctorRequired 
-            ? '(권장: 이 섹션에서는 한의사 등장 권장)' 
-            : '(선택: 개념 일러스트로 대체 가능)'}
-    </span>
 </div>
 ```
 
-### 요약
+---
 
-| 상황 | 한의사 등장 | 사용 스타일 |
-|------|------------|------------|
-| 핵심 결론/경고/격려 전달 | ✅ 등장 | `section-illustration` + 참조 이미지 |
-| 실천법/동작 설명 | ⚪ 선택적 | `2d-step-diagram` 또는 `exercise-guide` |
-| 기전/원인 설명 | ⚪ 선택적 | `medical-illustration` 또는 `hand-drawn-diagram` |
-| 연구/데이터/근거 | ❌ 미등장 | `infographic-chart` 또는 `isometric-infographic` |
+## ✅ 체크리스트 (v2.2)
+
+- [x] `BlogProfile` 인터페이스에 `patientCharacterPrompt` 필드 추가 ✅
+- [x] `PATIENT_PRESETS` 상수 정의 (프로필별 환자 캐릭터) ✅
+- [x] ~~`DOCTOR_CHOI_PRESET` 상수 정의~~ (v2.2에서 삭제됨 - 한의사 캐릭터 사용 안 함)
+- [x] `PATIENT_EMOTION_GUIDE` 상수 정의 (섹션별 감정/포즈 가이드) ✅
+- [x] AI 프롬프트 생성 함수 구현 (`generateSectionIllustrationPrompt`) ✅
+- [ ] 세션 관리 로직 구현 (같은 글 내 캐릭터 일관성) - 추후 구현
+- [ ] UI에 AI 추천 표시 + 수동 토글 추가 - 추후 구현
+- [ ] 테스트: AI가 캐릭터 필요 여부 적절히 판단하는지 확인
+- [ ] 테스트: 같은 글 내에서 캐릭터 일관성 유지되는지 확인
 
 
 ## 1. 기본 한의원 프로필 (`default-tkm`)

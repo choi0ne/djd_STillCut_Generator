@@ -617,3 +617,136 @@ export const generateCombinedPrompt = async (
         throw handleApiError(error);
     }
 };
+
+/**
+ * ✨ 섹션 일러스트용 프롬프트 생성 (환자 캐릭터 = 독자 대리인)
+ * 한의사는 텍스트에서 1인칭으로 서술, 이미지에서는 환자 캐릭터가 독자를 대변
+ * 
+ * @param sectionTitle 섹션 제목
+ * @param sectionContent 섹션 내용 (요약)
+ * @param patientCharacterPrompt 프로필 기반 환자 캐릭터 프롬프트
+ * @param sectionType 섹션 유형 (answer-first, warning, symptoms, action, proof, closing)
+ * @param provider 'gemini' 또는 'openai'
+ */
+export interface SectionIllustrationResult {
+    includePatient: boolean;
+    patientEmotion: string;
+    patientPose: string;
+    contentVisualization: string;
+    recommendedStyle: string;
+    prompt: string;
+}
+
+export const generateSectionIllustrationPrompt = async (
+    sectionTitle: string,
+    sectionContent: string,
+    patientCharacterPrompt: string,
+    sectionType: string = 'general',
+    provider: ImageProvider = 'gemini'
+): Promise<SectionIllustrationResult> => {
+
+    const systemPrompt = `You are an expert at creating illustration prompts for medical blog sections.
+
+## Core Structure
+- Blog text = Doctor narrates in first person (text only)
+- Section image = Content visualization + Patient character (reader surrogate)
+- ⚠️ NEVER include doctor/medical professional characters (authority is in the text)
+
+## Patient Character Role
+- NOT explaining ❌ → REACTING ✅
+- Visually represents the reader's emotions when reading this section
+- Appears alongside content, experiencing/understanding the situation
+
+## Section Info
+- Section Title: ${sectionTitle}
+- Section Content: ${sectionContent}
+- Section Type: ${sectionType}
+
+## Patient Character Base Prompt (use this for character appearance):
+${patientCharacterPrompt}
+
+## Section-specific Patient Emotion/Pose Guide
+| Section Type | Content Visualization | Patient Character Role |
+|-------------|----------------------|----------------------|
+| answer-first | Key point icons | Nodding, understanding expression |
+| warning | Warning icons/list | Concerned, worried expression |
+| symptoms | Anatomy/symptom diagram | Expressing discomfort, holding affected area |
+| action | Step guide | Performing the exercise/action |
+| proof | Infographic | ❌ NO CHARACTER (data is the focus) |
+| closing | Encouraging message | Bright smile, hopeful expression |
+
+## Output Format (JSON only, no markdown)
+{
+    "includePatient": true,
+    "patientEmotion": "understanding, nodding",
+    "patientPose": "slight head tilt, attentive posture",
+    "contentVisualization": "3 key points displayed as icons with short Korean labels",
+    "recommendedStyle": "content-with-patient",
+    "prompt": "Full English prompt for image generation including patient character and content visualization"
+}
+
+Important:
+1. If sectionType is "proof", set includePatient to false
+2. Combine the patient character prompt with appropriate emotion/pose
+3. Include content visualization in the same image (split layout: content left, character right)
+4. Use warm cream background (#F5F0E8), minimalist cartoon style
+5. Add "No doctor or medical professional" to the prompt
+6. Output ONLY valid JSON, no explanations`;
+
+    // OpenAI 분기
+    if (provider === 'openai') {
+        try {
+            let result = await generateTextWithGPT(systemPrompt);
+            result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+            try {
+                return JSON.parse(result) as SectionIllustrationResult;
+            } catch (e) {
+                // JSON 파싱 실패 시 기본값 반환
+                return {
+                    includePatient: sectionType !== 'proof',
+                    patientEmotion: 'neutral',
+                    patientPose: 'standing',
+                    contentVisualization: sectionTitle,
+                    recommendedStyle: 'content-with-patient',
+                    prompt: `Medical blog illustration. ${sectionTitle}. ${patientCharacterPrompt} Warm cream background (#F5F0E8). Minimalist cartoon style. No doctor or medical professional.`
+                };
+            }
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini 분기
+    try {
+        const ai = getAiClient();
+        const model = 'gemini-3-pro-preview';
+
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [{ text: systemPrompt }],
+            },
+        });
+
+        let result = response.text || '';
+        result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        try {
+            return JSON.parse(result) as SectionIllustrationResult;
+        } catch (e) {
+            // JSON 파싱 실패 시 기본값 반환
+            return {
+                includePatient: sectionType !== 'proof',
+                patientEmotion: 'neutral',
+                patientPose: 'standing',
+                contentVisualization: sectionTitle,
+                recommendedStyle: 'content-with-patient',
+                prompt: `Medical blog illustration. ${sectionTitle}. ${patientCharacterPrompt} Warm cream background (#F5F0E8). Minimalist cartoon style. No doctor or medical professional.`
+            };
+        }
+
+    } catch (error) {
+        throw handleApiError(error);
+    }
+};
