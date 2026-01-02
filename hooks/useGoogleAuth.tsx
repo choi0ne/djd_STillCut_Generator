@@ -1,115 +1,135 @@
-import { useEffect, useRef, useState } from 'react';
-import useLocalStorage from './useLocalStorage';
-
-interface GoogleAuthState {
-  accessToken: string | null;
-  expiresAt: number | null;
-  isAuthenticated: boolean;
-}
+import { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  isAuthenticated as checkIsAuthenticated,
+  handleOAuthCallback,
+  initiateOAuthFlow,
+  signOut as oauthSignOut,
+  ensureValidAccessToken,
+  needsTokenRefresh,
+  refreshAccessToken,
+  getStoredTokens,
+} from '../services/googleOAuthService';
 
 interface GoogleAuthHook {
   isAuthenticated: boolean;
+  isLoading: boolean;
   accessToken: string | null;
   signIn: () => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  getValidAccessToken: () => Promise<string>;
 }
 
-const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // Refresh 5 minutes before expiry
-const CHECK_INTERVAL = 60 * 1000; // Check every minute
+// 토큰 자동 갱신 주기 (5분)
+const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000;
 
 function useGoogleAuth(clientId: string): GoogleAuthHook {
-  const [authState, setAuthState] = useLocalStorage<GoogleAuthState>('google-auth-state', {
-    accessToken: null,
-    expiresAt: null,
-    isAuthenticated: false,
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const refreshIntervalRef = useRef<number | null>(null);
 
-  const [isReady, setIsReady] = useState(false);
-  const tokenClientRef = useRef<any>(null);
-
-  // Initialize Google Sign-In
+  // 초기화 및 OAuth callback 처리
   useEffect(() => {
-    if (!clientId || typeof window === 'undefined' || !window.google) {
-      return;
-    }
+    const initialize = async () => {
+      try {
+        // URL에 code 파라미터가 있으면 OAuth callback 처리
+        const wasCallback = await handleOAuthCallback();
 
-    try {
-      tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: (response: any) => {
-          if (response.access_token) {
-            const expiresAt = Date.now() + (response.expires_in * 1000);
-            setAuthState({
-              accessToken: response.access_token,
-              expiresAt,
-              isAuthenticated: true,
-            });
-          }
-        },
-      });
-      setIsReady(true);
-    } catch (error) {
-      console.error('Failed to initialize Google Sign-In:', error);
-    }
-  }, [clientId]);
-
-  // Auto-refresh token before expiry
-  useEffect(() => {
-    if (!authState.isAuthenticated || !authState.expiresAt) {
-      return;
-    }
-
-    const checkAndRefresh = () => {
-      const now = Date.now();
-      const timeUntilExpiry = authState.expiresAt! - now;
-
-      // If token expires soon or has expired, refresh it
-      if (timeUntilExpiry < TOKEN_REFRESH_THRESHOLD) {
-        console.log('Token expiring soon, refreshing...');
-        if (tokenClientRef.current) {
-          // Request new token silently
-          tokenClientRef.current.requestAccessToken({ prompt: '' });
+        if (wasCallback) {
+          console.log('[Auth] OAuth callback 처리 완료');
         }
+
+        // 인증 상태 확인
+        const authenticated = checkIsAuthenticated();
+        setIsAuthenticated(authenticated);
+
+        if (authenticated) {
+          const tokens = getStoredTokens();
+          setAccessToken(tokens?.access_token || null);
+        }
+      } catch (error) {
+        console.error('[Auth] 초기화 오류:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    // Check immediately
-    checkAndRefresh();
+    initialize();
+  }, []);
 
-    // Set up periodic check
-    const intervalId = setInterval(checkAndRefresh, CHECK_INTERVAL);
-
-    return () => clearInterval(intervalId);
-  }, [authState.isAuthenticated, authState.expiresAt]);
-
-  const signIn = async (): Promise<void> => {
-    if (!isReady || !tokenClientRef.current) {
-      throw new Error('Google Sign-In not ready');
+  // 토큰 자동 갱신 타이머
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // 인증되지 않았으면 타이머 정리
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+      return;
     }
 
-    tokenClientRef.current.requestAccessToken({ prompt: 'consent' });
-  };
+    const checkAndRefreshToken = async () => {
+      try {
+        if (needsTokenRefresh()) {
+          console.log('[Auth] 토큰 갱신 필요, 갱신 중...');
+          const newTokens = await refreshAccessToken();
+          setAccessToken(newTokens.access_token);
+        }
+      } catch (error) {
+        console.error('[Auth] 자동 토큰 갱신 실패:', error);
+        // 갱신 실패 시 로그아웃 처리
+        setIsAuthenticated(false);
+        setAccessToken(null);
+      }
+    };
 
-  const signOut = () => {
-    if (authState.accessToken && window.google) {
-      window.google.accounts.oauth2.revoke(authState.accessToken, () => {
-        console.log('Token revoked');
-      });
+    // 즉시 한 번 체크
+    checkAndRefreshToken();
+
+    // 주기적 체크 설정
+    refreshIntervalRef.current = window.setInterval(checkAndRefreshToken, TOKEN_CHECK_INTERVAL);
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated]);
+
+  // 로그인
+  const signIn = useCallback(async (): Promise<void> => {
+    if (!clientId) {
+      throw new Error('Google Client ID가 설정되지 않았습니다. 설정 메뉴에서 입력해주세요.');
     }
 
-    setAuthState({
-      accessToken: null,
-      expiresAt: null,
-      isAuthenticated: false,
-    });
-  };
+    // PKCE OAuth 플로우 시작 (리다이렉트됨)
+    await initiateOAuthFlow();
+  }, [clientId]);
+
+  // 로그아웃
+  const signOut = useCallback(async (): Promise<void> => {
+    await oauthSignOut();
+    setIsAuthenticated(false);
+    setAccessToken(null);
+    console.log('[Auth] 로그아웃 완료');
+  }, []);
+
+  // 유효한 Access Token 가져오기 (필요시 자동 갱신)
+  const getValidAccessToken = useCallback(async (): Promise<string> => {
+    const token = await ensureValidAccessToken();
+    setAccessToken(token);
+    return token;
+  }, []);
 
   return {
-    isAuthenticated: authState.isAuthenticated,
-    accessToken: authState.accessToken,
+    isAuthenticated,
+    isLoading,
+    accessToken,
     signIn,
     signOut,
+    getValidAccessToken,
   };
 }
 

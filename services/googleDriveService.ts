@@ -1,3 +1,5 @@
+import { ensureValidAccessToken, isAuthenticated } from './googleOAuthService';
+
 // Helper to convert input (Blob URL or Data URL) to Blob
 const inputToBlob = async (input: string, mimeType: string): Promise<Blob> => {
     // Blob URL인 경우 (blob:http://... 형태)
@@ -22,30 +24,25 @@ const inputToBlob = async (input: string, mimeType: string): Promise<Blob> => {
     return await response.blob();
 };
 
-// Function to get keys from local storage
-const getGoogleKeys = () => {
+// Function to get API key from local storage
+const getGoogleApiKey = () => {
     try {
         const apiKeyItem = window.localStorage.getItem('google-api-key');
-        const clientIdItem = window.localStorage.getItem('google-client-id');
-
         const apiKey = apiKeyItem ? JSON.parse(apiKeyItem) : null;
-        const clientId = clientIdItem ? JSON.parse(clientIdItem) : null;
 
-        if (!apiKey || !clientId) {
-            throw new Error("Google API Key 또는 Client ID가 설정되지 않았습니다. '설정' 메뉴에서 키를 입력해주세요.");
+        if (!apiKey) {
+            throw new Error("Google API Key가 설정되지 않았습니다. '설정' 메뉴에서 키를 입력해주세요.");
         }
-        return { apiKey, clientId };
+        return apiKey;
     } catch (error) {
         if (error instanceof Error && error.message.includes("Google API Key")) {
             throw error;
         }
-        throw new Error("로컬 스토리지에서 Google 키를 읽는 데 실패했습니다.");
+        throw new Error("로컬 스토리지에서 Google API Key를 읽는 데 실패했습니다.");
     }
 };
 
-let tokenClient: any = null;
 let gapiInited = false;
-let gsiInited = false;
 
 const initGapiClient = (apiKey: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -53,6 +50,12 @@ const initGapiClient = (apiKey: string): Promise<void> => {
             resolve();
             return;
         }
+
+        if (typeof window.gapi === 'undefined') {
+            reject(new Error('Google API 스크립트가 로드되지 않았습니다. 페이지를 새로고침해주세요.'));
+            return;
+        }
+
         window.gapi.load('client', async () => {
             try {
                 await window.gapi.client.init({
@@ -69,68 +72,42 @@ const initGapiClient = (apiKey: string): Promise<void> => {
     });
 };
 
-
-const initTokenClient = (clientId: string) => {
-    if (gsiInited) return;
-    try {
-        tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: 'https://www.googleapis.com/auth/drive.file',
-            callback: '', // The callback is handled by the Promise wrapper
-        });
-        gsiInited = true;
-    } catch (error) {
-        console.error("Token client init error:", error);
-        throw new Error("Google 인증 클라이언트 초기화에 실패했습니다.");
+/**
+ * 인증된 Access Token 확보
+ * googleOAuthService에서 토큰을 가져와 자동 갱신
+ */
+const ensureAuthenticated = async (): Promise<string> => {
+    if (!isAuthenticated()) {
+        throw new Error('Google 로그인이 필요합니다. 왼쪽 메뉴에서 로그인해주세요.');
     }
-};
 
-const requestAccessToken = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        const callback = (resp: any) => {
-            if (resp.error) {
-                console.error("Token request error:", resp.error);
-                reject(new Error("Google Drive 접근 권한을 얻지 못했습니다."));
-            } else {
-                resolve();
-            }
-        };
-
-        if (window.gapi.client.getToken() === null) {
-            tokenClient.callback = callback;
-            tokenClient.requestAccessToken({ prompt: 'consent' });
-        } else {
-            resolve();
-        }
-    });
+    return await ensureValidAccessToken();
 };
 
 // 일괄 처리 전 Google Drive 인증을 미리 확보하는 함수
 export const ensureGoogleDriveAuth = async (): Promise<void> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
+    await ensureAuthenticated();
 
     console.log('[GoogleDrive] 인증 확보 완료');
 };
 
 
 export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const blob = await inputToBlob(base64Image, 'image/png');
     const metadata = {
@@ -145,7 +122,7 @@ export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
 
     const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
-        headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+        headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         body: form,
     });
 
@@ -160,15 +137,14 @@ export const saveToGoogleDrive = async (base64Image: string): Promise<any> => {
 
 // Save prompts JSON to Google Drive
 export const savePromptsToGoogleDrive = async (prompts: any[], fileName: string = 'djd-prompts.json'): Promise<any> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const jsonContent = JSON.stringify(prompts, null, 2);
     const blob = new Blob([jsonContent], { type: 'application/json' });
@@ -185,7 +161,7 @@ export const savePromptsToGoogleDrive = async (prompts: any[], fileName: string 
 
     const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
-        headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+        headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         body: form,
     });
 
@@ -199,20 +175,19 @@ export const savePromptsToGoogleDrive = async (prompts: any[], fileName: string 
 
 // List JSON files from Google Drive
 export const listPromptFilesFromGoogleDrive = async (): Promise<any[]> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const res = await fetch(
         `https://www.googleapis.com/drive/v3/files?q='1JFZP6kNztGmplyBWRjaADxwsp-9YbJbn' in parents and mimeType='application/json' and name contains 'djd-prompts'&fields=files(id,name,modifiedTime)`,
         {
-            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+            headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         }
     );
 
@@ -226,20 +201,19 @@ export const listPromptFilesFromGoogleDrive = async (): Promise<any[]> => {
 
 // Load prompts JSON from Google Drive by file ID
 export const loadPromptsFromGoogleDrive = async (fileId: string): Promise<any[]> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const res = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         {
-            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+            headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         }
     );
 
@@ -252,20 +226,19 @@ export const loadPromptsFromGoogleDrive = async (fileId: string): Promise<any[]>
 
 // List image files from Google Drive
 export const listImagesFromGoogleDrive = async (): Promise<any[]> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const res = await fetch(
         `https://www.googleapis.com/drive/v3/files?q='1JFZP6kNztGmplyBWRjaADxwsp-9YbJbn' in parents and mimeType contains 'image/'&fields=files(id,name,mimeType,thumbnailLink,webContentLink)&pageSize=30`,
         {
-            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+            headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         }
     );
 
@@ -279,20 +252,19 @@ export const listImagesFromGoogleDrive = async (): Promise<any[]> => {
 
 // Download image from Google Drive and convert to base64
 export const downloadImageFromGoogleDrive = async (fileId: string, mimeType: string): Promise<{ base64: string; mimeType: string }> => {
-    const { apiKey, clientId } = getGoogleKeys();
+    const apiKey = getGoogleApiKey();
+    const accessToken = await ensureAuthenticated();
 
-    if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
+    if (typeof window.gapi === 'undefined') {
         throw new Error('Google API 스크립트를 로드하지 못했습니다.');
     }
 
     await initGapiClient(apiKey);
-    initTokenClient(clientId);
-    await requestAccessToken();
 
     const res = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         {
-            headers: new Headers({ 'Authorization': `Bearer ${window.gapi.client.getToken().access_token}` }),
+            headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
         }
     );
 

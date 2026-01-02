@@ -35,7 +35,7 @@ const App: React.FC = () => {
   const [googleApiKey, setGoogleApiKey] = useLocalStorage<string>('google-api-key', '');
   const [googleClientId, setGoogleClientId] = useLocalStorage<string>('google-client-id', '');
 
-  const { isAuthenticated, signIn, signOut } = useGoogleAuth(googleClientId);
+  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth(googleClientId);
 
   const isKeyReady = !!geminiApiKey || !!openaiApiKey;
 
@@ -192,10 +192,12 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={isAuthenticated ? signOut : signIn}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/5 transition-colors"
+                disabled={authLoading}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${authLoading ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:bg-white/5'
+                  }`}
               >
-                <span>{isAuthenticated ? '🟢' : '🔓'}</span>
-                <span>{isAuthenticated ? 'Logout' : 'Google Login'}</span>
+                <span>{authLoading ? '⏳' : isAuthenticated ? '🟢' : '🔓'}</span>
+                <span>{authLoading ? '확인 중...' : isAuthenticated ? 'Logout' : 'Google Login'}</span>
               </button>
             </div>
           </aside>
