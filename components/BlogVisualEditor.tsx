@@ -8,6 +8,7 @@ import { generateImageWithPrompt } from '../services/geminiService';
 import { generateWithOpenAI } from '../services/openaiProvider';
 import GenerationResultPanel from './GenerationResultPanel';
 import { ImageFile } from '../types';
+import { BlogProfile, DEFAULT_PROFILES, PATIENT_PRESETS, PATIENT_EMOTION_GUIDE } from '../data/blogProfilePresets';
 
 interface BlogVisualEditorProps {
     isApiKeyReady: boolean;
@@ -47,6 +48,12 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [isEditingPrompt, setIsEditingPrompt] = useState(false);
     const [copiedPrompt, setCopiedPrompt] = useState(false);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false); // 프롬프트 자동 생성 로딩 상태
+
+    // ✨ 프로필 연동 (BlogWriterEditor와 동일한 localStorage 키 사용)
+    const [profiles] = useLocalStorage<BlogProfile[]>('blog-profiles', DEFAULT_PROFILES);
+    const [selectedProfileId] = useLocalStorage<string>('selected-profile-id', 'default-tkm');
+    const selectedProfile = profiles.find(p => p.id === selectedProfileId) || profiles[0];
+
 
 
     // Rate limit 방지용 딜레이
@@ -142,6 +149,22 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                 setSelectedPalette(concept.recommendedPalette);
             }
 
+            // ✨ 섹션 타입 감지 및 PATIENT_EMOTION_GUIDE 적용
+            const detectSectionType = (title: string): string => {
+                const lowerTitle = title.toLowerCase();
+                if (lowerTitle.includes('answer') || lowerTitle.includes('핵심') || lowerTitle.includes('결론')) return 'answer-first';
+                if (lowerTitle.includes('warning') || lowerTitle.includes('주의') || lowerTitle.includes('위험')) return 'warning';
+                if (lowerTitle.includes('action') || lowerTitle.includes('실천') || lowerTitle.includes('방법')) return 'action';
+                if (lowerTitle.includes('symptom') || lowerTitle.includes('증상')) return 'symptoms';
+                if (lowerTitle.includes('proof') || lowerTitle.includes('근거') || lowerTitle.includes('연구')) return 'proof';
+                if (lowerTitle.includes('closing') || lowerTitle.includes('마무리') || lowerTitle.includes('요약')) return 'closing';
+                return 'general';
+            };
+
+            const sectionType = detectSectionType(concept.title);
+            const emotionGuide = PATIENT_EMOTION_GUIDE[sectionType] || { emotion: 'neutral', pose: 'natural standing' };
+            const includePatient = sectionType !== 'proof'; // proof 섹션은 캐릭터 제외
+
             // 자동으로 프롬프트 생성
             if (selectedStyleForPrompt && initialContext.topic) {
                 setIsGeneratingPrompt(true);
@@ -181,6 +204,23 @@ ${basePrompt}
 ## 제외할 요소 (NEGATIVES):
 ${negatives}
 
+## 🎨 환자 캐릭터 (독자 대리인) - 프로필: ${selectedProfile.name}
+**섹션 타입**: ${sectionType}
+**이 섹션에 캐릭터 포함 여부**: ${includePatient ? '✅ 포함' : '❌ 제외 (데이터/연구 중심)'}
+
+${includePatient ? `**캐릭터 기본 외형:**
+${selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm']}
+
+**이 섹션에서의 감정/포즈 (자동 적용):**
+- 감정: ${emotionGuide.emotion}
+- 포즈: ${emotionGuide.pose}
+` : '**이 섹션은 데이터/연구 중심이므로 환자 캐릭터를 포함하지 마세요.**'}
+
+**⚠️ 중요 규칙:**
+- 의사/한의사 캐릭터는 절대 이미지에 포함하지 않습니다 (권위는 텍스트에서 확보)
+- 환자 캐릭터는 "설명하는" 역할이 아닌 "반응하는" 역할입니다
+- 독자가 글을 읽을 때 느끼는 감정/상황을 시각적으로 표현합니다
+
 ## 📄 원고 전문 (아래 내용을 기반으로 이미지 프롬프트 생성):
 ---
 ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
@@ -193,6 +233,7 @@ ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
 1. 원고에서 "${concept.title}" 섹션의 핵심 내용을 찾아 시각화하세요
 2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
 3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
+4. ${includePatient ? `환자 캐릭터 포함: 위 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose})를 반영하세요` : '환자 캐릭터 없이 데이터/다이어그램 중심으로 구성하세요'}
 
 위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
 
@@ -300,6 +341,23 @@ ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
             const basePrompt = selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
             const negatives = selectedStyle.goldStandardExample.NEGATIVES.join(', ');
 
+            // ✨ 선택된 컨셉이 있으면 섹션 타입 감지
+            const selectedConcept = selectedConceptIndex !== null && initialContext?.concepts[selectedConceptIndex];
+            const detectSectionType = (title: string): string => {
+                const lowerTitle = title.toLowerCase();
+                if (lowerTitle.includes('answer') || lowerTitle.includes('핵심') || lowerTitle.includes('결론')) return 'answer-first';
+                if (lowerTitle.includes('warning') || lowerTitle.includes('주의') || lowerTitle.includes('위험')) return 'warning';
+                if (lowerTitle.includes('action') || lowerTitle.includes('실천') || lowerTitle.includes('방법')) return 'action';
+                if (lowerTitle.includes('symptom') || lowerTitle.includes('증상')) return 'symptoms';
+                if (lowerTitle.includes('proof') || lowerTitle.includes('근거') || lowerTitle.includes('연구')) return 'proof';
+                if (lowerTitle.includes('closing') || lowerTitle.includes('마무리') || lowerTitle.includes('요약')) return 'closing';
+                return 'general';
+            };
+
+            const sectionType = selectedConcept ? detectSectionType(selectedConcept.title) : 'general';
+            const emotionGuide = PATIENT_EMOTION_GUIDE[sectionType] || { emotion: 'neutral', pose: 'natural standing' };
+            const includePatient = sectionType !== 'proof';
+
             const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
 **원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
 
@@ -322,6 +380,23 @@ ${basePrompt}
 ## 제외할 요소 (NEGATIVES):
 ${negatives}
 
+## 🎨 환자 캐릭터 (독자 대리인) - 프로필: ${selectedProfile.name}
+**섹션 타입**: ${sectionType}
+**캐릭터 포함 여부**: ${includePatient ? '✅ 포함' : '❌ 제외'}
+
+${includePatient ? `**캐릭터 기본 외형:**
+${selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm']}
+
+**이 섹션에서의 감정/포즈:**
+- 감정: ${emotionGuide.emotion}
+- 포즈: ${emotionGuide.pose}
+` : '**데이터/연구 중심 섹션 - 환자 캐릭터 없이 구성하세요.**'}
+
+**⚠️ 중요 규칙:**
+- 의사/한의사 캐릭터는 절대 이미지에 포함하지 않습니다 (권위는 텍스트에서 확보)
+- 환자 캐릭터는 "설명하는" 역할이 아닌 "반응하는" 역할입니다
+- 독자가 글을 읽을 때 느끼는 감정/상황을 시각적으로 표현합니다
+
 ## 📄 원고/내용 (아래 내용을 기반으로 이미지 프롬프트 생성):
 ---
 ${initialContext?.finalDraft || content || '원고 내용 없음'}
@@ -334,6 +409,7 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
 1. 원고의 핵심 메시지를 찾아 시각화하세요
 2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
 3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
+4. ${includePatient ? `환자 캐릭터 포함: 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose}) 반영` : '환자 캐릭터 없이 데이터/다이어그램 중심 구성'}
 
 위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
 

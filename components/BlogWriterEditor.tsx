@@ -90,15 +90,36 @@ const STAGE_INFO: { [key: number]: { name: string; description: string; icon: st
     7: { name: '시각 프롬프트 설계', description: '이미지 + 시리즈 키워드', icon: '🎨' }
 };
 
+// ✨ 고정 작성자 정보 (프로필이 변해도 항상 동일)
+const FIXED_AUTHOR = {
+    name: '최장혁',
+    title: '한의사',
+    clinic: '동제당한의원',
+    gender: '남성',
+    age: '40대',
+    role: '원장',
+    signature: '✍️ 동제당한의원 원장 한의사 최장혁 작성/감수'
+};
+
 // 프로필 기반 동적 워크플로 프롬프트 생성 함수
 const getWorkflowPrompt = (profile: BlogProfile): string => {
     return `당신은 "Patient-First Clinical Blog Production Workflow v9.0"을 따르는 블로그 전문가입니다.
 
-## 페르소나
+## 📌 고정 작성자 정보 (프로필과 무관하게 절대 변경 금지)
+- **작성자**: ${FIXED_AUTHOR.title} ${FIXED_AUTHOR.name}
+- **소속**: ${FIXED_AUTHOR.clinic}
+- **직위**: ${FIXED_AUTHOR.role}
+- **성별/연령**: ${FIXED_AUTHOR.gender} ${FIXED_AUTHOR.age}
+- **서명 문구**: "${FIXED_AUTHOR.signature}"
+
+⚠️ 글 마무리에 항상 "${FIXED_AUTHOR.signature}" 문구를 포함하세요.
+⚠️ 다른 한의사 이름(예: 김OO, 박OO 등)을 절대 사용하지 마세요.
+
+## 페르소나 (글쓰기 스타일/포커스)
 ${profile.persona}
 
 ## 공통 규칙 (문체 DNA)
-- 시점: 1인칭 관찰자
+- 시점: 1인칭 관찰자 (${FIXED_AUTHOR.title} ${FIXED_AUTHOR.name})
 - 전개 순서: [핵심 결론 → 즉각적 행동 → 위험 신호 → 상세 이유 → 닫기]
 - 용어 원칙: 환자 용어 우선
 - 문장 길이: 10-18어
@@ -111,7 +132,14 @@ ${JSON.stringify(profile.clinic_focus)}
 ${profile.business_goal}
 
 ## 타겟 독자
-${profile.audience}`;
+${profile.audience}
+
+## 🎨 환자 캐릭터 프롬프트 (이미지 생성용)
+이미지 생성 시 아래 환자 캐릭터 특성을 반영하세요:
+${profile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)'}
+
+⚠️ 이미지에 의사/한의사 캐릭터는 사용하지 않습니다 (권위는 텍스트에서 확보).
+환자 캐릭터는 독자 대리인 역할로, 글을 읽을 때 느끼는 감정/상황을 시각적으로 표현합니다.`;
 };
 
 const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
@@ -294,7 +322,7 @@ ${stageData.ideation.join('\n')}
 3. Warning (위험 신호) - CONTRA
 4. The 'Why' (상세 원인)
 5. Proof (사례와 근거)
-6. Closing (요약 및 격려) + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+6. Closing (요약 및 격려) + 마지막에 "${FIXED_AUTHOR.signature}" 표시
 
 ### 7. FAQ (자주 묻는 질문) - JSON-LD FAQPage 호환
 
@@ -365,7 +393,7 @@ ${stageData.outline}
 3. **Warning** - CONTRA 위험 신호
 4. **The 'Why'** - 상세 원인/기전
 5. **Proof** - 사례와 근거
-6. **Closing** - 요약 및 격려 + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+6. **Closing** - 요약 및 격려 + 마지막에 "${FIXED_AUTHOR.signature}" 표시
 
 **[텍스트 전용 섹션 7-8]**
 
@@ -1037,8 +1065,7 @@ ${stageData.finalDraft}
             );
         });
 
-        // 첫 번째 섹션(Answer First) 앞 구분선 제거 (제목 바로 다음이므로 불필요)
-        formatted = formatted.replace(/^(# [^\n]+\n\n)---\n\n(## 🧾)/m, '$1$2');
+        // 첫 번째 섹션(Answer First) 앞 구분선 제거 로직 삭제 (구분선이 이제 제목 아래에 위치하므로 필요 없음)
 
         // 2. • 불릿 마크 제거 (- 로 변경)
         formatted = formatted.replace(/^[•●○◦⦁]\s*/gm, '- ');
@@ -1074,7 +1101,7 @@ ${stageData.finalDraft}
                 .replace(/!\s+(?=[가-힣A-Za-z])/g, '!\n');
         }).join('\n\n');
 
-        // 6. FAQ 아래 "같이 보시면 좋은 글" 섹션 추가 (없으면)
+        // 6. FAQ 아래 "같이 보시면 좋은 글" 섹션 추가 (시리즈 컨텍스트 있으면 채움)
         // FAQ 검색 패턴을 더 유연하게 (아이콘 유무 모두 처리)
         if (!formatted.includes('같이 보시면 좋은 글')) {
             // 다양한 FAQ 패턴 검색
@@ -1101,15 +1128,38 @@ ${stageData.finalDraft}
             }
 
             if (faqIndex !== -1 && refIndex !== -1 && refIndex > faqIndex) {
+                // 시리즈 컨텍스트가 있으면 실제 제목 사용
+                let seriesContent = '- (관련 글 제목 1)\n- (관련 글 제목 2)\n- (관련 글 제목 3)\n';
+
+                if (stageData.currentSeriesContext?.cluster && stageData.currentSeriesContext.cluster.length > 0) {
+                    const seriesTitles = stageData.currentSeriesContext.cluster
+                        .filter(s => s.title !== stageData.selectedTopic)
+                        .slice(0, 3)
+                        .map(s => `- ${s.title}`)
+                        .join('\n');
+                    if (seriesTitles) {
+                        seriesContent = seriesTitles + '\n';
+                    }
+                } else if (stageData.seriesKeywords && stageData.seriesKeywords.length > 0) {
+                    // Stage 7에서 생성된 시리즈 키워드 사용
+                    const seriesTitles = stageData.seriesKeywords
+                        .slice(0, 3)
+                        .map(s => `- ${s.title}`)
+                        .join('\n');
+                    if (seriesTitles) {
+                        seriesContent = seriesTitles + '\n';
+                    }
+                }
+
                 // FAQ 섹션 끝과 참고자료 섹션 사이에 삽입
                 const beforeRef = formatted.substring(0, refIndex);
                 const afterRef = formatted.substring(refIndex);
-                formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n\n- \n- \n- \n\n' + afterRef;
+                formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n' + afterRef;
             }
         }
 
-        // 7. "한의사 최장혁 감수" 고정 추가 (Closing 섹션 끝 또는 글 끝에)
-        if (!formatted.includes('한의사 최장혁')) {
+        // 7. 고정 작성자/감수자 정보 추가 (Closing 섹션 끝 또는 글 끝에)
+        if (!formatted.includes(FIXED_AUTHOR.name)) {
             // 참고 자료 섹션 앞에 추가하거나, 없으면 글 끝에 추가
             const refPatterns = ['## 📚 참고 자료', '## 참고 자료', '## 📌 같이 보시면 좋은 글'];
             let insertIndex = -1;
@@ -1122,7 +1172,7 @@ ${stageData.finalDraft}
                 }
             }
 
-            const supervisorText = '\n\n---\n\n✍️ **한의사 최장혁 감수**\n\n';
+            const supervisorText = `\n\n---\n\n${FIXED_AUTHOR.signature}\n\n`;
 
             if (insertIndex !== -1) {
                 formatted = formatted.substring(0, insertIndex) + supervisorText + formatted.substring(insertIndex);
@@ -1470,7 +1520,7 @@ ${stageData.finalDraft}
 3. Warning (위험 신호) - CONTRA
 4. The 'Why' (상세 원인)
 5. Proof (사례와 근거)
-6. Closing (요약 및 격려) + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+6. Closing (요약 및 격려) + 마지막에 "${FIXED_AUTHOR.signature}" 표시
 
 ### 7. FAQ (자주 묻는 질문) - JSON-LD FAQPage 호환
 
@@ -1541,7 +1591,7 @@ ${batchAccumulator.outline}
 3. **Warning** - CONTRA 위험 신호
 4. **The 'Why'** - 상세 원인/기전
 5. **Proof** - 사례와 근거
-6. **Closing** - 요약 및 격려 + 마지막에 "✍️ 한의사 최장혁 작성/감수" 표시
+6. **Closing** - 요약 및 격려 + 마지막에 "${FIXED_AUTHOR.signature}" 표시
 
 **[텍스트 전용 섹션 7-8]**
 
@@ -1583,16 +1633,128 @@ ${batchAccumulator.draft}
                 case 6:
                     return `${getWorkflowPrompt(selectedProfile)}
 
-## Stage 6: 탈고
+## Stage 6: 탈고 (Notion 편집 모드)
 
-초고:
+---
+# 📘 Notion Editing Instruction v2.3
+(Content-Preserving Editor Only)
+---
+
+## 0. 역할 정의
+- 역할은 **편집자(Editor)** 한 가지뿐이다.
+- 저자 / 해설자 / 요약자 역할 금지.
+- 입력된 모든 원문은 **의미·정보·뉘앙스 100% 보존**이 원칙이다.
+
+## 1. 절대 규칙 (Critical Rules)
+아래 항목 위반 시 결과물은 무효다.
+1. 내용 추가 금지
+2. 내용 삭제 금지
+3. 의미 변경 금지
+4. 해석·의견·의학적 판단 금지
+5. 요약·결론 문장 생성 금지
+6. 표현 순화·완곡화 금지
+7. 중요도 재배열 금지
+
+## 2. 공통 금지 규칙
+- \`•\` 불릿 마크 사용 금지
+- 제목에 숫자 사용 금지
+- 제목에 괄호 \`()\` 사용 금지
+
+## 3. 서식 고정 규칙 (Notion 기준)
+- 글꼴: **나눔명조**
+- 글자 크기: **19**
+- 전 영역 동일 적용
+
+## 4. 섹션 헤더 규칙
+- **아이콘 + 칸막이 한 줄**만 섹션 헤더로 사용
+- 중복 제목 생성 금지
+
+## 5. 의료 블로그 전용 섹션 아이콘 매핑 (고정)
+
+| 섹션 | 섹션 헤더 |
+|---|---|
+| Answer First | 🧾 Answer First \\| 핵심 결론 |
+| Action | ✅ Action \\| 즉각 실천 |
+| Warning | 🚨 Warning \\| 반드시 체크해야 할 위험 신호 |
+| The Why | 🧠 The Why |
+| Deep Dive | 🔬 Deep Dive \\| 주제 요약 |
+| Proof | 📊 Proof \\| 사례와 근거 |
+| Closing | 🔚 Closing \\| 요약 및 격려 |
+| FAQ | ❓ FAQ |
+| 참고 자료 | 📚 참고 자료 |
+
+## 6. Action 섹션 규칙
+- 항상 **3가지 항목**
+- 노션 숫자 아이콘 사용: \`1️⃣ 2️⃣ 3️⃣\`
+- 체크박스 사용 금지
+
+## 7. 🚨 Warning 섹션 전용 규칙 (핵심 · v2.3)
+
+### ❗ 절대 규칙
+- Warning의 **각 증상 항목은 반드시 \`제목 + 설명\`을 함께 유지**한다.
+- 제목만 남기고 설명을 삭제하는 행위는 **중대 규칙 위반**이다.
+
+### 아이콘 규칙
+- 각 증상 항목 맨 앞에 **\`✔\` 단일 아이콘만 사용**
+- \`✔\` 외 모든 아이콘/도형/색상 사용 금지
+- \`🔴 주의\` 문구 및 아이콘 사용 금지
+
+### 출력 형식 (고정)
+\`\`\`
+✔ 증상 제목
+증상 설명 문장.
+
+✔ 증상 제목
+증상 설명 문장.
+\`\`\`
+
+- 제목과 설명은 **의미 단위로 분리 불가**
+- 줄바꿈은 허용하되 삭제 금지
+
+## 8. Deep Dive 섹션 규칙
+- \`설명 | 서양의학적 관점\` / \`설명 | 한의학적 관점\` 유지
+- 본문에서 \`🔵\` 아이콘 사용 금지
+- 마침표 기준 한 문장 한 줄
+
+## 9. 문단 가독성 규칙
+- **마침표(\`.\`) 기준 → 한 문장 한 줄**
+- 문장 병합·삭제 금지
+
+## 10. 주석(각주) 규칙
+- 본문 \`[숫자]\` 형식 유지
+- 참고자료 번호와 1:1 매칭
+
+## 11. 출력 규칙
+- 노션에 즉시 붙여넣기 가능
+- 메타 설명 출력 금지
+
+---
+
+### 입력 데이터
+
+**초고:**
 ${batchAccumulator.draft}
 
-수정 메모:
+**수정 메모:**
 ${batchAccumulator.critique}
 
-수정 메모를 100% 반영하여 최종본을 완성하세요.
-문장 흐름과 오탈자를 검토하세요.`;
+---
+
+### 작업 지시
+
+1. 수정 메모를 100% 반영하여 초고를 편집하세요.
+2. 위 Notion Editing Instruction v2.3의 모든 규칙을 적용하세요.
+3. 각 섹션에 지정된 아이콘 헤더를 적용하세요.
+4. 한 문장 한 줄 원칙을 준수하세요.
+5. 문장 흐름과 오탈자를 검토하세요.
+
+### 내부 검증 체크리스트 (출력 전 반드시 확인)
+- [ ] Warning 항목에서 제목+설명이 모두 존재하는가
+- [ ] \`✔\` 단일 아이콘만 사용했는가
+- [ ] 내용 삭제가 없는가
+- [ ] 한 문장 한 줄을 지켰는가
+- [ ] Action 항목이 3개이며 1️⃣2️⃣3️⃣을 사용했는가
+- [ ] 주석 번호가 참고자료와 일치하는가`;
 
                 default:
                     return '';

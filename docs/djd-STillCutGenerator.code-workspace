@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../djd-diagnosisv3"
+		},
+		{
+			"path": "../../djd-soap-mainn"
+		},
+		{
+			"path": "../../djd-soap-rece00"
+		}
+	],
+	"settings": {}
+}
