@@ -1064,7 +1064,15 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
     const formatForNotion = (text: string): string => {
         let formatted = text;
 
-        // 0. 최종글 시작에 제목이 없으면 추가 (selectedTopic 사용)
+        // 0. 이중 제목 방지: H1 제목 바로 다음에 같은 내용의 H2가 있으면 H2 제거
+        const h1Match = formatted.match(/^# (.+)$/m);
+        if (h1Match) {
+            const h1Title = h1Match[1].trim();
+            const escapedTitle = h1Title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            formatted = formatted.replace(new RegExp(`\\n\\n## ${escapedTitle}\\n`, 'g'), '\n\n');
+        }
+
+        // 0-1. 최종글 시작에 제목이 없으면 추가 (selectedTopic 사용)
         if (!formatted.startsWith('# ') && stageData.selectedTopic) {
             formatted = `# ${stageData.selectedTopic}\n\n${formatted}`;
         }
@@ -1090,17 +1098,27 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             '같이 보시면 좋은 글': '📌 같이 보시면 좋은 글',
         };
 
-        // H2 섹션 헤더에 아이콘 적용 + 제목 앞에 구분선 추가
+        // H2 섹션 헤더에 아이콘 적용 (구분선 없이)
         Object.entries(sectionIconMap).forEach(([key, value]) => {
-            // 정확한 매칭을 위해 다양한 패턴 처리
             const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             formatted = formatted.replace(
                 new RegExp(`^## (?:${escapedKey})(?:\\s*[|:].*)?$`, 'gm'),
-                `---\n\n## ${value}`
+                `## ${value}`
             );
         });
 
-        // 첫 번째 섹션(Answer First) 앞 구분선 제거 로직 삭제 (구분선이 이제 제목 아래에 위치하므로 필요 없음)
+        // 섹션 헤더 바로 다음에 있는 잘못된 구분선 제거
+        formatted = formatted.replace(/^(## [^\n]+)\n---$/gm, '$1');
+
+        // 섹션 앞에 구분선 추가 (첫 번째 섹션 제외)
+        let firstSectionFound = false;
+        formatted = formatted.replace(/^(## [🧾✅🚨🧠🔬📊🔚❓📚📌][^\n]+)$/gm, (match) => {
+            if (!firstSectionFound) {
+                firstSectionFound = true;
+                return match; // 첫 섹션은 구분선 없이
+            }
+            return `---\n\n${match}`;
+        });
 
         // 2. • 불릿 마크 제거 (- 로 변경)
         formatted = formatted.replace(/^[•●○◦⦁]\s*/gm, '- ');
