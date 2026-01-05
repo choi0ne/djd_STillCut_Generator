@@ -214,6 +214,9 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     const [isBatchProcessing, setIsBatchProcessing] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
+    // 숏컷 처리 state (완성 원고 → Stage 7만 실행)
+    const [isShortcutProcessing, setIsShortcutProcessing] = useState(false);
+
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
             case 0:
@@ -2136,6 +2139,247 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
     };
 
+    // 📝 숏컷 시작 - Stage 6 직접 입력 모드로 이동
+    const handleShortcutStart = () => {
+        // stageData 초기화 (이전 작업 데이터 제거)
+        setStageData({
+            ideation: [],
+            selectedTopic: '',
+            scoredTopics: [],
+            selectedTopicIndex: 0,
+            keywords: [],
+            references: [],
+            outline: '',
+            draft: '',
+            critique: '',
+            finalDraft: '',
+            imageConcepts: [],
+            recommendedHashtags: [],
+            sectionIllustrations: [],
+            seriesKeywords: []
+        });
+
+        // 현재 출력 초기화
+        setCurrentOutput('');
+
+        // Stage 6으로 이동 + 직접 입력 모드 활성화
+        setCurrentStage(6);
+        setManualInputMode(true);
+        setIsEditMode(true);  // 편집 모드 활성화 (입력 가능하게)
+    };
+
+    // 🚀 숏컷 실행 - Stage 7 자동 실행 + 이미지 카드 생성까지
+    const handleShortcutProcess = async () => {
+        if (!geminiApiKey) {
+            openSettings();
+            return;
+        }
+
+        // Stage 6 직접 입력 모드에서 원고가 입력되었는지 확인
+        if (!currentOutput.trim()) {
+            alert('원고를 입력해주세요. 오른쪽 출력 패널에서 직접 입력하거나 붙여넣기 하세요.');
+            return;
+        }
+
+        if (!confirm('입력한 원고로 이미지 카드와 해시태그를 생성합니다.\n\n진행하시겠습니까?')) {
+            return;
+        }
+
+        setIsShortcutProcessing(true);
+
+        try {
+            // 1. finalDraft에 현재 입력 저장
+            const finalDraftContent = currentOutput;
+            setStageData(prev => ({ ...prev, finalDraft: finalDraftContent }));
+
+            // 2. Stage 7로 이동
+            setCurrentStage(7);
+            setManualInputMode(false);
+
+            // 3. Stage 7 프롬프트 생성 (finalDraft 사용)
+            const stage7Prompt = `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 7: 시각 프롬프트 설계 + 해시태그 생성 (숏컷 모드)
+
+주제: (아래 최종 글에서 핵심 주제를 추출하세요)
+키워드 클러스터: (아래 최종 글에서 핵심 키워드를 추출하세요)
+최종 글:
+${finalDraftContent}
+
+${getStagePrompt(7).split('최종 글:')[1] || ''}`;
+
+            // 4. AI 호출
+            let result = '';
+            if (selectedProvider === 'gemini') {
+                const { GoogleGenAI } = await import('@google/genai');
+                const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-pro-preview',
+                    contents: { parts: [{ text: stage7Prompt }] }
+                });
+                result = response.text || '';
+            } else {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openaiApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-5.2',
+                        messages: [{ role: 'user', content: stage7Prompt }],
+                        max_tokens: 4000
+                    })
+                });
+                const data = await response.json();
+                result = data.choices?.[0]?.message?.content || '';
+            }
+
+            setCurrentOutput(result);
+
+            // 5. JSON 파싱 및 stageData 업데이트
+            let jsonStr = result;
+            const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+                jsonStr = jsonMatch[1].trim();
+            } else {
+                const objStart = result.indexOf('{');
+                const objEnd = result.lastIndexOf('}');
+                if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
+                    jsonStr = result.substring(objStart, objEnd + 1);
+                }
+            }
+
+            const parsed = JSON.parse(jsonStr);
+
+            if (parsed.imageConcepts && Array.isArray(parsed.imageConcepts)) {
+                const updatedStageData = {
+                    ...stageData,
+                    finalDraft: finalDraftContent,
+                    selectedTopic: parsed.extractedTopic || '',
+                    imageConcepts: parsed.imageConcepts,
+                    recommendedHashtags: parsed.hashtags || [],
+                    sectionIllustrations: parsed.sectionIllustrations || [],
+                    seriesKeywords: parsed.seriesKeywords || []
+                };
+                setStageData(updatedStageData);
+
+                // 6. 자동 완료 처리 (MD 저장 + 이미지 카드 생성)
+                // 해시태그 MD 저장
+                if (parsed.hashtags && parsed.hashtags.length > 0) {
+                    let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+                    content += `> 주제: ${parsed.extractedTopic || '미정'}\n`;
+                    content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+                    content += `---\n\n`;
+
+                    parsed.hashtags.forEach((category: any) => {
+                        const cleanedTags = category.tags.map((tag: string) =>
+                            tag.replace(/^#/, '').trim()
+                        ).filter((tag: string) => tag.length > 0);
+                        content += `## ${category.category}\n\n`;
+                        content += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
+                    });
+
+                    const allTags = parsed.hashtags
+                        .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
+                        .filter((tag: string) => tag.length > 0);
+                    content += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
+
+                    if (parsed.seriesKeywords && parsed.seriesKeywords.length > 0) {
+                        content += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
+                        parsed.seriesKeywords.forEach((kw: any, i: number) => {
+                            content += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
+                        });
+                    }
+
+                    const now = new Date();
+                    const timestamp = now.getFullYear().toString() +
+                        (now.getMonth() + 1).toString().padStart(2, '0') +
+                        now.getDate().toString().padStart(2, '0') + '_' +
+                        now.getHours().toString().padStart(2, '0') +
+                        now.getMinutes().toString().padStart(2, '0') +
+                        now.getSeconds().toString().padStart(2, '0');
+                    const filename = `해시태그_${timestamp}.md`;
+
+                    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+
+                // 최종글 MD 저장
+                const formattedDraft = formatForNotion(finalDraftContent);
+                let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+                mdContent += '---\n\n';
+                mdContent += formattedDraft;
+
+                const now = new Date();
+                const timestamp = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') + '_' +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+                const mdFilename = `최종글_${timestamp}.md`;
+
+                const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+                const mdUrl = URL.createObjectURL(mdBlob);
+                const mdLink = document.createElement('a');
+                mdLink.href = mdUrl;
+                mdLink.download = mdFilename;
+                document.body.appendChild(mdLink);
+                mdLink.click();
+                document.body.removeChild(mdLink);
+                URL.revokeObjectURL(mdUrl);
+
+                // 7. 이미지 카드 생성 (BlogVisualEditor로 전달)
+                if (onStage7Complete && (parsed.imageConcepts.length > 0 || (parsed.sectionIllustrations && parsed.sectionIllustrations.length > 0))) {
+                    const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
+                    const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
+
+                    const conceptCards = parsed.imageConcepts.map((c: any) => ({
+                        title: c.title,
+                        keywords: c.keywords,
+                        recommendedStyle: c.recommendedStyle,
+                        recommendedPalette: c.recommendedPalette,
+                        negatives: c.negatives || commonNegatives,
+                        patientCharacterPrompt: patientPrompt
+                    }));
+
+                    const sectionCards = (parsed.sectionIllustrations || []).map((s: any) => ({
+                        title: `${s.sectionNumber}. ${s.sectionTitle}`,
+                        keywords: s.keywords,
+                        description: s.manuscriptSummary || s.sectionContent || s.summary,
+                        recommendedStyle: 'section-illustration' as const,
+                        recommendedPalette: s.recommendedPalette,
+                        negatives: commonNegatives,
+                        patientCharacterPrompt: patientPrompt
+                    }));
+
+                    onStage7Complete({
+                        topic: parsed.extractedTopic || '',
+                        finalDraft: finalDraftContent,
+                        concepts: [...conceptCards, ...sectionCards]
+                    });
+                }
+
+                alert('✅ 숏컷 처리 완료!\n\n📁 MD 파일 저장 완료\n🖼️ 이미지 카드가 생성되었습니다.');
+            } else {
+                throw new Error('AI 응답에서 imageConcepts를 찾을 수 없습니다.');
+            }
+        } catch (error: any) {
+            setCurrentOutput(`❌ 숏컷 처리 오류: ${error.message}`);
+            alert(`숏컷 처리 중 오류가 발생했습니다: ${error.message}`);
+        } finally {
+            setIsShortcutProcessing(false);
+        }
+    };
+
     // 새 글 작성 - localStorage 데이터 초기화
     const handleNewPost = () => {
         if (!confirm('현재 작업 중인 내용이 모두 삭제됩니다. 새 글을 작성하시겠습니까?')) {
@@ -2217,6 +2461,15 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                                             일괄처리
                                         </>
                                     )}
+                                </button>
+                                <button
+                                    onClick={handleShortcutStart}
+                                    disabled={isBatchProcessing || isLoading || isShortcutProcessing}
+                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="완성된 원고를 직접 입력하여 이미지카드/해시태그만 생성"
+                                >
+                                    <EditIcon className="w-3 h-3" />
+                                    숏컷모드
                                 </button>
                             </div>
                             <div className="flex gap-2 items-center">
@@ -2376,8 +2629,25 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                                             💡 <strong>직접 입력 모드</strong>: 오른쪽 출력 패널에서 원고를 직접 입력/붙여넣기 하세요.
                                         </p>
                                         <p className="text-xs text-gray-400 mt-1">
-                                            입력 후 "다음 →" 버튼을 클릭하면 7단계에서 이미지 카드와 태그가 생성됩니다.
+                                            입력 후 아래 버튼을 클릭하면 이미지 카드와 해시태그가 자동 생성됩니다.
                                         </p>
+                                        <button
+                                            onClick={handleShortcutProcess}
+                                            disabled={isShortcutProcessing || isLoading || !currentOutput.trim()}
+                                            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                            title="원고로 이미지카드/해시태그 생성 + MD 저장"
+                                        >
+                                            {isShortcutProcessing ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    처리 중...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    🚀 숏컷 실행 (이미지카드 + MD 저장)
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
                                 )}
                             </div>
