@@ -1502,7 +1502,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
     };
 
-    // 1~6단계 일괄처리 함수
+    // 1~7단계 일괄처리 함수 (이미지 카드 생성 + MD 저장까지 자동화)
     const handleBatchProcess = async () => {
         if (!geminiApiKey) {
             openSettings();
@@ -1515,11 +1515,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             return;
         }
 
-        if (!confirm('1~6단계를 일괄 실행합니다. 진행하시겠습니까?')) {
+        if (!confirm('1~7단계를 일괄 실행합니다. (이미지 카드 생성 + MD 파일 저장까지 자동화)\n\n진행하시겠습니까?')) {
             return;
         }
 
-        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6];
+        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6, 7];
         setIsBatchProcessing(true);
         setBatchProgress({ current: 0, total: batchStages.length });
 
@@ -1530,7 +1530,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             outline: stageData.outline,
             draft: stageData.draft,
             critique: stageData.critique,
-            finalDraft: stageData.finalDraft
+            finalDraft: stageData.finalDraft,
+            imageConcepts: stageData.imageConcepts,
+            recommendedHashtags: stageData.recommendedHashtags,
+            sectionIllustrations: stageData.sectionIllustrations,
+            seriesKeywords: stageData.seriesKeywords
         };
 
         // 일괄처리용 프롬프트 생성 함수 (로컬 accumulator 참조)
@@ -1818,6 +1822,79 @@ ${batchAccumulator.critique}
 - [ ] Action 항목이 3개이며 1️⃣2️⃣3️⃣을 사용했는가
 - [ ] 주석 번호가 참고자료와 일치하는가`;
 
+                case 7:
+                    // 숏컷 트랙(Stage 6 직접 입력)인 경우 주제가 없을 수 있음
+                    const batchHasTopicFromWorkflow = stageData.selectedTopic && stageData.selectedTopic.trim();
+                    const batchTopicInstruction = batchHasTopicFromWorkflow
+                        ? `주제: "${stageData.selectedTopic}"`
+                        : `주제: (아래 최종 글에서 핵심 주제를 추출하세요)`;
+
+                    const batchKeywordsInstruction = batchAccumulator.keywords.length > 0
+                        ? `키워드 클러스터: ${batchAccumulator.keywords.slice(0, 15).join(', ')}`
+                        : `키워드 클러스터: (아래 최종 글에서 핵심 키워드를 추출하세요)`;
+
+                    return `${getWorkflowPrompt(selectedProfile)}
+
+## Stage 7: 시각 프롬프트 설계 + 해시태그 생성
+
+${batchTopicInstruction}
+${batchKeywordsInstruction}
+최종 글:
+${batchAccumulator.finalDraft}
+
+### 🔴 이미지 생성 필수 규칙 (모든 컨셉에 적용)
+
+**환자 캐릭터 프롬프트 (프로필 기반):**
+${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)'}
+
+**⛔ NEGATIVES (모든 이미지에서 절대 금지):**
+- 의사/한의사/의료진 캐릭터 절대 금지 (NO doctor, NO 한의사, NO medical professional)
+- 흰 가운 입은 인물 금지 (NO white coat)
+- 의료진이 설명하는 장면 금지
+- 환자가 의사에게 진료받는 장면 금지
+
+**✅ 환자 캐릭터 역할:**
+- 독자 대리인으로서 글을 읽을 때 느끼는 감정/상황을 표현
+- "설명하는" 역할 ❌ → "반응하는" 역할 ✅
+- Proof(근거) 섹션에서는 캐릭터 없이 데이터/인포그래픽만
+
+### TASK 1: 이미지 컨셉 (3-5개)
+
+⚠️ **필수 규칙: 첫 번째 컨셉은 반드시 "블로그 썸네일" (blog-thumbnail) 스타일!**
+- 블로그 대표 이미지/헤더로 사용
+- **글 제목을 이미지에 반드시 포함**: "${stageData.selectedTopic || '(글 제목)'}"
+- 도현체 스타일 한글 제목(굵은 고딕체) + 상징적 시각 요소 조합
+
+### 사용 가능한 스타일 라이브러리 (19종)
+1. **blog-thumbnail: 블로그 썸네일** ⭐ 첫 번째 필수
+2. artistic-thumbnail / infographic-chart / empathetic-character
+3. herbal-sketch / empathetic-cutoon / hand-drawn-diagram
+4. medical-illustration / conceptual-metaphor / 2d-step-diagram
+5. papercraft-illustration / minimal-wellness-photo / continuous-line-drawing
+6. conceptual-sketch / textured-digital-painting / precision-medical
+7. poster / exercise-guide / section-illustration
+
+### 사용 가능한 색상 팔레트 (3종)
+1. medical: 의료 톤 (녹색 계열)
+2. calm: 차분한 톤 (파란색 계열)
+3. warm: 따뜻한 톤 (베이지 계열)
+
+### TASK 2: 블로그 게시용 해시태그 (# 제외)
+5개 분류: 핵심증상, 타겟상황, 행동솔루션, 의학한의학, 페르소나톤
+
+### TASK 3: 섹션별 일러스트 (6개) - 원고 직접 요약 방식
+
+### TASK 4: 시리즈 키워드 (다음 글 후보 5개)
+
+### 출력 형식 (반드시 JSON)
+{
+  "extractedTopic": "주제명",
+  "imageConcepts": [...],
+  "hashtags": [...],
+  "sectionIllustrations": [...],
+  "seriesKeywords": [...]
+}`;
+
                 default:
                     return '';
             }
@@ -1880,6 +1957,29 @@ ${batchAccumulator.critique}
                     case 6:
                         batchAccumulator.finalDraft = result;
                         break;
+                    case 7:
+                        // 7단계 JSON 파싱
+                        try {
+                            const jsonMatch = result.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                const parsed = JSON.parse(jsonMatch[0]);
+                                if (parsed.imageConcepts) {
+                                    batchAccumulator.imageConcepts = parsed.imageConcepts;
+                                }
+                                if (parsed.hashtags) {
+                                    batchAccumulator.recommendedHashtags = parsed.hashtags;
+                                }
+                                if (parsed.sectionIllustrations) {
+                                    batchAccumulator.sectionIllustrations = parsed.sectionIllustrations;
+                                }
+                                if (parsed.seriesKeywords) {
+                                    batchAccumulator.seriesKeywords = parsed.seriesKeywords;
+                                }
+                            }
+                        } catch (parseError) {
+                            console.error('Stage 7 JSON 파싱 오류:', parseError);
+                        }
+                        break;
                 }
 
                 // React 상태도 업데이트 (UI 반영용)
@@ -1902,12 +2002,131 @@ ${batchAccumulator.critique}
                     case 6:
                         setStageData(prev => ({ ...prev, finalDraft: batchAccumulator.finalDraft }));
                         break;
+                    case 7:
+                        setStageData(prev => ({
+                            ...prev,
+                            imageConcepts: batchAccumulator.imageConcepts,
+                            recommendedHashtags: batchAccumulator.recommendedHashtags,
+                            sectionIllustrations: batchAccumulator.sectionIllustrations,
+                            seriesKeywords: batchAccumulator.seriesKeywords
+                        }));
+                        break;
                 }
             }
 
-            // 완료 후 Stage 6 유지
-            loadStageDataToOutput(6);
-            alert('✅ 1~6단계 일괄처리가 완료되었습니다!');
+            // 완료 후 Stage 7 유지
+            setCurrentStage(7);
+            loadStageDataToOutput(7);
+
+            // 🔴 7단계 완료 후 자동으로 이미지 카드 생성 + MD 파일 저장
+            // handleCompleteStage7 내부 로직을 직접 실행 (stageData가 아직 업데이트되지 않았을 수 있으므로 accumulator 사용)
+
+            // 1. 해시태그 MD 파일 저장
+            if (batchAccumulator.recommendedHashtags.length > 0) {
+                let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+                content += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
+                content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+                content += `---\n\n`;
+
+                batchAccumulator.recommendedHashtags.forEach((category: any) => {
+                    const cleanedTags = category.tags.map((tag: string) =>
+                        tag.replace(/^#/, '').trim()
+                    ).filter((tag: string) => tag.length > 0);
+                    content += `## ${category.category}\n\n`;
+                    content += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
+                });
+
+                const allTags = batchAccumulator.recommendedHashtags
+                    .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
+                    .filter((tag: string) => tag.length > 0);
+                content += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
+
+                if (batchAccumulator.seriesKeywords && batchAccumulator.seriesKeywords.length > 0) {
+                    content += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
+                    batchAccumulator.seriesKeywords.forEach((kw: any, i: number) => {
+                        content += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
+                    });
+                }
+
+                const now = new Date();
+                const timestamp = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') + '_' +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+                const filename = `해시태그_${timestamp}.md`;
+
+                const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // 2. 최종글 MD 파일 저장
+            if (batchAccumulator.finalDraft) {
+                const formattedDraft = formatForNotion(batchAccumulator.finalDraft);
+                let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+                mdContent += '---\n\n';
+                mdContent += formattedDraft;
+
+                const now = new Date();
+                const timestamp = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') + '_' +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+                const mdFilename = `최종글_${timestamp}.md`;
+
+                const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+                const mdUrl = URL.createObjectURL(mdBlob);
+                const mdLink = document.createElement('a');
+                mdLink.href = mdUrl;
+                mdLink.download = mdFilename;
+                document.body.appendChild(mdLink);
+                mdLink.click();
+                document.body.removeChild(mdLink);
+                URL.revokeObjectURL(mdUrl);
+            }
+
+            // 3. 이미지 카드 생성 (BlogVisualEditor로 전달)
+            if (onStage7Complete && (batchAccumulator.imageConcepts.length > 0 || batchAccumulator.sectionIllustrations.length > 0)) {
+                const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
+                const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
+
+                const conceptCards = batchAccumulator.imageConcepts.map((c: any) => ({
+                    title: c.title,
+                    keywords: c.keywords,
+                    recommendedStyle: c.recommendedStyle,
+                    recommendedPalette: c.recommendedPalette,
+                    negatives: c.negatives || commonNegatives,
+                    patientCharacterPrompt: patientPrompt
+                }));
+
+                const sectionCards = batchAccumulator.sectionIllustrations.map((s: any) => ({
+                    title: `${s.sectionNumber}. ${s.sectionTitle}`,
+                    keywords: s.keywords,
+                    description: s.manuscriptSummary || s.sectionContent || s.summary,
+                    recommendedStyle: 'section-illustration' as const,
+                    recommendedPalette: s.recommendedPalette,
+                    negatives: commonNegatives,
+                    patientCharacterPrompt: patientPrompt
+                }));
+
+                onStage7Complete({
+                    topic: stageData.selectedTopic,
+                    finalDraft: batchAccumulator.finalDraft,
+                    concepts: [...conceptCards, ...sectionCards]
+                });
+            }
+
+            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📁 MD 파일 저장 완료\n🖼️ 이미지 카드가 생성되었습니다.');
         } catch (error: any) {
             setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
             alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
