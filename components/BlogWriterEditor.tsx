@@ -98,32 +98,50 @@ const FIXED_AUTHOR = {
     gender: '남성',
     age: '40대',
     role: '원장',
-    signature: '✍️ 동제당한의원 원장 한의사 최장혁 작성/감수'
+    signature: '✍️ 동제당한의원 원장 최장혁 감수'
 };
 
 // 프로필 기반 동적 워크플로 프롬프트 생성 함수
 const getWorkflowPrompt = (profile: BlogProfile): string => {
     return `당신은 "Patient-First Clinical Blog Production Workflow v9.0"을 따르는 블로그 전문가입니다.
 
-## 📌 고정 작성자 정보 (프로필과 무관하게 절대 변경 금지)
-- **작성자**: ${FIXED_AUTHOR.title} ${FIXED_AUTHOR.name}
-- **소속**: ${FIXED_AUTHOR.clinic}
-- **직위**: ${FIXED_AUTHOR.role}
-- **성별/연령**: ${FIXED_AUTHOR.gender} ${FIXED_AUTHOR.age}
-- **서명 문구**: "${FIXED_AUTHOR.signature}"
+## 🔴🔴🔴 절대 규칙: 고정 작성자 (어떤 프로필을 선택해도 이 정보만 사용!)
+**⛔ 다른 이름 생성 절대 금지 ⛔**
 
+| 항목 | 값 (고정) |
+|------|----------|
+| 작성자 이름 | ${FIXED_AUTHOR.name} |
+| 직함 | ${FIXED_AUTHOR.title} |
+| 소속 | ${FIXED_AUTHOR.clinic} |
+| 직위 | ${FIXED_AUTHOR.role} |
+| 성별 | ${FIXED_AUTHOR.gender} |
+| 서명 | "${FIXED_AUTHOR.signature}" |
+
+⚠️ 글에서 **"저는 한의사 최장혁입니다"**, **"동제당한의원 원장 최장혁입니다"** 이렇게만 사용하세요.
+⚠️ 다른 이름(김OO, 박OO, 최지영, 이OO 등) 절대 사용 금지!
+⚠️ "여성전문한의사", "통증전문한의사" 같은 표현 뒤에 다른 이름 붙이지 마세요!
 ⚠️ 글 마무리에 항상 "${FIXED_AUTHOR.signature}" 문구를 포함하세요.
-⚠️ 다른 한의사 이름(예: 김OO, 박OO 등)을 절대 사용하지 마세요.
 
-## 페르소나 (글쓰기 스타일/포커스)
+## 페르소나 (글쓰기 스타일/포커스 - 프로필에 따라 변경)
 ${profile.persona}
+(⚠️ 위 페르소나가 무엇이든 작성자 이름은 반드시 "${FIXED_AUTHOR.name}"만 사용!)
 
-## 공통 규칙 (문체 DNA)
-- 시점: 1인칭 관찰자 (${FIXED_AUTHOR.title} ${FIXED_AUTHOR.name})
-- 전개 순서: [핵심 결론 → 즉각적 행동 → 위험 신호 → 상세 이유 → 닫기]
-- 용어 원칙: 환자 용어 우선
+## 🔴 글톤 고정 규칙 (어떤 프로필이든 이 규칙은 변하지 않음!)
+**1️⃣ 시점: 반드시 1인칭 (저, 제가, 제 경험)**
+- ✅ "저는 동제당한의원 원장 최장혁입니다"
+- ✅ "제가 임상에서 본 환자들 중..."
+- ✅ "저의 경험상..."
+- ❌ "최장혁 원장은..." (3인칭 금지)
+- ❌ "한의사가 말하길..." (3인칭 금지)
+
+**2️⃣ 전개 순서 (고정)**
+핵심 결론 → 즉각적 행동 → 위험 신호 → 상세 이유 → 닫기
+
+**3️⃣ 문체 (고정)**
+- 용어: 환자 용어 우선 (전문 용어 ❌)
 - 문장 길이: 10-18어
 - 톤: 친절하지만 단호
+- 존칭: "~하세요", "~입니다"
 
 ## 클리닉 포커스
 ${JSON.stringify(profile.clinic_focus)}
@@ -594,6 +612,22 @@ ${keywordsInstruction}
 최종 글:
 ${stageData.finalDraft}
 
+### 🔴 이미지 생성 필수 규칙 (모든 컨셉에 적용)
+
+**환자 캐릭터 프롬프트 (프로필 기반):**
+${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)'}
+
+**⛔ NEGATIVES (모든 이미지에서 절대 금지):**
+- 의사/한의사/의료진 캐릭터 절대 금지 (NO doctor, NO 한의사, NO medical professional)
+- 흰 가운 입은 인물 금지 (NO white coat)
+- 의료진이 설명하는 장면 금지
+- 환자가 의사에게 진료받는 장면 금지
+
+**✅ 환자 캐릭터 역할:**
+- 독자 대리인으로서 글을 읽을 때 느끼는 감정/상황을 표현
+- "설명하는" 역할 ❌ → "반응하는" 역할 ✅
+- Proof(근거) 섹션에서는 캐릭터 없이 데이터/인포그래픽만
+
 ### TASK 1: 이미지 컨셉 (3-5개)
 
 ⚠️ **필수 규칙: 첫 번째 컨셉은 반드시 "블로그 썸네일" (blog-thumbnail) 스타일!**
@@ -739,7 +773,8 @@ ${stageData.finalDraft}
       "reason": "단계별 실행 방법을 직관적으로 표현",
       "keywords": ["호흡", "단계", "손그림"],
       "recommendedStyle": "hand-drawn-diagram",
-      "recommendedPalette": "calm"
+      "recommendedPalette": "calm",
+      "negatives": ["doctor", "한의사", "medical professional", "white coat", "진료 장면"]
     }
   ],
   "hashtags": [
@@ -1154,7 +1189,7 @@ ${stageData.finalDraft}
                 // FAQ 섹션 끝과 참고자료 섹션 사이에 삽입
                 const beforeRef = formatted.substring(0, refIndex);
                 const afterRef = formatted.substring(refIndex);
-                formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n' + afterRef;
+                formatted = beforeRef + '\n\n## 📌 같이 보시면 좋은 글\n' + seriesContent + '\n' + afterRef;
             }
         }
 
@@ -1339,12 +1374,11 @@ ${stageData.finalDraft}
 
         // 최종 글(finalDraft)도 마크다운 파일로 자동 저장 (Notion 편집 지침 v2.4 적용)
         if (stageData.finalDraft) {
-            // Notion 편집 지침 v2.4 적용
+            // Notion 편집 지침 v2.4 적용 (formatForNotion이 이미 제목 추가함)
             const formattedDraft = formatForNotion(stageData.finalDraft);
 
-            // 마크다운 파일 내용 구성
-            let mdContent = `# ${stageData.selectedTopic || '블로그 글'}\n\n`;
-            mdContent += `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+            // 마크다운 파일 내용 구성 - formatForNotion이 이미 제목 포함하므로 직접 사용
+            let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
             mdContent += '---\n\n';
             mdContent += formattedDraft;
 
@@ -1372,12 +1406,20 @@ ${stageData.finalDraft}
 
         // 추천 이미지 컨셉 + 섹션 일러스트 카드 모두 합쳐서 전달
         if (onStage7Complete && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0)) {
-            // 추천 이미지 컨셉 (3-5개)
+            // 🔴 공통 NEGATIVES (모든 이미지에 적용)
+            const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
+
+            // 🔴 환자 캐릭터 프롬프트 (프로필 기반)
+            const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
+
+            // 추천 이미지 컨셉 (3-5개) - negatives와 patientPrompt 포함
             const conceptCards = stageData.imageConcepts.map(c => ({
                 title: c.title,
                 keywords: c.keywords,
                 recommendedStyle: c.recommendedStyle,
-                recommendedPalette: c.recommendedPalette
+                recommendedPalette: c.recommendedPalette,
+                negatives: (c as any).negatives || commonNegatives,  // Stage 7에서 생성된 negatives 또는 공통값
+                patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
             }));
 
             // 섹션 일러스트 카드 (6개) - section-illustration 스타일 적용
@@ -1387,7 +1429,9 @@ ${stageData.finalDraft}
                 keywords: s.keywords,
                 description: s.manuscriptSummary || s.sectionContent || s.summary, // manuscriptSummary 우선 사용
                 recommendedStyle: 'section-illustration' as const,
-                recommendedPalette: s.recommendedPalette
+                recommendedPalette: s.recommendedPalette,
+                negatives: commonNegatives,  // 공통 NEGATIVES 적용
+                patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
             }));
 
             // 모두 합쳐서 전달 (원고 전문 포함)

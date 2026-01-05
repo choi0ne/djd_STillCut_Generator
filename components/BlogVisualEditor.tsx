@@ -20,7 +20,15 @@ interface BlogVisualEditorProps {
     initialContext?: {
         topic: string;
         finalDraft?: string;  // 원고 전문 (이미지 프롬프트 생성 시 참조)
-        concepts: Array<{ title: string; keywords: string[]; description?: string; recommendedStyle?: string; recommendedPalette?: 'medical' | 'calm' | 'warm' }>;
+        concepts: Array<{
+            title: string;
+            keywords: string[];
+            description?: string;
+            recommendedStyle?: string;
+            recommendedPalette?: 'medical' | 'calm' | 'warm';
+            negatives?: string[];  // 🔴 Stage 7에서 전달된 NEGATIVES
+            patientCharacterPrompt?: string;  // 🔴 프로필 기반 환자 캐릭터
+        }>;
     } | null;
 }
 
@@ -180,7 +188,14 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
 
                     const palette = COLOR_PALETTES[selectedPaletteForPrompt];
                     const basePrompt = selectedStyleForPrompt.goldStandardExample.BACKGROUND_PROMPT;
-                    const negatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES.join(', ');
+
+                    // 🔴 Stage 7에서 전달된 negatives 우선 사용, 없으면 스타일 라이브러리에서 가져옴
+                    const conceptNegatives = concept.negatives || [];
+                    const styleNegatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES || [];
+                    const allNegatives = [...new Set([...conceptNegatives, ...styleNegatives])].join(', ');
+
+                    // 🔴 Stage 7에서 전달된 patientCharacterPrompt 우선 사용
+                    const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
                     const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
 **원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
@@ -201,15 +216,15 @@ ${basePrompt}
 - Accent: ${palette.accent}
 - Background: ${palette.background}
 
-## 제외할 요소 (NEGATIVES):
-${negatives}
+## 🔴 제외할 요소 (NEGATIVES - Stage 7 + 스타일 라이브러리 통합):
+${allNegatives}
 
 ## 🎨 환자 캐릭터 (독자 대리인) - 프로필: ${selectedProfile.name}
 **섹션 타입**: ${sectionType}
 **이 섹션에 캐릭터 포함 여부**: ${includePatient ? '✅ 포함' : '❌ 제외 (데이터/연구 중심)'}
 
-${includePatient ? `**캐릭터 기본 외형:**
-${selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm']}
+${includePatient ? `**캐릭터 기본 외형 (Stage 7에서 전달됨):**
+${patientPrompt}
 
 **이 섹션에서의 감정/포즈 (자동 적용):**
 - 감정: ${emotionGuide.emotion}
@@ -234,8 +249,12 @@ ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
 2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
 3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
 4. ${includePatient ? `환자 캐릭터 포함: 위 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose})를 반영하세요` : '환자 캐릭터 없이 데이터/다이어그램 중심으로 구성하세요'}
+5. **🔴 필수: 생성되는 프롬프트에 아래 내용을 반드시 포함하세요:**
+   - POSITIVE: 위에 명시된 환자 캐릭터 외형, 감정, 포즈를 프롬프트에 그대로 포함
+   - NEGATIVE: "NO doctor, NO 한의사, NO medical professional, NO white coat, NO medical staff" 문구를 프롬프트 끝에 반드시 추가
 
 위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
+**프롬프트 마지막에 반드시 NEGATIVE 요소를 명시하세요.**
 
 **단일 이미지 최적화 지침:**
 - 하나의 명확한 초점(focal point)을 가진 구도 설계
@@ -410,8 +429,12 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
 2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
 3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
 4. ${includePatient ? `환자 캐릭터 포함: 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose}) 반영` : '환자 캐릭터 없이 데이터/다이어그램 중심 구성'}
+5. **🔴 필수: 생성되는 프롬프트에 아래 내용을 반드시 포함하세요:**
+   - POSITIVE: 위에 명시된 환자 캐릭터 외형, 감정, 포즈를 프롬프트에 그대로 포함
+   - NEGATIVE: "NO doctor, NO 한의사, NO medical professional, NO white coat, NO medical staff" 문구를 프롬프트 끝에 반드시 추가
 
 위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
+**프롬프트 마지막에 반드시 NEGATIVE 요소를 명시하세요.**
 
 **단일 이미지 최적화 지침:**
 - 하나의 명확한 초점(focal point)을 가진 구도 설계

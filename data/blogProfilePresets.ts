@@ -55,27 +55,27 @@ export const DEFAULT_PROFILES: BlogProfile[] = [
     {
         id: 'default-tkm',
         name: '기본 한의원 프로필',
-        persona: '한의사 (1인칭 관찰자)',
-        clinic_focus: ['공황장애', '메니에르병', '불면', '두드러기', '소화불량'],
-        business_goal: '환자 중심 임상 블로그 - 즉각적 행동 가능한 정보 제공',
+        persona: '동제당한의원 원장 최장혁 (1인칭 관찰자)',  // 🔴 고정
+        clinic_focus: ['공황장애', '메니에르병', '불면', '두드러기', '소화불량'],  // 전문분야로 구분
+        business_goal: '환자 중심 임상 블로그 - 즉각적 행동 가능한 정보 제공',  // 🔴 고정
         audience: '20-50대 직장인 환자',
         patientCharacterPrompt: PATIENT_PRESETS['default-tkm']
     },
     {
         id: 'pain-clinic',
         name: '통증 클리닉 프로필',
-        persona: '통증 전문 한의사',
-        clinic_focus: ['요통', '목통증', '어깨통증', '무릎통증', '두통'],
-        business_goal: '만성 통증 환자 교육 및 예방법 제공',
+        persona: '동제당한의원 원장 최장혁 (1인칭 관찰자)',  // 🔴 고정
+        clinic_focus: ['요통', '목통증', '어깨통증', '무릎통증', '두통'],  // 전문분야로 구분
+        business_goal: '환자 중심 임상 블로그 - 즉각적 행동 가능한 정보 제공',  // 🔴 고정
         audience: '30-60대 만성 통증 환자',
         patientCharacterPrompt: PATIENT_PRESETS['pain-clinic']
     },
     {
         id: 'womens-health',
         name: '여성 건강 프로필',
-        persona: '여성 건강 전문 한의사',
-        clinic_focus: ['생리통', '갱년기', '산후조리', '불임', '다이어트'],
-        business_goal: '여성 건강 관리 및 한방 치료 정보 제공',
+        persona: '동제당한의원 원장 최장혁 (1인칭 관찰자)',  // 🔴 고정
+        clinic_focus: ['생리통', '갱년기', '산후조리', '불임', '다이어트'],  // 전문분야로 구분
+        business_goal: '환자 중심 임상 블로그 - 즉각적 행동 가능한 정보 제공',  // 🔴 고정
         audience: '20-50대 여성',
         patientCharacterPrompt: PATIENT_PRESETS['womens-health']
     }

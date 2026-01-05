@@ -85,11 +85,11 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         description: '⚠️ 첫 번째 컨셉 전용 - 블로그 대표 이미지 (제목 필수)',
         keywords: ['blog', 'header', 'title', 'Korean', 'Do Hyeon', 'first-concept-only', 'papercraft'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: `[크기/비율] 가로형 4:3 또는 3:2 비율. 권장 해상도: 1200x800 또는 1200x900. 
+            BACKGROUND_PROMPT: `[크기/비율] ⭐ 세로형 2:3 비율. 해상도: 800x1200. 
 
-[레이아웃] ⭐ 상하 분할 구조 필수:
-- 상단 60%: 페이퍼크래프트 일러스트 영역 (레이어드 종이 컷아웃 효과)
-- 하단 40%: 텍스트 영역 (제목 + 부제)
+[레이아웃] ⭐ 상하 분할 구조 필수 (그림 3 : 글 1):
+- 상단 75%: 페이퍼크래프트 일러스트 영역 (레이어드 종이 컷아웃 효과)
+- 하단 25%: 텍스트 영역 (제목 + 부제) - 연한 크림색/아이보리 배경 박스
 
 [일러스트 영역 - 페이퍼크래프트 스타일] 
 - 레이어드 페이퍼크래프트 3D 일러스트
@@ -108,8 +108,8 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
 
 [분위기] 완전 흰색 또는 연한 크림색 배경(#FFFFFF ~ #FFF8F0). 따뜻하고 포근한 느낌. 환자에게 친근하고 무섭지 않은 의학 개념 전달. 어린이 교육 자료 같은 귀여운 스타일이면서 전문적 신뢰감. 
 
-Style: blog thumbnail, top 60% whimsical papercraft 3D illustration with layered paper cutout effect and soft shadows, warm pastel colors (pink, mint, beige), friendly medical visualization of the topic, bottom 40% Korean title in Do Hyeon style bold gothic font, white or light cream background, 4:3 or 3:2 aspect ratio, professional yet friendly healthcare blog header.`,
-            NEGATIVES: ['vertical layout', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area', 'cold colors', 'scary imagery', 'mechanical/gear style']
+Style: blog thumbnail, VERTICAL portrait layout (2:3 ratio, 800x1200), top 75% whimsical papercraft 3D illustration with layered paper cutout effect and soft shadows, warm pastel colors (pink, mint, beige), friendly medical visualization of the topic, bottom 25% Korean title in Do Hyeon style bold gothic font on light cream background box, professional yet friendly healthcare blog header.`,
+            NEGATIVES: ['horizontal layout', 'landscape', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area', 'cold colors', 'scary imagery', 'mechanical/gear style']
         }
     },
     {

@@ -68,10 +68,13 @@ export const generateImageWithPrompt = async (
     count: number = 1,
     provider: ImageProvider = 'gemini'
 ): Promise<string[]> => {
+    // 🔴 필수 NEGATIVES 강제 추가 - 이미지 API에 직접 전달
+    const mandatoryNegatives = "IMPORTANT: Do NOT include any doctor, physician, 한의사, medical professional, or person in a white coat. NO medical staff characters.";
+
     // 이미지가 있으면 얼굴 유지 프롬프트, 없으면 순수 텍스트 프롬프트
     const fullPrompt = baseImage
-        ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}".`
-        : `Create a high-quality, beautiful image based on the following instruction: "${prompt}".`;
+        ? `Using the provided image as a base, keep the person's face and facial features exactly the same. Then, modify the image according to the following instruction: "${prompt}". ${mandatoryNegatives}`
+        : `Create a high-quality, beautiful image based on the following instruction: "${prompt}". ${mandatoryNegatives}`;
 
     // OpenAI 분기 (GPT Image 1.5는 이미지 참조 불가, 텍스트만 사용)
     if (provider === 'openai') {

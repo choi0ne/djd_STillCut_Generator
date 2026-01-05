@@ -130,6 +130,10 @@ export async function generateMultipleImagesWithOpenAI(
     const results: string[] = [];
     const DELAY_MS = 20000; // 20초 딜레이 (분당 5개 = 12초에 1개, 충분한 여유)
 
+    // 🔴 필수 NEGATIVES 강제 추가
+    const mandatoryNegatives = "IMPORTANT: Do NOT include any doctor, physician, 한의사, medical professional, or person in a white coat. NO medical staff characters.";
+    const enhancedPrompt = `${prompt} ${mandatoryNegatives}`;
+
     for (let i = 0; i < count; i++) {
         // 첫 번째 이미지가 아닌 경우 딜레이 추가
         if (i > 0) {
@@ -147,7 +151,7 @@ export async function generateMultipleImagesWithOpenAI(
                 },
                 body: JSON.stringify({
                     model: 'gpt-image-1.5',
-                    prompt: prompt,
+                    prompt: enhancedPrompt,  // 🔴 NEGATIVES 포함된 프롬프트 사용
                     size: '1024x1024',
                     quality: 'high',
                     n: 1
