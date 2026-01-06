@@ -817,36 +817,36 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                     <h3 className="text-lg font-semibold text-white">👁️ 미리보기</h3>
                     <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
                         {/* 내보내기 영역 */}
-                        <div ref={exportRef} className="bg-white" style={{ width: '460px' }}>
+                        <div ref={exportRef} className="bg-white" style={{ width: '860px' }}>
                             {/* 계절 이미지 헤더 */}
                             {seasonalImage ? (
-                                <div className="relative h-48">
+                                <div className="relative h-72">
                                     <img
                                         src={seasonalImage}
                                         alt="계절 배경"
                                         className="w-full h-full object-cover"
                                         crossOrigin="anonymous"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-end pb-6">
-                                        <h1 className="text-3xl font-bold text-white drop-shadow-lg">{CLINIC_INFO.name}</h1>
-                                        <p className="text-xl text-white/90 mt-2">{currentYear}년 {currentMonth}월 진료 안내</p>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-end pb-8">
+                                        <h1 className="text-5xl font-bold text-white drop-shadow-lg">{CLINIC_INFO.name}</h1>
+                                        <p className="text-2xl text-white/90 mt-3">{currentYear}년 {currentMonth}월 진료 안내</p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-10 text-center">
-                                    <h1 className="text-3xl font-bold text-white">{CLINIC_INFO.name}</h1>
-                                    <p className="text-xl text-white/90 mt-2">{currentYear}년 {currentMonth}월 진료 안내</p>
+                                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-16 text-center">
+                                    <h1 className="text-5xl font-bold text-white">{CLINIC_INFO.name}</h1>
+                                    <p className="text-2xl text-white/90 mt-3">{currentYear}년 {currentMonth}월 진료 안내</p>
                                 </div>
                             )}
 
                             {/* 달력 본문 */}
-                            <div>
+                            <div className="px-4 py-2">
                                 {/* 요일 헤더 */}
-                                <div className="grid grid-cols-7 mb-1">
+                                <div className="grid grid-cols-7 gap-1 mb-2">
                                     {weekdays.map((day, idx) => (
                                         <div
                                             key={day}
-                                            className={`text-center text-xs font-bold py-2 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'
+                                            className={`text-center text-base font-bold py-3 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'
                                                 }`}
                                         >
                                             {day}
@@ -856,10 +856,10 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
 
                                 {/* 날짜 그리드 */}
                                 {calendar.map((week, weekIdx) => (
-                                    <div key={weekIdx} className="grid grid-cols-7 mb-px">
+                                    <div key={weekIdx} className="grid grid-cols-7 gap-1 mb-1">
                                         {week.map((date, dayIdx) => {
                                             if (!date) {
-                                                return <div key={dayIdx} className="h-14" />;
+                                                return <div key={dayIdx} className="h-24" />;
                                             }
 
                                             const holiday = isHoliday(currentYear, currentMonth, date);
@@ -887,22 +887,22 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                                 <div
                                                     key={dayIdx}
                                                     className={`
-                                                        h-14 flex flex-col items-center justify-center
-                                                        text-sm font-medium rounded-md relative
+                                                        h-24 flex flex-col items-center justify-center
+                                                        text-xl font-semibold rounded-lg relative
                                                         ${bgColor}
                                                     `}
                                                 >
                                                     <span>{date}</span>
                                                     {holiday && (
-                                                        <span className={`text-[6px] leading-tight ${isSelected ? 'text-white/80' : 'text-red-400'}`}>
+                                                        <span className={`text-xs leading-tight ${isSelected ? 'text-white/80' : 'text-red-400'}`}>
                                                             {holiday}
                                                         </span>
                                                     )}
                                                     {isMorning && !holiday && (
-                                                        <span className="text-[6px] leading-tight text-white/80">오전</span>
+                                                        <span className="text-xs leading-tight text-white/80">오전</span>
                                                     )}
                                                     {isNight && !holiday && (
-                                                        <span className="text-[6px] leading-tight text-white/80">야간</span>
+                                                        <span className="text-xs leading-tight text-white/80">야간</span>
                                                     )}
                                                 </div>
                                             );
@@ -911,29 +911,29 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                 ))}
 
                                 {/* 범례 */}
-                                <div className="flex justify-center gap-3 mt-2 text-xs flex-wrap">
+                                <div className="flex justify-center gap-6 mt-4 text-sm flex-wrap">
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-blue-500"></span>
                                         <span className="text-gray-600">진료(~18:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-orange-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-orange-500"></span>
                                         <span className="text-gray-600">오전(~15:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-emerald-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-emerald-500"></span>
                                         <span className="text-gray-600">야간(~19:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-300"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-gray-100 border border-gray-300"></span>
                                         <span className="text-gray-600">휴진</span>
                                     </span>
                                 </div>
 
                                 {/* 연락처 */}
-                                <div className="mt-4 pt-4 pb-4 border-t border-gray-200 text-center text-gray-600 text-sm">
-                                    <p>📞 {CLINIC_INFO.phone}</p>
-                                    <p className="text-xs text-gray-400 mt-1">📍 {CLINIC_INFO.address}</p>
+                                <div className="mt-6 pt-6 pb-6 border-t border-gray-200 text-center text-gray-600 text-base">
+                                    <p className="text-lg">📞 {CLINIC_INFO.phone}</p>
+                                    <p className="text-sm text-gray-400 mt-2">📍 {CLINIC_INFO.address}</p>
                                 </div>
                             </div>
                         </div>
