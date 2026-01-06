@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
-import { saveToGoogleDrive } from '../services/googleDriveService';
+import { saveToGoogleDrive as uploadToGoogleDrive } from '../services/googleDriveService';
 
 // ============================================================
 // 타입 정의
@@ -286,6 +286,18 @@ function loadNightSchedule(year: number, month: number): number[] | null {
     return saved ? JSON.parse(saved) : null;
 }
 
+// 오전진료일 저장/로드 (~15:00)
+function saveMorningSchedule(year: number, month: number, dates: number[]): void {
+    const key = `morningSchedule-${year}-${month}`;
+    localStorage.setItem(key, JSON.stringify(dates));
+}
+
+function loadMorningSchedule(year: number, month: number): number[] | null {
+    const key = `morningSchedule-${year}-${month}`;
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : null;
+}
+
 // 이미지 캐시
 function cacheImage(year: number, month: number, imageData: string): void {
     const key = `calendarImage-${year}-${month}`;
@@ -313,7 +325,8 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
     const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
     const [selectedDates, setSelectedDates] = useState<number[]>([]);
-    const [nightDates, setNightDates] = useState<number[]>([]); // 야간진료일
+    const [morningDates, setMorningDates] = useState<number[]>([]); // 오전진료일 (~15:00)
+    const [nightDates, setNightDates] = useState<number[]>([]); // 야간진료일 (~19:00)
     const [seasonalImage, setSeasonalImage] = useState<string | null>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -338,6 +351,10 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         // 야간진료일 로드
         const savedNight = loadNightSchedule(currentYear, currentMonth);
         setNightDates(savedNight || []);
+
+        // 오전진료일 로드
+        const savedMorning = loadMorningSchedule(currentYear, currentMonth);
+        setMorningDates(savedMorning || []);
     }, [currentYear, currentMonth]);
 
     // 월 변경 시 캐시된 이미지 로드
@@ -360,31 +377,43 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         }
     }, [currentYear, currentMonth]);
 
-    // 날짜 토글 (3단계: 휴진 → 진료 → 야간진료 → 휴진)
+    // 날짜 토글 (4단계: 휴진 → 진료 → 오전 → 야간 → 휴진)
     const toggleDate = useCallback((date: number) => {
         const isWorkDay = selectedDates.includes(date);
+        const isMorningDay = morningDates.includes(date);
         const isNightDay = nightDates.includes(date);
 
-        if (!isWorkDay && !isNightDay) {
+        if (!isWorkDay && !isMorningDay && !isNightDay) {
             // 휴진 → 진료
             const newDates = [...selectedDates, date].sort((a, b) => a - b);
             setSelectedDates(newDates);
             saveWorkSchedule(currentYear, currentMonth, newDates);
-        } else if (isWorkDay && !isNightDay) {
-            // 진료 → 야간진료
+        } else if (isWorkDay && !isMorningDay && !isNightDay) {
+            // 진료 → 오전
+            const newMorningDates = [...morningDates, date].sort((a, b) => a - b);
+            setMorningDates(newMorningDates);
+            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
+        } else if (isWorkDay && isMorningDay && !isNightDay) {
+            // 오전 → 야간
+            const newMorningDates = morningDates.filter(d => d !== date);
             const newNightDates = [...nightDates, date].sort((a, b) => a - b);
+            setMorningDates(newMorningDates);
             setNightDates(newNightDates);
+            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
             saveNightSchedule(currentYear, currentMonth, newNightDates);
         } else {
-            // 야간진료 → 휴진
+            // 야간 → 휴진
             const newDates = selectedDates.filter(d => d !== date);
+            const newMorningDates = morningDates.filter(d => d !== date);
             const newNightDates = nightDates.filter(d => d !== date);
             setSelectedDates(newDates);
+            setMorningDates(newMorningDates);
             setNightDates(newNightDates);
             saveWorkSchedule(currentYear, currentMonth, newDates);
+            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
             saveNightSchedule(currentYear, currentMonth, newNightDates);
         }
-    }, [currentYear, currentMonth, selectedDates, nightDates]);
+    }, [currentYear, currentMonth, selectedDates, morningDates, nightDates]);
 
     // Gemini API로 계절 이미지 생성
     const generateSeasonalImageWithGemini = async () => {
@@ -446,11 +475,16 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         if (!exportRef.current) return null;
 
         try {
-            const canvas = await html2canvas(exportRef.current, {
+            const element = exportRef.current;
+            const canvas = await html2canvas(element, {
                 scale: 2,
                 backgroundColor: '#ffffff',
                 logging: false,
-                useCORS: true
+                useCORS: true,
+                allowTaint: true,
+                height: element.scrollHeight,
+                windowHeight: element.scrollHeight,
+                scrollY: -window.scrollY
             });
 
             return new Promise((resolve) => {
@@ -505,7 +539,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
             const reader = new FileReader();
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                await saveToGoogleDrive(base64);
+                await uploadToGoogleDrive(base64);
                 setSaveStatus({ type: 'success', message: 'Google Drive에 저장되었습니다!' });
                 setIsSaving(false);
             };
@@ -543,7 +577,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
             const reader = new FileReader();
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                await saveToGoogleDrive(base64);
+                await uploadToGoogleDrive(base64);
                 setSaveStatus({ type: 'success', message: '로컬 + Google Drive 모두 저장 완료!' });
                 setIsSaving(false);
             };
@@ -667,17 +701,20 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
 
                                     const holiday = isHoliday(currentYear, currentMonth, date);
                                     const isSelected = selectedDates.includes(date);
+                                    const isMorning = morningDates.includes(date);
                                     const isNight = nightDates.includes(date);
                                     const isTodayDate = isToday(currentYear, currentMonth, date);
                                     const isSunday = dayIdx === 0;
                                     const isSaturday = dayIdx === 6;
 
-                                    // 색상 결정: 야간진료=녹색, 일반진료=파란색, 휴진=회색
+                                    // 색상 결정: 야간=녹색, 오전=주황색, 진료=파란색, 휴진=회색
                                     let bgColor = 'bg-[#1f2937] hover:bg-white/10';
                                     let textColor = '';
 
                                     if (isSelected && isNight) {
                                         bgColor = 'bg-emerald-500 text-white shadow-md';
+                                    } else if (isSelected && isMorning) {
+                                        bgColor = 'bg-orange-500 text-white shadow-md';
                                     } else if (isSelected) {
                                         bgColor = 'bg-blue-500 text-white shadow-md';
                                     } else if ((holiday || isSunday)) {
@@ -812,14 +849,17 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
 
                                             const holiday = isHoliday(currentYear, currentMonth, date);
                                             const isSelected = selectedDates.includes(date);
+                                            const isMorning = morningDates.includes(date);
                                             const isNight = nightDates.includes(date);
                                             const isSunday = dayIdx === 0;
                                             const isSaturday = dayIdx === 6;
 
-                                            // 색상 결정: 야간진료=녹색, 일반진료=파란색, 휴진=회색
+                                            // 색상 결정: 야간=녹색, 오전=주황색, 진료=파란색, 휴진=회색
                                             let bgColor = 'bg-gray-100 text-gray-400';
                                             if (isSelected && isNight) {
                                                 bgColor = 'bg-emerald-500 text-white';
+                                            } else if (isSelected && isMorning) {
+                                                bgColor = 'bg-orange-500 text-white';
                                             } else if (isSelected) {
                                                 bgColor = 'bg-blue-500 text-white';
                                             } else if ((holiday || isSunday)) {
@@ -843,6 +883,9 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                                             {holiday}
                                                         </span>
                                                     )}
+                                                    {isMorning && !holiday && (
+                                                        <span className="text-[6px] leading-tight text-white/80">오전</span>
+                                                    )}
                                                     {isNight && !holiday && (
                                                         <span className="text-[6px] leading-tight text-white/80">야간</span>
                                                     )}
@@ -853,14 +896,18 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                 ))}
 
                                 {/* 범례 */}
-                                <div className="flex justify-center gap-4 mt-2 text-xs flex-wrap">
+                                <div className="flex justify-center gap-3 mt-2 text-xs flex-wrap">
                                     <span className="flex items-center gap-1">
                                         <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
-                                        <span className="text-gray-600">진료 (~18:00)</span>
+                                        <span className="text-gray-600">진료(~18:00)</span>
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded-sm bg-orange-500"></span>
+                                        <span className="text-gray-600">오전(~15:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <span className="w-3 h-3 rounded-sm bg-emerald-500"></span>
-                                        <span className="text-gray-600">야간 (~19:00)</span>
+                                        <span className="text-gray-600">야간(~19:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-300"></span>
