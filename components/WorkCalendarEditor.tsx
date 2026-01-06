@@ -477,28 +477,39 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         try {
             const element = exportRef.current;
 
-            // 스크롤 위치 저장 및 리셋
-            const originalScrollY = window.scrollY;
+            // 요소를 뷰포트 상단으로 스크롤
+            element.scrollIntoView({ block: 'start' });
+
+            // 레이아웃 안정화 대기
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // scrollHeight로 전체 높이 확보
+            const fullWidth = element.scrollWidth || element.offsetWidth;
+            const fullHeight = element.scrollHeight || element.offsetHeight;
 
             const canvas = await html2canvas(element, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false,
+                logging: true, // 디버깅용
                 useCORS: true,
                 allowTaint: true,
-                width: element.offsetWidth,
-                height: element.offsetHeight,
+                width: fullWidth,
+                height: fullHeight + 50,
                 x: 0,
                 y: 0,
                 scrollX: 0,
                 scrollY: 0,
-                windowWidth: element.offsetWidth,
-                windowHeight: element.offsetHeight,
+                windowWidth: fullWidth + 100,
+                windowHeight: fullHeight + 200,
                 onclone: (clonedDoc) => {
                     const clonedElement = clonedDoc.querySelector('[data-export-ref]');
                     if (clonedElement) {
-                        (clonedElement as HTMLElement).style.overflow = 'visible';
-                        (clonedElement as HTMLElement).style.position = 'relative';
+                        const el = clonedElement as HTMLElement;
+                        el.style.overflow = 'visible';
+                        el.style.position = 'relative';
+                        el.style.transform = 'none';
+                        el.style.width = fullWidth + 'px';
+                        el.style.height = fullHeight + 'px';
                     }
                 }
             });
