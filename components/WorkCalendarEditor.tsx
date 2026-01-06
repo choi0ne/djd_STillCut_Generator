@@ -77,7 +77,7 @@ Style: Minimal paper cut art, pastel colors, clean geometric shapes
 Elements: Paper cut snowflakes, simple pine trees, soft clouds, gentle snow
 Colors: White (#FFFFFF), light blue (#E3F2FD), soft gray (#ECEFF1), pale mint (#E8F5E9)
 Mood: Calm, fresh, peaceful, new beginnings
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -88,7 +88,7 @@ Style: Minimal paper cut art, soft gradients, clean geometric shapes
 Elements: Paper cut early spring buds, melting snow, bare branches with tiny buds
 Colors: Soft white (#FAFAFA), pale pink (#FCE4EC), light lavender (#EDE7F6)
 Mood: Hopeful, transitional, gentle warmth approaching
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -99,7 +99,7 @@ Style: Minimal paper cut art, fresh colors, clean geometric shapes
 Elements: Paper cut cherry blossoms beginning to bloom, gentle breeze, small birds
 Colors: Soft pink (#F8BBD9), fresh green (#C8E6C9), sky blue (#BBDEFB)
 Mood: Renewal, awakening, fresh beginnings
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -110,7 +110,7 @@ Style: Minimal paper cut art, vibrant yet soft colors, clean geometric shapes
 Elements: Paper cut blooming flowers, butterflies, gentle rain drops, tulips
 Colors: Bright pink (#F48FB1), fresh yellow (#FFF59D), soft green (#A5D6A7)
 Mood: Flourishing, joyful, energetic spring
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -121,7 +121,7 @@ Style: Minimal paper cut art, warm and bright colors, clean geometric shapes
 Elements: Paper cut roses, lush green leaves, sunshine rays, ladybugs
 Colors: Rose (#E91E63), fresh green (#66BB6A), warm yellow (#FFEE58)
 Mood: Abundant, warm, family-oriented, celebratory
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -132,7 +132,7 @@ Style: Minimal paper cut art, cool and refreshing colors, clean geometric shapes
 Elements: Paper cut hydrangeas, rain drops, umbrellas, fresh leaves
 Colors: Blue (#64B5F6), purple (#BA68C8), green (#81C784), white (#FFFFFF)
 Mood: Fresh, cool, gentle rain, refreshing
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -143,7 +143,7 @@ Style: Minimal paper cut art, vibrant summer colors, clean geometric shapes
 Elements: Paper cut sunflowers, bright sun, ocean waves, seashells
 Colors: Bright yellow (#FFEB3B), ocean blue (#29B6F6), coral (#FF8A65)
 Mood: Vibrant, energetic, vacation spirit, sunny
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -154,7 +154,7 @@ Style: Minimal paper cut art, warm summer colors, clean geometric shapes
 Elements: Paper cut tropical leaves, sunset colors, gentle evening breeze
 Colors: Orange (#FF9800), coral (#FF7043), turquoise (#26C6DA), golden (#FFD54F)
 Mood: Warm evenings, relaxed, transitional summer
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -165,7 +165,7 @@ Style: Minimal paper cut art, warm earth tones, clean geometric shapes
 Elements: Paper cut early autumn leaves, cosmos flowers, gentle wind
 Colors: Soft orange (#FFAB91), golden yellow (#FFE082), sage green (#A5D6A7)
 Mood: Harvest time, gratitude, family gathering
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -176,7 +176,7 @@ Style: Minimal paper cut art, rich autumn palette, clean geometric shapes
 Elements: Paper cut colorful maple leaves, pumpkins, acorns, harvest moon
 Colors: Deep orange (#FF7043), burgundy (#C62828), golden (#FFC107), brown (#8D6E63)
 Mood: Cozy, harvest celebration, vibrant change
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -187,7 +187,7 @@ Style: Minimal paper cut art, muted warm tones, clean geometric shapes
 Elements: Paper cut falling leaves, bare branches, crisp air feeling, geese flying
 Colors: Rust (#BF360C), tan (#D7CCC8), muted gold (#C9B037), soft gray (#90A4AE)
 Mood: Reflective, peaceful, preparing for winter
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -198,7 +198,7 @@ Style: Minimal paper cut art, festive yet elegant, clean geometric shapes
 Elements: Paper cut snowflakes, evergreen trees, stars, gentle snow falling
 Colors: Deep green (#2E7D32), red (#C62828), white (#FFFFFF), gold (#FFD700)
 Mood: Festive, warm, cozy, celebration
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     }
@@ -377,7 +377,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         }
     }, [currentYear, currentMonth]);
 
-    // 날짜 토글 (4단계: 휴진 → 진료 → 오전 → 야간 → 휴진)
+    // 날짜 토글 (4단계: 휴진 → 진료 → 야간 → 오전 → 휴진)
     const toggleDate = useCallback((date: number) => {
         const isWorkDay = selectedDates.includes(date);
         const isMorningDay = morningDates.includes(date);
@@ -389,20 +389,20 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
             setSelectedDates(newDates);
             saveWorkSchedule(currentYear, currentMonth, newDates);
         } else if (isWorkDay && !isMorningDay && !isNightDay) {
-            // 진료 → 오전
-            const newMorningDates = [...morningDates, date].sort((a, b) => a - b);
-            setMorningDates(newMorningDates);
-            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
-        } else if (isWorkDay && isMorningDay && !isNightDay) {
-            // 오전 → 야간
-            const newMorningDates = morningDates.filter(d => d !== date);
+            // 진료 → 야간
             const newNightDates = [...nightDates, date].sort((a, b) => a - b);
-            setMorningDates(newMorningDates);
             setNightDates(newNightDates);
-            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
             saveNightSchedule(currentYear, currentMonth, newNightDates);
+        } else if (isWorkDay && !isMorningDay && isNightDay) {
+            // 야간 → 오전
+            const newNightDates = nightDates.filter(d => d !== date);
+            const newMorningDates = [...morningDates, date].sort((a, b) => a - b);
+            setNightDates(newNightDates);
+            setMorningDates(newMorningDates);
+            saveNightSchedule(currentYear, currentMonth, newNightDates);
+            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
         } else {
-            // 야간 → 휴진
+            // 오전 → 휴진
             const newDates = selectedDates.filter(d => d !== date);
             const newMorningDates = morningDates.filter(d => d !== date);
             const newNightDates = nightDates.filter(d => d !== date);
@@ -498,6 +498,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                     const clonedElement = clonedDoc.querySelector('[data-export-ref]');
                     if (clonedElement) {
                         (clonedElement as HTMLElement).style.overflow = 'visible';
+                        (clonedElement as HTMLElement).style.position = 'relative';
                     }
                 }
             });
@@ -817,7 +818,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                     <h3 className="text-lg font-semibold text-white">👁️ 미리보기</h3>
                     <div className="bg-white rounded-xl overflow-x-auto shadow-2xl">
                         {/* 내보내기 영역 */}
-                        <div ref={exportRef} className="bg-white" style={{ width: '860px' }}>
+                        <div ref={exportRef} data-export-ref className="bg-white" style={{ width: '860px' }}>
                             {/* 계절 이미지 헤더 */}
                             {seasonalImage ? (
                                 <div className="relative h-72">
