@@ -476,15 +476,30 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
 
         try {
             const element = exportRef.current;
+
+            // 스크롤 위치 저장 및 리셋
+            const originalScrollY = window.scrollY;
+
             const canvas = await html2canvas(element, {
                 scale: 2,
                 backgroundColor: '#ffffff',
                 logging: false,
                 useCORS: true,
                 allowTaint: true,
-                height: element.scrollHeight,
-                windowHeight: element.scrollHeight,
-                scrollY: -window.scrollY
+                width: element.offsetWidth,
+                height: element.offsetHeight,
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: element.offsetWidth,
+                windowHeight: element.offsetHeight,
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.querySelector('[data-export-ref]');
+                    if (clonedElement) {
+                        (clonedElement as HTMLElement).style.overflow = 'visible';
+                    }
+                }
             });
 
             return new Promise((resolve) => {
@@ -916,7 +931,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                 </div>
 
                                 {/* 연락처 */}
-                                <div className="mt-4 pt-4 border-t border-gray-200 text-center text-gray-600 text-sm">
+                                <div className="mt-4 pt-4 pb-4 border-t border-gray-200 text-center text-gray-600 text-sm">
                                     <p>📞 {CLINIC_INFO.phone}</p>
                                     <p className="text-xs text-gray-400 mt-1">📍 {CLINIC_INFO.address}</p>
                                 </div>
