@@ -607,8 +607,8 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
     // UI 렌더링
     // ============================================================
     return (
-        <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="max-w-[1400px] mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
                 {/* 좌측: 설정 패널 */}
                 <div className="space-y-6">
                     {/* 연/월 선택 */}
@@ -815,7 +815,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                 {/* 우측: 미리보기 */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-white">👁️ 미리보기</h3>
-                    <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
+                    <div className="bg-white rounded-xl overflow-x-auto shadow-2xl">
                         {/* 내보내기 영역 */}
                         <div ref={exportRef} className="bg-white" style={{ width: '860px' }}>
                             {/* 계절 이미지 헤더 */}
