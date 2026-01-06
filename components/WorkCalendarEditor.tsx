@@ -821,17 +821,16 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                         <div ref={exportRef} data-export-ref className="bg-white" style={{ width: '860px' }}>
                             {/* 계절 이미지 헤더 */}
                             {seasonalImage ? (
-                                <div className="relative h-72">
-                                    <img
-                                        src={seasonalImage}
-                                        alt="계절 배경"
-                                        className="w-full h-full object-cover"
-                                        crossOrigin="anonymous"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-end pb-8">
-                                        <h1 className="text-5xl font-bold text-white drop-shadow-lg">{CLINIC_INFO.name}</h1>
-                                        <p className="text-2xl text-white/90 mt-3">{currentYear}년 {currentMonth}월 진료 안내</p>
-                                    </div>
+                                <div
+                                    className="h-72 flex flex-col items-center justify-end pb-8"
+                                    style={{
+                                        backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.6), transparent), url(${seasonalImage})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center'
+                                    }}
+                                >
+                                    <h1 className="text-5xl font-bold text-white" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{CLINIC_INFO.name}</h1>
+                                    <p className="text-2xl text-white mt-3" style={{ opacity: 0.9 }}>{currentYear}년 {currentMonth}월 진료 안내</p>
                                 </div>
                             ) : (
                                 <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-16 text-center">
