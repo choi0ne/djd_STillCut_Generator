@@ -24,9 +24,10 @@ interface AnalysisResult {
 }
 
 // 시스템 프롬프트 - CX 매니저 메타 프롬프트
-const CX_MANAGER_PROMPT = `# 역할 정의
+// 시스템 프롬프트 - CX 매니저 메타 프롬프트
+const getCxManagerPrompt = (profileName: string) => `# 역할 정의
 
-당신은 {{동제당한의원}}의 환자 경험(CX)을 총괄하는 AI 어시스턴트입니다. 당신의 임무는 기계적인 답변을 넘어, 사람의 마음을 움직이는 진심 어린 소통을 하는 것입니다. 동시에, 위험 리뷰에 대해서는 강력한 '안전 필터' 역할을 수행해야 합니다.
+당신은 {{${profileName}}}의 환자 경험(CX)을 총괄하는 AI 어시스턴트입니다. 당신의 임무는 기계적인 답변을 넘어, 사람의 마음을 움직이는 진심 어린 소통을 하는 것입니다. 동시에, 위험 리뷰에 대해서는 강력한 '안전 필터' 역할을 수행해야 합니다.
 
 # 업무 수행 프로세스
 
@@ -80,6 +81,7 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editedResponses, setEditedResponses] = useState<{ [key: number]: string }>({});
+    const [selectedProfile, setSelectedProfile] = useState<'dongjedang' | 'dongjeherbal'>('dongjedang');
 
     const handleAnalyzeReview = async () => {
         if (!reviewText.trim()) {
@@ -104,12 +106,15 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                 const { GoogleGenAI } = await import('@google/genai');
                 const ai = new GoogleGenAI({ apiKey });
 
+                const profileName = selectedProfile === 'dongjedang' ? '동제당한의원' : '동제한약방';
+                const prompt = getCxManagerPrompt(profileName);
+
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-pro-preview',
                     contents: {
                         parts: [
                             {
-                                text: `${CX_MANAGER_PROMPT}\n\n# 사용자 리뷰\n\n${reviewText}`
+                                text: `${prompt}\n\n# 사용자 리뷰\n\n${reviewText}`
                             }
                         ]
                     }
@@ -117,6 +122,9 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                 result = response.text || '';
             } else {
                 // OpenAI API 호출
+                const profileName = selectedProfile === 'dongjedang' ? '동제당한의원' : '동제한약방';
+                const prompt = getCxManagerPrompt(profileName);
+
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
@@ -126,7 +134,7 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                     body: JSON.stringify({
                         model: 'gpt-5.2',
                         messages: [
-                            { role: 'system', content: CX_MANAGER_PROMPT },
+                            { role: 'system', content: prompt },
                             { role: 'user', content: reviewText }
                         ],
                         temperature: 0.7
@@ -227,15 +235,41 @@ const ReviewManagerEditor: React.FC<ReviewManagerEditorProps> = ({
                         </div>
                     </div>
 
-                    {/* 리뷰 입력 영역 */}
-                    <div className="flex-1 flex flex-col">
-                        <label className="text-sm font-semibold text-gray-300 mb-2">환자 리뷰</label>
-                        <textarea
-                            value={reviewText}
-                            onChange={(e) => setReviewText(e.target.value)}
-                            placeholder="환자 리뷰를 입력하세요...&#10;&#10;예시:&#10;• '정말 친절하게 잘 봐주셨어요'&#10;• '대기시간이 좀 길었지만 진료는 만족해요'&#10;• '효과를 못 느꼈어요'"
-                            className="w-full flex-grow min-h-[300px] bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow text-sm resize-none"
-                        />
+                    {/* 프로필 선택 및 리뷰 입력 영역 */}
+                    <div className="flex-1 flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">프로필 선택</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => setSelectedProfile('dongjedang')}
+                                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${selectedProfile === 'dongjedang'
+                                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-lg shadow-indigo-900/50'
+                                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-750'
+                                        }`}
+                                >
+                                    🏥 동제당한의원
+                                </button>
+                                <button
+                                    onClick={() => setSelectedProfile('dongjeherbal')}
+                                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${selectedProfile === 'dongjeherbal'
+                                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-lg shadow-indigo-900/50'
+                                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-750'
+                                        }`}
+                                >
+                                    🌿 동제한약방
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex flex-col">
+                            <label className="text-sm font-semibold text-gray-300 mb-2">환자 리뷰</label>
+                            <textarea
+                                value={reviewText}
+                                onChange={(e) => setReviewText(e.target.value)}
+                                placeholder="환자 리뷰를 입력하세요...&#10;&#10;예시:&#10;• '정말 친절하게 잘 봐주셨어요'&#10;• '대기시간이 좀 길었지만 진료는 만족해요'&#10;• '효과를 못 느꼈어요'"
+                                className="w-full flex-grow min-h-[300px] bg-gray-900 text-white placeholder-gray-500 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow text-sm resize-none"
+                            />
+                        </div>
                     </div>
 
                     {/* 분석 버튼 */}
