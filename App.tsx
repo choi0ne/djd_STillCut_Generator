@@ -6,11 +6,12 @@ import MpsEditor from './components/MpsEditor';
 import BlogVisualEditor from './components/BlogVisualEditor';
 import BlogWriterEditor from './components/BlogWriterEditor';
 import ReviewManagerEditor from './components/ReviewManagerEditor';
+import WorkCalendarEditor from './components/WorkCalendarEditor';
 import SettingsModal from './components/SettingsModal';
 import useLocalStorage from './hooks/useLocalStorage';
 import useGoogleAuth from './hooks/useGoogleAuth';
 
-type EditorMode = 'blog-writer' | 'blog-image' | 'prompt' | 'image-prompt' | 'code' | 'mps' | 'review-manager';
+type EditorMode = 'blog-writer' | 'blog-image' | 'prompt' | 'image-prompt' | 'code' | 'mps' | 'review-manager' | 'work-calendar';
 type ImageProvider = 'gemini' | 'openai';
 
 interface ApiKeys {
@@ -76,6 +77,8 @@ const App: React.FC = () => {
         return <MpsEditor />;
       case 'review-manager':
         return <ReviewManagerEditor {...editorProps} />;
+      case 'work-calendar':
+        return <WorkCalendarEditor isApiKeyReady={isKeyReady} openSettings={() => setIsSettingsModalOpen(true)} geminiApiKey={geminiApiKey} />;
       default:
         return null;
     }
@@ -147,6 +150,13 @@ const App: React.FC = () => {
                   }`}
               >
                 🖼️ 프롬프트 추출
+              </button>
+              <button
+                onClick={() => setMode('work-calendar')}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'work-calendar' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                📅 근무일 달력
               </button>
             </div>
 
