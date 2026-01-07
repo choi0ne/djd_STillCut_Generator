@@ -1334,95 +1334,114 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         setIsEditMode(!isEditMode);
     };
 
-    const handleCompleteStage7 = () => {
-        // AI가 생성한 해시태그를 로컬 마크다운 파일로 자동 저장 (# 제외)
+    const handleCompleteStage7 = async () => {
+        // yyyymmdd 폴더명 생성
+        const now = new Date();
+        const folderName = now.getFullYear().toString() +
+            (now.getMonth() + 1).toString().padStart(2, '0') +
+            now.getDate().toString().padStart(2, '0');
+
+        // 해시태그 파일 내용 생성
+        let hashtagContent = '';
         if (stageData.recommendedHashtags.length > 0) {
-            // 마크다운 형식으로 해시태그 정리
-            let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
-            content += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
-            content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
-            content += `---\n\n`;
+            hashtagContent = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+            hashtagContent += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
+            hashtagContent += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+            hashtagContent += `---\n\n`;
 
             stageData.recommendedHashtags.forEach(category => {
-                // # 제거하고 태그만 추출
                 const cleanedTags = category.tags.map(tag =>
                     tag.replace(/^#/, '').trim()
                 ).filter(tag => tag.length > 0);
-
-                content += `## ${category.category}\n\n`;
-                content += cleanedTags.map(tag => `- ${tag}`).join('\n') + '\n\n';
+                hashtagContent += `## ${category.category}\n\n`;
+                hashtagContent += cleanedTags.map(tag => `- ${tag}`).join('\n') + '\n\n';
             });
 
-            // 모든 태그를 한 줄로 (복사 편의용)
             const allTags = stageData.recommendedHashtags
                 .flatMap(cat => cat.tags.map(tag => tag.replace(/^#/, '').trim()))
                 .filter(tag => tag.length > 0);
-            content += `---\n\n`;
-            content += `## 📋 전체 태그 (복사용)\n\n`;
-            content += '```\n' + allTags.join(' ') + '\n```\n';
+            hashtagContent += `---\n\n`;
+            hashtagContent += `## 📋 전체 태그 (복사용)\n\n`;
+            hashtagContent += '```\n' + allTags.join(' ') + '\n```\n';
 
-            // 시리즈 키워드 추가 (다음 글 후보)
             if (stageData.seriesKeywords && stageData.seriesKeywords.length > 0) {
-                content += `\n---\n\n`;
-                content += `## 📌 다음 글 시리즈 키워드\n\n`;
+                hashtagContent += `\n---\n\n`;
+                hashtagContent += `## 📌 다음 글 시리즈 키워드\n\n`;
                 stageData.seriesKeywords.forEach((kw, i) => {
-                    content += `${i + 1}. **${kw.title}** _(${kw.type})_\n`;
-                    content += `   - ${kw.reason}\n\n`;
+                    hashtagContent += `${i + 1}. **${kw.title}** _(${kw.type})_\n`;
+                    hashtagContent += `   - ${kw.reason}\n\n`;
                 });
             }
-
-            // 파일명 생성 (해시태그_YYYYMMDD_HHmmss.md)
-            const now = new Date();
-            const timestamp = now.getFullYear().toString() +
-                (now.getMonth() + 1).toString().padStart(2, '0') +
-                now.getDate().toString().padStart(2, '0') + '_' +
-                now.getHours().toString().padStart(2, '0') +
-                now.getMinutes().toString().padStart(2, '0') +
-                now.getSeconds().toString().padStart(2, '0');
-            const filename = `해시태그_${timestamp}.md`;
-
-            // Blob으로 마크다운 파일 다운로드
-            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
 
-        // 최종 글(finalDraft)도 마크다운 파일로 자동 저장 (Notion 편집 지침 v2.4 적용)
+        // 최종글 파일 내용 생성
+        let finalDraftContent = '';
         if (stageData.finalDraft) {
-            // Notion 편집 지침 v2.4 적용 (formatForNotion이 이미 제목 추가함)
             const formattedDraft = formatForNotion(stageData.finalDraft);
+            finalDraftContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+            finalDraftContent += '---\n\n';
+            finalDraftContent += formattedDraft;
+        }
 
-            // 마크다운 파일 내용 구성 - formatForNotion이 이미 제목 포함하므로 직접 사용
-            let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
-            mdContent += '---\n\n';
-            mdContent += formattedDraft;
+        // File System Access API 사용 시도
+        try {
+            // showDirectoryPicker 지원 확인
+            if ('showDirectoryPicker' in window) {
+                const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
 
-            // 파일명 생성 (최종글_YYYYMMDD_HHmmss.md)
-            const now = new Date();
-            const timestamp = now.getFullYear().toString() +
-                (now.getMonth() + 1).toString().padStart(2, '0') +
-                now.getDate().toString().padStart(2, '0') + '_' +
-                now.getHours().toString().padStart(2, '0') +
-                now.getMinutes().toString().padStart(2, '0') +
-                now.getSeconds().toString().padStart(2, '0');
-            const mdFilename = `최종글_${timestamp}.md`;
+                // yyyymmdd 폴더 생성
+                const subDirHandle = await dirHandle.getDirectoryHandle(folderName, { create: true });
 
-            // Blob으로 마크다운 파일 다운로드
-            const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
-            const mdUrl = URL.createObjectURL(mdBlob);
-            const mdLink = document.createElement('a');
-            mdLink.href = mdUrl;
-            mdLink.download = mdFilename;
-            document.body.appendChild(mdLink);
-            mdLink.click();
-            document.body.removeChild(mdLink);
-            URL.revokeObjectURL(mdUrl);
+                // 해시태그 파일 저장
+                if (hashtagContent) {
+                    const hashtagFileHandle = await subDirHandle.getFileHandle('해시태그.md', { create: true });
+                    const hashtagWritable = await hashtagFileHandle.createWritable();
+                    await hashtagWritable.write(hashtagContent);
+                    await hashtagWritable.close();
+                }
+
+                // 최종글 파일 저장
+                if (finalDraftContent) {
+                    const finalFileHandle = await subDirHandle.getFileHandle('최종글.md', { create: true });
+                    const finalWritable = await finalFileHandle.createWritable();
+                    await finalWritable.write(finalDraftContent);
+                    await finalWritable.close();
+                }
+
+                alert(`✅ 저장 완료!\n\n📁 폴더: ${folderName}/\n   - 해시태그.md\n   - 최종글.md`);
+            } else {
+                // File System Access API 미지원 시 기존 다운로드 방식 사용
+                throw new Error('File System Access API not supported');
+            }
+        } catch (error: any) {
+            // 사용자가 취소하거나 API 미지원 시 기존 다운로드 방식 사용
+            if (error.name !== 'AbortError') {
+                // 해시태그 파일 다운로드
+                if (hashtagContent) {
+                    const blob = new Blob([hashtagContent], { type: 'text/markdown;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${folderName}_해시태그.md`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+
+                // 최종글 파일 다운로드
+                if (finalDraftContent) {
+                    const mdBlob = new Blob([finalDraftContent], { type: 'text/markdown;charset=utf-8' });
+                    const mdUrl = URL.createObjectURL(mdBlob);
+                    const mdLink = document.createElement('a');
+                    mdLink.href = mdUrl;
+                    mdLink.download = `${folderName}_최종글.md`;
+                    document.body.appendChild(mdLink);
+                    mdLink.click();
+                    document.body.removeChild(mdLink);
+                    URL.revokeObjectURL(mdUrl);
+                }
+            }
         }
 
         // 추천 이미지 컨셉 + 섹션 일러스트 카드 모두 합쳐서 전달
@@ -2265,77 +2284,94 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                 setStageData(updatedStageData);
 
                 // 6. 자동 완료 처리 (MD 저장 + 이미지 카드 생성)
-                // 해시태그 MD 저장
+                // yyyymmdd 폴더명 생성
+                const now = new Date();
+                const folderName = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0');
+
+                // 해시태그 파일 내용 생성
+                let hashtagContent = '';
                 if (parsed.hashtags && parsed.hashtags.length > 0) {
-                    let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
-                    content += `> 주제: ${parsed.extractedTopic || '미정'}\n`;
-                    content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
-                    content += `---\n\n`;
+                    hashtagContent = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+                    hashtagContent += `> 주제: ${parsed.extractedTopic || '미정'}\n`;
+                    hashtagContent += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+                    hashtagContent += `---\n\n`;
 
                     parsed.hashtags.forEach((category: any) => {
                         const cleanedTags = category.tags.map((tag: string) =>
                             tag.replace(/^#/, '').trim()
                         ).filter((tag: string) => tag.length > 0);
-                        content += `## ${category.category}\n\n`;
-                        content += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
+                        hashtagContent += `## ${category.category}\n\n`;
+                        hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
                     });
 
                     const allTags = parsed.hashtags
                         .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
                         .filter((tag: string) => tag.length > 0);
-                    content += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
+                    hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
 
                     if (parsed.seriesKeywords && parsed.seriesKeywords.length > 0) {
-                        content += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
+                        hashtagContent += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
                         parsed.seriesKeywords.forEach((kw: any, i: number) => {
-                            content += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
+                            hashtagContent += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
                         });
                     }
-
-                    const now = new Date();
-                    const timestamp = now.getFullYear().toString() +
-                        (now.getMonth() + 1).toString().padStart(2, '0') +
-                        now.getDate().toString().padStart(2, '0') + '_' +
-                        now.getHours().toString().padStart(2, '0') +
-                        now.getMinutes().toString().padStart(2, '0') +
-                        now.getSeconds().toString().padStart(2, '0');
-                    const filename = `해시태그_${timestamp}.md`;
-
-                    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
                 }
 
-                // 최종글 MD 저장
+                // 최종글 파일 내용 생성
                 const formattedDraft = formatForNotion(finalDraftContent);
                 let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
                 mdContent += '---\n\n';
                 mdContent += formattedDraft;
 
-                const now = new Date();
-                const timestamp = now.getFullYear().toString() +
-                    (now.getMonth() + 1).toString().padStart(2, '0') +
-                    now.getDate().toString().padStart(2, '0') + '_' +
-                    now.getHours().toString().padStart(2, '0') +
-                    now.getMinutes().toString().padStart(2, '0') +
-                    now.getSeconds().toString().padStart(2, '0');
-                const mdFilename = `최종글_${timestamp}.md`;
+                // File System Access API 사용 시도
+                try {
+                    if ('showDirectoryPicker' in window) {
+                        const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+                        const subDirHandle = await dirHandle.getDirectoryHandle(folderName, { create: true });
 
-                const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
-                const mdUrl = URL.createObjectURL(mdBlob);
-                const mdLink = document.createElement('a');
-                mdLink.href = mdUrl;
-                mdLink.download = mdFilename;
-                document.body.appendChild(mdLink);
-                mdLink.click();
-                document.body.removeChild(mdLink);
-                URL.revokeObjectURL(mdUrl);
+                        if (hashtagContent) {
+                            const hashtagFileHandle = await subDirHandle.getFileHandle('해시태그.md', { create: true });
+                            const hashtagWritable = await hashtagFileHandle.createWritable();
+                            await hashtagWritable.write(hashtagContent);
+                            await hashtagWritable.close();
+                        }
+
+                        const finalFileHandle = await subDirHandle.getFileHandle('최종글.md', { create: true });
+                        const finalWritable = await finalFileHandle.createWritable();
+                        await finalWritable.write(mdContent);
+                        await finalWritable.close();
+                    } else {
+                        throw new Error('File System Access API not supported');
+                    }
+                } catch (fsError: any) {
+                    if (fsError.name !== 'AbortError') {
+                        // 해시태그 파일 다운로드
+                        if (hashtagContent) {
+                            const blob = new Blob([hashtagContent], { type: 'text/markdown;charset=utf-8' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${folderName}_해시태그.md`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }
+
+                        // 최종글 파일 다운로드
+                        const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+                        const mdUrl = URL.createObjectURL(mdBlob);
+                        const mdLink = document.createElement('a');
+                        mdLink.href = mdUrl;
+                        mdLink.download = `${folderName}_최종글.md`;
+                        document.body.appendChild(mdLink);
+                        mdLink.click();
+                        document.body.removeChild(mdLink);
+                        URL.revokeObjectURL(mdUrl);
+                    }
+                }
 
                 // 7. 이미지 카드 생성 (BlogVisualEditor로 전달)
                 if (onStage7Complete && (parsed.imageConcepts.length > 0 || (parsed.sectionIllustrations && parsed.sectionIllustrations.length > 0))) {
@@ -2985,7 +3021,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mr-2"></div>
                                     <span>Gemini 3.0으로 생성 중...</span>
                                 </div>
-                            ) : (currentOutput || (currentStage === 6 && manualInputMode)) ? (
+                            ) : (currentOutput || (currentStage === 6 && manualInputMode) || (currentStage === 7 && stageData.finalDraft)) ? (
                                 (isEditMode || (currentStage === 6 && manualInputMode && !currentOutput)) ? (
                                     <textarea
                                         value={currentOutput}
@@ -2993,7 +3029,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                         placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
                                         className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
                                     />
-                                ) : (currentStage === 6 || currentStage === 7) ? (
+                                ) : (currentStage === 6 || (currentStage === 7 && (currentOutput || stageData.finalDraft))) ? (
                                     <div className="notion-style-output prose prose-invert max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm]}

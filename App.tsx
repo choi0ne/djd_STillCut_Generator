@@ -219,7 +219,7 @@ const App: React.FC = () => {
 
             {/* Footer */}
             <footer className="py-3 text-center border-t border-white/5">
-              <p className="text-xs text-gray-500">© 2025 DJD Quality-improvement in Clinical Practice. All rights reserved.</p>
+              <p className="text-xs text-gray-500">© 2030 DJD Quality-improvement in Clinical Practice. All rights reserved.</p>
               <p className="text-xs text-gray-600">본 서비스는 진료개선화 도구이며, 임상 의사결정을 대체할 수 없습니다.</p>
             </footer>
           </main>
