@@ -77,7 +77,7 @@ Style: Minimal paper cut art, pastel colors, clean geometric shapes
 Elements: Paper cut snowflakes, simple pine trees, soft clouds, gentle snow
 Colors: White (#FFFFFF), light blue (#E3F2FD), soft gray (#ECEFF1), pale mint (#E8F5E9)
 Mood: Calm, fresh, peaceful, new beginnings
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -88,7 +88,7 @@ Style: Minimal paper cut art, soft gradients, clean geometric shapes
 Elements: Paper cut early spring buds, melting snow, bare branches with tiny buds
 Colors: Soft white (#FAFAFA), pale pink (#FCE4EC), light lavender (#EDE7F6)
 Mood: Hopeful, transitional, gentle warmth approaching
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -99,7 +99,7 @@ Style: Minimal paper cut art, fresh colors, clean geometric shapes
 Elements: Paper cut cherry blossoms beginning to bloom, gentle breeze, small birds
 Colors: Soft pink (#F8BBD9), fresh green (#C8E6C9), sky blue (#BBDEFB)
 Mood: Renewal, awakening, fresh beginnings
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -110,7 +110,7 @@ Style: Minimal paper cut art, vibrant yet soft colors, clean geometric shapes
 Elements: Paper cut blooming flowers, butterflies, gentle rain drops, tulips
 Colors: Bright pink (#F48FB1), fresh yellow (#FFF59D), soft green (#A5D6A7)
 Mood: Flourishing, joyful, energetic spring
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -121,7 +121,7 @@ Style: Minimal paper cut art, warm and bright colors, clean geometric shapes
 Elements: Paper cut roses, lush green leaves, sunshine rays, ladybugs
 Colors: Rose (#E91E63), fresh green (#66BB6A), warm yellow (#FFEE58)
 Mood: Abundant, warm, family-oriented, celebratory
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -132,7 +132,7 @@ Style: Minimal paper cut art, cool and refreshing colors, clean geometric shapes
 Elements: Paper cut hydrangeas, rain drops, umbrellas, fresh leaves
 Colors: Blue (#64B5F6), purple (#BA68C8), green (#81C784), white (#FFFFFF)
 Mood: Fresh, cool, gentle rain, refreshing
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -143,7 +143,7 @@ Style: Minimal paper cut art, vibrant summer colors, clean geometric shapes
 Elements: Paper cut sunflowers, bright sun, ocean waves, seashells
 Colors: Bright yellow (#FFEB3B), ocean blue (#29B6F6), coral (#FF8A65)
 Mood: Vibrant, energetic, vacation spirit, sunny
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -154,7 +154,7 @@ Style: Minimal paper cut art, warm summer colors, clean geometric shapes
 Elements: Paper cut tropical leaves, sunset colors, gentle evening breeze
 Colors: Orange (#FF9800), coral (#FF7043), turquoise (#26C6DA), golden (#FFD54F)
 Mood: Warm evenings, relaxed, transitional summer
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -165,7 +165,7 @@ Style: Minimal paper cut art, warm earth tones, clean geometric shapes
 Elements: Paper cut early autumn leaves, cosmos flowers, gentle wind
 Colors: Soft orange (#FFAB91), golden yellow (#FFE082), sage green (#A5D6A7)
 Mood: Harvest time, gratitude, family gathering
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -176,7 +176,7 @@ Style: Minimal paper cut art, rich autumn palette, clean geometric shapes
 Elements: Paper cut colorful maple leaves, pumpkins, acorns, harvest moon
 Colors: Deep orange (#FF7043), burgundy (#C62828), golden (#FFC107), brown (#8D6E63)
 Mood: Cozy, harvest celebration, vibrant change
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -187,7 +187,7 @@ Style: Minimal paper cut art, muted warm tones, clean geometric shapes
 Elements: Paper cut falling leaves, bare branches, crisp air feeling, geese flying
 Colors: Rust (#BF360C), tan (#D7CCC8), muted gold (#C9B037), soft gray (#90A4AE)
 Mood: Reflective, peaceful, preparing for winter
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     },
@@ -198,7 +198,7 @@ Style: Minimal paper cut art, festive yet elegant, clean geometric shapes
 Elements: Paper cut snowflakes, evergreen trees, stars, gentle snow falling
 Colors: Deep green (#2E7D32), red (#C62828), white (#FFFFFF), gold (#FFD700)
 Mood: Festive, warm, cozy, celebration
-Composition: Layered paper effect, 1200x300px horizontal banner format
+Composition: Layered paper effect, 1920x480px horizontal banner format
 IMPORTANT: Leave bottom center 150px completely empty/clean for text overlay
 NO medical symbols, NO traditional Asian elements, NO text, NO people`
     }
@@ -377,7 +377,7 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         }
     }, [currentYear, currentMonth]);
 
-    // 날짜 토글 (4단계: 휴진 → 진료 → 오전 → 야간 → 휴진)
+    // 날짜 토글 (4단계: 휴진 → 진료 → 야간 → 오전 → 휴진)
     const toggleDate = useCallback((date: number) => {
         const isWorkDay = selectedDates.includes(date);
         const isMorningDay = morningDates.includes(date);
@@ -389,20 +389,20 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
             setSelectedDates(newDates);
             saveWorkSchedule(currentYear, currentMonth, newDates);
         } else if (isWorkDay && !isMorningDay && !isNightDay) {
-            // 진료 → 오전
-            const newMorningDates = [...morningDates, date].sort((a, b) => a - b);
-            setMorningDates(newMorningDates);
-            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
-        } else if (isWorkDay && isMorningDay && !isNightDay) {
-            // 오전 → 야간
-            const newMorningDates = morningDates.filter(d => d !== date);
+            // 진료 → 야간
             const newNightDates = [...nightDates, date].sort((a, b) => a - b);
-            setMorningDates(newMorningDates);
             setNightDates(newNightDates);
-            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
             saveNightSchedule(currentYear, currentMonth, newNightDates);
+        } else if (isWorkDay && !isMorningDay && isNightDay) {
+            // 야간 → 오전
+            const newNightDates = nightDates.filter(d => d !== date);
+            const newMorningDates = [...morningDates, date].sort((a, b) => a - b);
+            setNightDates(newNightDates);
+            setMorningDates(newMorningDates);
+            saveNightSchedule(currentYear, currentMonth, newNightDates);
+            saveMorningSchedule(currentYear, currentMonth, newMorningDates);
         } else {
-            // 야간 → 휴진
+            // 오전 → 휴진
             const newDates = selectedDates.filter(d => d !== date);
             const newMorningDates = morningDates.filter(d => d !== date);
             const newNightDates = nightDates.filter(d => d !== date);
@@ -477,27 +477,39 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
         try {
             const element = exportRef.current;
 
-            // 스크롤 위치 저장 및 리셋
-            const originalScrollY = window.scrollY;
+            // 요소를 뷰포트 상단으로 스크롤
+            element.scrollIntoView({ block: 'start' });
+
+            // 레이아웃 안정화 대기
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // scrollHeight로 전체 높이 확보
+            const fullWidth = element.scrollWidth || element.offsetWidth;
+            const fullHeight = element.scrollHeight || element.offsetHeight;
 
             const canvas = await html2canvas(element, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false,
+                logging: true, // 디버깅용
                 useCORS: true,
                 allowTaint: true,
-                width: element.offsetWidth,
-                height: element.offsetHeight,
+                width: fullWidth,
+                height: fullHeight + 50,
                 x: 0,
                 y: 0,
                 scrollX: 0,
                 scrollY: 0,
-                windowWidth: element.offsetWidth,
-                windowHeight: element.offsetHeight,
+                windowWidth: fullWidth + 100,
+                windowHeight: fullHeight + 200,
                 onclone: (clonedDoc) => {
                     const clonedElement = clonedDoc.querySelector('[data-export-ref]');
                     if (clonedElement) {
-                        (clonedElement as HTMLElement).style.overflow = 'visible';
+                        const el = clonedElement as HTMLElement;
+                        el.style.overflow = 'visible';
+                        el.style.position = 'relative';
+                        el.style.transform = 'none';
+                        el.style.width = fullWidth + 'px';
+                        el.style.height = fullHeight + 'px';
                     }
                 }
             });
@@ -607,8 +619,8 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
     // UI 렌더링
     // ============================================================
     return (
-        <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="max-w-[1400px] mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
                 {/* 좌측: 설정 패널 */}
                 <div className="space-y-6">
                     {/* 연/월 선택 */}
@@ -815,38 +827,37 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                 {/* 우측: 미리보기 */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-white">👁️ 미리보기</h3>
-                    <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
+                    <div className="bg-white rounded-xl overflow-x-auto shadow-2xl">
                         {/* 내보내기 영역 */}
-                        <div ref={exportRef} className="bg-white" style={{ width: '460px' }}>
+                        <div ref={exportRef} data-export-ref className="bg-white" style={{ width: '860px' }}>
                             {/* 계절 이미지 헤더 */}
                             {seasonalImage ? (
-                                <div className="relative h-48">
-                                    <img
-                                        src={seasonalImage}
-                                        alt="계절 배경"
-                                        className="w-full h-full object-cover"
-                                        crossOrigin="anonymous"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-end pb-6">
-                                        <h1 className="text-3xl font-bold text-white drop-shadow-lg">{CLINIC_INFO.name}</h1>
-                                        <p className="text-xl text-white/90 mt-2">{currentYear}년 {currentMonth}월 진료 안내</p>
-                                    </div>
+                                <div
+                                    className="h-72 flex flex-col items-center justify-end pb-8"
+                                    style={{
+                                        backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.6), transparent), url(${seasonalImage})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center'
+                                    }}
+                                >
+                                    <h1 className="text-5xl font-bold text-white" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{CLINIC_INFO.name}</h1>
+                                    <p className="text-2xl text-white mt-3" style={{ opacity: 0.9 }}>{currentYear}년 {currentMonth}월 진료 안내</p>
                                 </div>
                             ) : (
-                                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-10 text-center">
-                                    <h1 className="text-3xl font-bold text-white">{CLINIC_INFO.name}</h1>
-                                    <p className="text-xl text-white/90 mt-2">{currentYear}년 {currentMonth}월 진료 안내</p>
+                                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-16 text-center">
+                                    <h1 className="text-5xl font-bold text-white">{CLINIC_INFO.name}</h1>
+                                    <p className="text-2xl text-white/90 mt-3">{currentYear}년 {currentMonth}월 진료 안내</p>
                                 </div>
                             )}
 
                             {/* 달력 본문 */}
-                            <div>
+                            <div className="px-4 py-2">
                                 {/* 요일 헤더 */}
-                                <div className="grid grid-cols-7 mb-1">
+                                <div className="grid grid-cols-7 gap-1 mb-2">
                                     {weekdays.map((day, idx) => (
                                         <div
                                             key={day}
-                                            className={`text-center text-xs font-bold py-2 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'
+                                            className={`text-center text-base font-bold py-3 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'
                                                 }`}
                                         >
                                             {day}
@@ -856,10 +867,10 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
 
                                 {/* 날짜 그리드 */}
                                 {calendar.map((week, weekIdx) => (
-                                    <div key={weekIdx} className="grid grid-cols-7 mb-px">
+                                    <div key={weekIdx} className="grid grid-cols-7 gap-1 mb-1">
                                         {week.map((date, dayIdx) => {
                                             if (!date) {
-                                                return <div key={dayIdx} className="h-14" />;
+                                                return <div key={dayIdx} className="h-24" />;
                                             }
 
                                             const holiday = isHoliday(currentYear, currentMonth, date);
@@ -887,22 +898,22 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                                 <div
                                                     key={dayIdx}
                                                     className={`
-                                                        h-14 flex flex-col items-center justify-center
-                                                        text-sm font-medium rounded-md relative
+                                                        h-24 flex flex-col items-center justify-center
+                                                        text-xl font-semibold rounded-lg relative
                                                         ${bgColor}
                                                     `}
                                                 >
                                                     <span>{date}</span>
                                                     {holiday && (
-                                                        <span className={`text-[6px] leading-tight ${isSelected ? 'text-white/80' : 'text-red-400'}`}>
+                                                        <span className={`text-xs leading-tight ${isSelected ? 'text-white/80' : 'text-red-400'}`}>
                                                             {holiday}
                                                         </span>
                                                     )}
                                                     {isMorning && !holiday && (
-                                                        <span className="text-[6px] leading-tight text-white/80">오전</span>
+                                                        <span className="text-xs leading-tight text-white/80">오전</span>
                                                     )}
                                                     {isNight && !holiday && (
-                                                        <span className="text-[6px] leading-tight text-white/80">야간</span>
+                                                        <span className="text-xs leading-tight text-white/80">야간</span>
                                                     )}
                                                 </div>
                                             );
@@ -911,29 +922,29 @@ const WorkCalendarEditor: React.FC<WorkCalendarEditorProps> = ({
                                 ))}
 
                                 {/* 범례 */}
-                                <div className="flex justify-center gap-3 mt-2 text-xs flex-wrap">
+                                <div className="flex justify-center gap-6 mt-4 text-sm flex-wrap">
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-blue-500"></span>
                                         <span className="text-gray-600">진료(~18:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-orange-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-orange-500"></span>
                                         <span className="text-gray-600">오전(~15:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-emerald-500"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-emerald-500"></span>
                                         <span className="text-gray-600">야간(~19:00)</span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-300"></span>
+                                        <span className="w-4 h-4 rounded-sm bg-gray-100 border border-gray-300"></span>
                                         <span className="text-gray-600">휴진</span>
                                     </span>
                                 </div>
 
                                 {/* 연락처 */}
-                                <div className="mt-4 pt-4 pb-4 border-t border-gray-200 text-center text-gray-600 text-sm">
-                                    <p>📞 {CLINIC_INFO.phone}</p>
-                                    <p className="text-xs text-gray-400 mt-1">📍 {CLINIC_INFO.address}</p>
+                                <div className="mt-6 pt-6 pb-6 border-t border-gray-200 text-center text-gray-600 text-base">
+                                    <p className="text-lg">📞 {CLINIC_INFO.phone}</p>
+                                    <p className="text-sm text-gray-400 mt-2">📍 {CLINIC_INFO.address}</p>
                                 </div>
                             </div>
                         </div>
