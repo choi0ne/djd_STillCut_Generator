@@ -2188,20 +2188,20 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
 
                 const conceptCards = imageConcepts.map((c: any) => ({
-                    title: c.title,
-                    keywords: c.keywords,
-                    recommendedStyle: c.recommendedStyle,
-                    recommendedPalette: c.recommendedPalette,
+                    title: c.title || '이미지 컨셉',
+                    keywords: c.keywords || [],
+                    recommendedStyle: c.recommendedStyle || 'default',
+                    recommendedPalette: c.recommendedPalette || [],
                     negatives: c.negatives || commonNegatives,
                     patientCharacterPrompt: patientPrompt
                 }));
 
                 const sectionCards = sectionIllustrations.map((s: any) => ({
-                    title: `${s.sectionNumber}. ${s.sectionTitle}`,
-                    keywords: s.keywords,
-                    description: s.manuscriptSummary || s.sectionContent || s.summary,
+                    title: `${s.sectionNumber || '?'}. ${s.sectionTitle || '섹션'}`,
+                    keywords: s.keywords || [],
+                    description: s.manuscriptSummary || s.sectionContent || s.summary || '',
                     recommendedStyle: 'section-illustration' as const,
-                    recommendedPalette: s.recommendedPalette,
+                    recommendedPalette: s.recommendedPalette || [],
                     negatives: commonNegatives,
                     patientCharacterPrompt: patientPrompt
                 }));
@@ -2445,20 +2445,20 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                     const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
 
                     const conceptCards = parsed.imageConcepts.map((c: any) => ({
-                        title: c.title,
-                        keywords: c.keywords,
-                        recommendedStyle: c.recommendedStyle,
-                        recommendedPalette: c.recommendedPalette,
+                        title: c.title || '이미지 컨셉',
+                        keywords: c.keywords || [],
+                        recommendedStyle: c.recommendedStyle || 'default',
+                        recommendedPalette: c.recommendedPalette || [],
                         negatives: c.negatives || commonNegatives,
                         patientCharacterPrompt: patientPrompt
                     }));
 
                     const sectionCards = (parsed.sectionIllustrations || []).map((s: any) => ({
-                        title: `${s.sectionNumber}. ${s.sectionTitle}`,
-                        keywords: s.keywords,
-                        description: s.manuscriptSummary || s.sectionContent || s.summary,
+                        title: `${s.sectionNumber || '?'}. ${s.sectionTitle || '섹션'}`,
+                        keywords: s.keywords || [],
+                        description: s.manuscriptSummary || s.sectionContent || s.summary || '',
                         recommendedStyle: 'section-illustration' as const,
-                        recommendedPalette: s.recommendedPalette,
+                        recommendedPalette: s.recommendedPalette || [],
                         negatives: commonNegatives,
                         patientCharacterPrompt: patientPrompt
                     }));
