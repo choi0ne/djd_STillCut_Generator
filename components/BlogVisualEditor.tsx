@@ -117,16 +117,35 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
         }
     });
 
+    // 🔴 자동 컨셉 선택 트리거 플래그
+    const [autoSelectPending, setAutoSelectPending] = useState(false);
+
     // 블로그글 작성에서 전달받은 컨텍스트 초기화
     React.useEffect(() => {
         if (initialContext) {
             setTopic(initialContext.topic);
             if (initialContext.concepts.length > 0) {
+                // 초기 상태만 설정 (프롬프트 생성은 별도 useEffect에서 처리)
                 setContent(initialContext.concepts[0].keywords.join(', '));
                 setSelectedConceptIndex(0);
+                setAutoSelectPending(true);  // 🔴 자동 선택 트리거 플래그 활성화
             }
         }
     }, [initialContext]);
+
+    // 🔴 자동 컨셉 선택 시 프롬프트 생성 트리거
+    React.useEffect(() => {
+        if (autoSelectPending && initialContext && initialContext.concepts.length > 0) {
+            // 자동 선택 플래그 해제 후 첫 번째 컨셉 선택 핸들러 호출
+            setAutoSelectPending(false);
+            // 약간의 딜레이 후 handleConceptSelect 호출 (상태 업데이트 완료 대기)
+            const timer = setTimeout(() => {
+                handleConceptSelect(0);
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoSelectPending, initialContext]);
 
     // 컨셉 선택 변경 시 키워드 및 AI 추천 스타일/팔레트 적용 + 자동 프롬프트 생성
     const handleConceptSelect = async (index: number) => {

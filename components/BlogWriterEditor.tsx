@@ -1516,11 +1516,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             return;
         }
 
-        if (!confirm('1~7단계를 일괄 실행합니다. (이미지 카드 생성 + MD 파일 저장까지 자동화)\n\n진행하시겠습니까?')) {
+        if (!confirm('1~6단계를 일괄 실행합니다. (탈고까지 자동화, 7단계 이미지 카드는 수동 실행)\n\n진행하시겠습니까?')) {
             return;
         }
 
-        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6, 7];
+        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6];
         setIsBatchProcessing(true);
         setBatchProgress({ current: 0, total: batchStages.length });
 
@@ -2053,27 +2053,15 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                     case 6:
                         setStageData(prev => ({ ...prev, finalDraft: batchAccumulator.finalDraft }));
                         break;
-                    case 7:
-                        setStageData(prev => ({
-                            ...prev,
-                            imageConcepts: batchAccumulator.imageConcepts,
-                            recommendedHashtags: batchAccumulator.recommendedHashtags,
-                            sectionIllustrations: batchAccumulator.sectionIllustrations,
-                            seriesKeywords: batchAccumulator.seriesKeywords
-                        }));
-                        break;
                 }
             }
 
-            // 완료 후 Stage 7 유지
-            setCurrentStage(7);
-            loadStageDataToOutput(7);
+            // 완료 후 Stage 6 유지 (7단계는 사용자가 수동으로 진행)
+            setCurrentStage(6);
+            loadStageDataToOutput(6);
 
-            // ✅ 방안 B: 일괄처리는 7단계 데이터 생성만 담당
-            // MD 파일 저장 및 이미지 카드 전달은 "블로그 이미지 생성" 버튼(handleCompleteStage7)에서만 수행
-            // → 중복 처리 방지
-
-            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📋 7단계 결과를 확인한 후\n👉 "블로그 이미지 생성" 버튼을 눌러\n   - MD 파일 저장\n   - 이미지 카드 생성\n을 진행해주세요.');
+            // ✅ 1-6단계 일괄처리 완료 - 7단계는 수동 실행
+            alert('✅ 1~6단계 일괄처리가 완료되었습니다!\n\n📋 탈고(Stage 6) 결과를 확인한 후\n👉 [다음 →] 버튼을 눌러 7단계로 이동하세요.\n👉 7단계 [실행] 후 "블로그 이미지 생성" 버튼으로\n   - MD 파일 저장\n   - 이미지 카드 생성\n을 진행해주세요.');
         } catch (error: any) {
             setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
             alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
