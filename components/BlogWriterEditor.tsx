@@ -1329,15 +1329,16 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             hashtagContent += `---\n\n`;
 
             stageData.recommendedHashtags.forEach(category => {
-                const cleanedTags = category.tags.map(tag =>
+                const tags = category.tags || [];
+                const cleanedTags = tags.map(tag =>
                     tag.replace(/^#/, '').trim()
                 ).filter(tag => tag.length > 0);
-                hashtagContent += `## ${category.category}\n\n`;
+                hashtagContent += `## ${category.category || '기타'}\n\n`;
                 hashtagContent += cleanedTags.map(tag => `- ${tag}`).join('\n') + '\n\n';
             });
 
             const allTags = stageData.recommendedHashtags
-                .flatMap(cat => cat.tags.map(tag => tag.replace(/^#/, '').trim()))
+                .flatMap(cat => (cat.tags || []).map(tag => tag.replace(/^#/, '').trim()))
                 .filter(tag => tag.length > 0);
             hashtagContent += `---\n\n`;
             hashtagContent += `## 📋 전체 태그 (복사용)\n\n`;
@@ -2085,15 +2086,16 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 hashtagContent += `---\n\n`;
 
                 recommendedHashtags.forEach((category: any) => {
-                    const cleanedTags = category.tags.map((tag: string) =>
+                    const tags = category.tags || [];
+                    const cleanedTags = tags.map((tag: string) =>
                         tag.replace(/^#/, '').trim()
                     ).filter((tag: string) => tag.length > 0);
-                    hashtagContent += `## ${category.category}\n\n`;
+                    hashtagContent += `## ${category.category || '기타'}\n\n`;
                     hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
                 });
 
                 const allTags = recommendedHashtags
-                    .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
+                    .flatMap((cat: any) => (cat.tags || []).map((tag: string) => tag.replace(/^#/, '').trim()))
                     .filter((tag: string) => tag.length > 0);
                 hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
 
@@ -2362,15 +2364,16 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                     hashtagContent += `---\n\n`;
 
                     parsed.hashtags.forEach((category: any) => {
-                        const cleanedTags = category.tags.map((tag: string) =>
+                        const tags = category.tags || [];
+                        const cleanedTags = tags.map((tag: string) =>
                             tag.replace(/^#/, '').trim()
                         ).filter((tag: string) => tag.length > 0);
-                        hashtagContent += `## ${category.category}\n\n`;
+                        hashtagContent += `## ${category.category || '기타'}\n\n`;
                         hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
                     });
 
                     const allTags = parsed.hashtags
-                        .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
+                        .flatMap((cat: any) => (cat.tags || []).map((tag: string) => tag.replace(/^#/, '').trim()))
                         .filter((tag: string) => tag.length > 0);
                     hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
 
