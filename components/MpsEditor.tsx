@@ -36,16 +36,16 @@ const MpsEditor: React.FC = () => {
 
     // 이미지 옵션
     const [imageOptions, setImageOptions] = useState<MpsImageOptions>({
-        removeWatermark: true,
+        removeWatermark: false,
         optimizeForBlog: true,
-        outputFormat: 'webp'
+        outputFormat: 'jpg'
     });
 
     // PDF 옵션
     const [pdfOptions, setPdfOptions] = useState<MpsPdfOptions>({
-        removeWatermark: true,
+        removeWatermark: false,
         optimizeForBlog: true,
-        outputFormat: 'webp',
+        outputFormat: 'jpg',
         mergePages: true,
         selectedPages: [],
         pageOrder: []

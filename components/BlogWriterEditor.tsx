@@ -1524,7 +1524,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
     };
 
-    // 1~7단계 일괄처리 함수 (이미지 카드 생성 + MD 저장까지 자동화)
+    // 1~6단계 일괄처리 함수 (탈고까지 자동화)
     const handleBatchProcess = async () => {
         if (!geminiApiKey) {
             openSettings();
@@ -1537,11 +1537,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             return;
         }
 
-        if (!confirm('1~7단계를 일괄 실행합니다. (이미지 카드 생성 + MD 파일 저장까지 자동화)\n\n진행하시겠습니까?')) {
+        if (!confirm('1~6단계를 일괄 실행합니다. (탈고까지 자동화)\n\n진행하시겠습니까?')) {
             return;
         }
 
-        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6, 7];
+        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6];
         setIsBatchProcessing(true);
         setBatchProgress({ current: 0, total: batchStages.length });
 
@@ -2036,119 +2036,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 }
             }
 
-            // 완료 후 Stage 7 유지
-            setCurrentStage(7);
-            loadStageDataToOutput(7);
+            // 완료 후 Stage 6 유지
+            setCurrentStage(6);
+            loadStageDataToOutput(6);
 
-            // 🔴 7단계 완료 후 자동으로 이미지 카드 생성 + MD 파일 저장
-            // handleCompleteStage7 내부 로직을 직접 실행 (stageData가 아직 업데이트되지 않았을 수 있으므로 accumulator 사용)
-
-            // 1. 해시태그 MD 파일 저장
-            if (batchAccumulator.recommendedHashtags.length > 0) {
-                let content = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
-                content += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
-                content += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
-                content += `---\n\n`;
-
-                batchAccumulator.recommendedHashtags.forEach((category: any) => {
-                    const cleanedTags = category.tags.map((tag: string) =>
-                        tag.replace(/^#/, '').trim()
-                    ).filter((tag: string) => tag.length > 0);
-                    content += `## ${category.category}\n\n`;
-                    content += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
-                });
-
-                const allTags = batchAccumulator.recommendedHashtags
-                    .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
-                    .filter((tag: string) => tag.length > 0);
-                content += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
-
-                if (batchAccumulator.seriesKeywords && batchAccumulator.seriesKeywords.length > 0) {
-                    content += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
-                    batchAccumulator.seriesKeywords.forEach((kw: any, i: number) => {
-                        content += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
-                    });
-                }
-
-                const now = new Date();
-                const timestamp = now.getFullYear().toString() +
-                    (now.getMonth() + 1).toString().padStart(2, '0') +
-                    now.getDate().toString().padStart(2, '0') + '_' +
-                    now.getHours().toString().padStart(2, '0') +
-                    now.getMinutes().toString().padStart(2, '0') +
-                    now.getSeconds().toString().padStart(2, '0');
-                const filename = `해시태그_${timestamp}.md`;
-
-                const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            // 2. 최종글 MD 파일 저장
-            if (batchAccumulator.finalDraft) {
-                const formattedDraft = formatForNotion(batchAccumulator.finalDraft);
-                let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
-                mdContent += '---\n\n';
-                mdContent += formattedDraft;
-
-                const now = new Date();
-                const timestamp = now.getFullYear().toString() +
-                    (now.getMonth() + 1).toString().padStart(2, '0') +
-                    now.getDate().toString().padStart(2, '0') + '_' +
-                    now.getHours().toString().padStart(2, '0') +
-                    now.getMinutes().toString().padStart(2, '0') +
-                    now.getSeconds().toString().padStart(2, '0');
-                const mdFilename = `최종글_${timestamp}.md`;
-
-                const mdBlob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
-                const mdUrl = URL.createObjectURL(mdBlob);
-                const mdLink = document.createElement('a');
-                mdLink.href = mdUrl;
-                mdLink.download = mdFilename;
-                document.body.appendChild(mdLink);
-                mdLink.click();
-                document.body.removeChild(mdLink);
-                URL.revokeObjectURL(mdUrl);
-            }
-
-            // 3. 이미지 카드 생성 (BlogVisualEditor로 전달)
-            if (onStage7Complete && (batchAccumulator.imageConcepts.length > 0 || batchAccumulator.sectionIllustrations.length > 0)) {
-                const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
-                const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
-
-                const conceptCards = batchAccumulator.imageConcepts.map((c: any) => ({
-                    title: c.title,
-                    keywords: c.keywords,
-                    recommendedStyle: c.recommendedStyle,
-                    recommendedPalette: c.recommendedPalette,
-                    negatives: c.negatives || commonNegatives,
-                    patientCharacterPrompt: patientPrompt
-                }));
-
-                const sectionCards = batchAccumulator.sectionIllustrations.map((s: any) => ({
-                    title: `${s.sectionNumber}. ${s.sectionTitle}`,
-                    keywords: s.keywords,
-                    description: s.manuscriptSummary || s.sectionContent || s.summary,
-                    recommendedStyle: 'section-illustration' as const,
-                    recommendedPalette: s.recommendedPalette,
-                    negatives: commonNegatives,
-                    patientCharacterPrompt: patientPrompt
-                }));
-
-                onStage7Complete({
-                    topic: stageData.selectedTopic,
-                    finalDraft: batchAccumulator.finalDraft,
-                    concepts: [...conceptCards, ...sectionCards]
-                });
-            }
-
-            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📁 MD 파일 저장 완료\n🖼️ 이미지 카드가 생성되었습니다.');
+            alert('✅ 1~6단계 일괄처리가 완료되었습니다!\n\n탈고(Stage 6)까지 자동 실행 완료.\n7단계(이미지 카드 생성)는 수동으로 진행해주세요.');
         } catch (error: any) {
             setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
             alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
