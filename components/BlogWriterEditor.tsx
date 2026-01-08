@@ -406,7 +406,11 @@ ${stageData.outline}
 - 핵심 주장 뒤에 출처 번호: "...효과가 있습니다[1]."
 - 또는 괄호 형식: "...(NICE 2023)"
 
-### 8개 섹션 구조 (반드시 모두 포함)
+### 9개 섹션 구조 (반드시 모두 포함)
+
+**[0. 제목]** (필수 - 글의 첫 줄)
+- 주제에 맞는 매력적인 블로그 제목 1개만 작성
+- 예: "공황장애 초기증상, 혹시 나도?" 자가테스트 체크리스트
 
 **[본문 섹션 1-6]**
 1. **Answer First** - 핵심 결론
@@ -1113,15 +1117,8 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         // 섹션 헤더 바로 다음에 있는 잘못된 구분선 제거
         formatted = formatted.replace(/^(## [^\n]+)\n---$/gm, '$1');
 
-        // 섹션 앞에 구분선 추가 (첫 번째 섹션 제외)
-        let firstSectionFound = false;
-        formatted = formatted.replace(/^(## [🧾✅🚨🧠🔬📊🔚❓📚📌][^\n]+)$/gm, (match) => {
-            if (!firstSectionFound) {
-                firstSectionFound = true;
-                return match; // 첫 섹션은 구분선 없이
-            }
-            return `---\n\n${match}`;
-        });
+        // 구분선 자동 추가 로직 제거 - 6단계에서 AI가 직접 구분선을 넣도록 함
+        // (이전: 섹션 앞에 구분선 자동 추가 - 중복 문제 발생)
 
         // 2. • 불릿 마크 제거 (- 로 변경)
         formatted = formatted.replace(/^[•●○◦⦁]\s*/gm, '- ');
@@ -1374,13 +1371,12 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             }
         }
 
-        // 최종글 파일 내용 생성
+        // 최종글 파일 내용 생성 (6단계에서 이미 Notion 편집 지침 적용됨 - 중복 처리 방지)
         let finalDraftContent = '';
         if (stageData.finalDraft) {
-            const formattedDraft = formatForNotion(stageData.finalDraft);
             finalDraftContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
             finalDraftContent += '---\n\n';
-            finalDraftContent += formattedDraft;
+            finalDraftContent += stageData.finalDraft;  // formatForNotion 제거 - 6단계 결과 그대로 사용
         }
 
         // File System Access API 사용 시도
@@ -1537,11 +1533,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             return;
         }
 
-        if (!confirm('1~6단계를 일괄 실행합니다. (탈고까지 자동화)\n\n진행하시겠습니까?')) {
+        if (!confirm('1~7단계를 일괄 실행합니다. (이미지 카드 생성 + MD 파일 저장까지 자동화)\n\n진행하시겠습니까?')) {
             return;
         }
 
-        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6];
+        const batchStages: WorkflowStage[] = [1, 2, 3, 4, 5, 6, 7];
         setIsBatchProcessing(true);
         setBatchProgress({ current: 0, total: batchStages.length });
 
@@ -1757,10 +1753,44 @@ ${batchAccumulator.draft}
 - **아이콘 + 칸막이 한 줄**만 섹션 헤더로 사용
 - 중복 제목 생성 금지
 
+## 4-1. 구분선(---) 규칙 (필수 준수)
+
+**✅ 구분선 위치: 각 섹션 헤더 "위"에 배치**
+
+| 섹션 | 위에 구분선 |
+|------|----------|
+| 제목 | ❌ 없음 (글의 첫 줄) |
+| 🧾 Answer First | ❌ 없음 (제목 바로 다음) |
+| ✅ Action | ✅ 위에 \`---\` |
+| 🚨 Warning | ✅ 위에 \`---\` |
+| 🧠 The Why | ✅ 위에 \`---\` |
+| 🔚 Closing | ✅ 위에 \`---\` |
+| ❓ FAQ | ✅ 위에 \`---\` |
+| 📚 참고 자료 | ✅ 위에 \`---\` |
+
+**형식 예시:**
+\`\`\`
+# 제목
+
+## 🧾 Answer First | 핵심 결론
+(내용)
+
+---
+
+## ✅ Action | 즉각 실천
+(내용)
+
+---
+
+## 🚨 Warning | 반드시 체크해야 할 위험 신호
+(내용)
+\`\`\`
+
 ## 5. 의료 블로그 전용 섹션 아이콘 매핑 (고정)
 
 | 섹션 | 섹션 헤더 |
 |---|---|
+| 제목 | (제목은 아이콘 없이 첫 줄에 배치) |
 | Answer First | 🧾 Answer First \\| 핵심 결론 |
 | Action | ✅ Action \\| 즉각 실천 |
 | Warning | 🚨 Warning \\| 반드시 체크해야 할 위험 신호 |
@@ -1812,9 +1842,23 @@ ${batchAccumulator.draft}
 - 본문 \`[숫자]\` 형식 유지
 - 참고자료 번호와 1:1 매칭
 
-## 11. 출력 규칙
-- 노션에 즉시 붙여넣기 가능
-- 메타 설명 출력 금지
+## 11. 출력 규칙 (필수 준수)
+
+### ⛔ 절대 금지
+- "~에 따라 편집했습니다", "~을 적용했습니다" 같은 **메타 설명 출력 금지**
+- 작업 보고서 형식의 서문 금지
+
+### ✅ 필수 출력 순서 (9개 섹션 - 4단계 집필과 동일)
+0. **제목** (초고의 제목을 그대로 1개만 유지 - 추가/변경 금지)
+1. 🧾 Answer First | 핵심 결론
+2. ✅ Action | 즉각 실천
+3. 🚨 Warning | 반드시 체크해야 할 위험 신호
+4. 🧠 The Why
+5. 🔚 Closing | 요약 및 격려
+6. ❓ FAQ
+7. 📚 참고 자료
+
+**⚠️ 첫 줄은 반드시 초고의 \`제목\` 1개로 시작! 제목 2개 이상/메타 설명으로 시작하면 규칙 위반!**
 
 ---
 
@@ -2036,11 +2080,150 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 }
             }
 
-            // 완료 후 Stage 6 유지
-            setCurrentStage(6);
-            loadStageDataToOutput(6);
+            // 완료 후 Stage 7 유지
+            setCurrentStage(7);
+            loadStageDataToOutput(7);
 
-            alert('✅ 1~6단계 일괄처리가 완료되었습니다!\n\n탈고(Stage 6)까지 자동 실행 완료.\n7단계(이미지 카드 생성)는 수동으로 진행해주세요.');
+            // 7단계 완료 후 자동으로 MD 파일 저장 + 이미지 카드 생성
+            // yyyymmdd 폴더명 생성
+            const now = new Date();
+            const folderName = now.getFullYear().toString() +
+                (now.getMonth() + 1).toString().padStart(2, '0') +
+                now.getDate().toString().padStart(2, '0');
+
+            // 해시태그 파일 내용 생성
+            let hashtagContent = '';
+            if (batchAccumulator.recommendedHashtags.length > 0) {
+                hashtagContent = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
+                hashtagContent += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
+                hashtagContent += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
+                hashtagContent += `---\n\n`;
+
+                batchAccumulator.recommendedHashtags.forEach((category: any) => {
+                    const cleanedTags = category.tags.map((tag: string) =>
+                        tag.replace(/^#/, '').trim()
+                    ).filter((tag: string) => tag.length > 0);
+                    hashtagContent += `## ${category.category}\n\n`;
+                    hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
+                });
+
+                const allTags = batchAccumulator.recommendedHashtags
+                    .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
+                    .filter((tag: string) => tag.length > 0);
+                hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
+
+                if (batchAccumulator.seriesKeywords && batchAccumulator.seriesKeywords.length > 0) {
+                    hashtagContent += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
+                    batchAccumulator.seriesKeywords.forEach((kw: any, i: number) => {
+                        hashtagContent += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
+                    });
+                }
+            }
+
+            // 최종글 파일 내용 생성 (formatForNotion 제거 - 6단계에서 이미 적용됨)
+            let finalDraftContent = '';
+            if (batchAccumulator.finalDraft) {
+                finalDraftContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+                finalDraftContent += '---\n\n';
+                finalDraftContent += batchAccumulator.finalDraft;  // 6단계 결과 그대로 사용
+            }
+
+            // File System Access API 사용 시도 (폴더 선택)
+            try {
+                if ('showDirectoryPicker' in window) {
+                    const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+
+                    // yyyymmdd 폴더 생성
+                    const subDirHandle = await dirHandle.getDirectoryHandle(folderName, { create: true });
+
+                    // 해시태그 파일 저장
+                    if (hashtagContent) {
+                        const hashtagFileHandle = await subDirHandle.getFileHandle('해시태그.md', { create: true });
+                        const hashtagWritable = await hashtagFileHandle.createWritable();
+                        await hashtagWritable.write(hashtagContent);
+                        await hashtagWritable.close();
+                    }
+
+                    // 최종글 파일 저장
+                    if (finalDraftContent) {
+                        const finalFileHandle = await subDirHandle.getFileHandle('최종글.md', { create: true });
+                        const finalWritable = await finalFileHandle.createWritable();
+                        await finalWritable.write(finalDraftContent);
+                        await finalWritable.close();
+                    }
+                } else {
+                    throw new Error('File System Access API not supported');
+                }
+            } catch (fsError: any) {
+                // 사용자가 취소하거나 API 미지원 시 기존 다운로드 방식 사용
+                if (fsError.name !== 'AbortError') {
+                    const timestamp = now.getFullYear().toString() +
+                        (now.getMonth() + 1).toString().padStart(2, '0') +
+                        now.getDate().toString().padStart(2, '0') + '_' +
+                        now.getHours().toString().padStart(2, '0') +
+                        now.getMinutes().toString().padStart(2, '0') +
+                        now.getSeconds().toString().padStart(2, '0');
+
+                    // 해시태그 파일 다운로드
+                    if (hashtagContent) {
+                        const blob = new Blob([hashtagContent], { type: 'text/markdown;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${folderName}_해시태그.md`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+
+                    // 최종글 파일 다운로드
+                    if (finalDraftContent) {
+                        const mdBlob = new Blob([finalDraftContent], { type: 'text/markdown;charset=utf-8' });
+                        const mdUrl = URL.createObjectURL(mdBlob);
+                        const mdLink = document.createElement('a');
+                        mdLink.href = mdUrl;
+                        mdLink.download = `${folderName}_최종글.md`;
+                        document.body.appendChild(mdLink);
+                        mdLink.click();
+                        document.body.removeChild(mdLink);
+                        URL.revokeObjectURL(mdUrl);
+                    }
+                }
+            }
+
+            // 3. 이미지 카드 생성 (BlogVisualEditor로 전달)
+            if (onStage7Complete && (batchAccumulator.imageConcepts.length > 0 || batchAccumulator.sectionIllustrations.length > 0)) {
+                const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
+                const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
+
+                const conceptCards = batchAccumulator.imageConcepts.map((c: any) => ({
+                    title: c.title,
+                    keywords: c.keywords,
+                    recommendedStyle: c.recommendedStyle,
+                    recommendedPalette: c.recommendedPalette,
+                    negatives: c.negatives || commonNegatives,
+                    patientCharacterPrompt: patientPrompt
+                }));
+
+                const sectionCards = batchAccumulator.sectionIllustrations.map((s: any) => ({
+                    title: `${s.sectionNumber}. ${s.sectionTitle}`,
+                    keywords: s.keywords,
+                    description: s.manuscriptSummary || s.sectionContent || s.summary,
+                    recommendedStyle: 'section-illustration' as const,
+                    recommendedPalette: s.recommendedPalette,
+                    negatives: commonNegatives,
+                    patientCharacterPrompt: patientPrompt
+                }));
+
+                onStage7Complete({
+                    topic: stageData.selectedTopic,
+                    finalDraft: batchAccumulator.finalDraft,
+                    concepts: [...conceptCards, ...sectionCards]
+                });
+            }
+
+            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📁 MD 파일 저장 완료\n🖼️ 이미지 카드가 생성되었습니다.');
         } catch (error: any) {
             setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
             alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
