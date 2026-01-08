@@ -216,6 +216,7 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
 
     // 숏컷 처리 state (완성 원고 → Stage 7만 실행)
     const [isShortcutProcessing, setIsShortcutProcessing] = useState(false);
+    const [applyNotionFormat, setApplyNotionFormat] = useState(false);  // 숏컷모드 Notion 포맷 적용 여부 (기본: 비활성화)
 
     const getStagePrompt = (stage: WorkflowStage): string => {
         switch (stage) {
@@ -554,6 +555,7 @@ ${stageData.draft}
 ## 11. 출력 규칙
 - 노션에 즉시 붙여넣기 가능
 - 메타 설명 출력 금지
+- **⛔ "📌 같이 보시면 좋은 글" 섹션은 생성하지 마세요!** (수동으로 추가 예정)
 
 ---
 
@@ -1181,28 +1183,8 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             }
 
             if (faqIndex !== -1 && refIndex !== -1 && refIndex > faqIndex) {
-                // 시리즈 컨텍스트가 있으면 실제 제목 사용
-                let seriesContent = '- (관련 글 제목 1)\n- (관련 글 제목 2)\n- (관련 글 제목 3)\n';
-
-                if (stageData.currentSeriesContext?.cluster && stageData.currentSeriesContext.cluster.length > 0) {
-                    const seriesTitles = stageData.currentSeriesContext.cluster
-                        .filter(s => s.title !== stageData.selectedTopic)
-                        .slice(0, 3)
-                        .map(s => `- ${s.title}`)
-                        .join('\n');
-                    if (seriesTitles) {
-                        seriesContent = seriesTitles + '\n';
-                    }
-                } else if (stageData.seriesKeywords && stageData.seriesKeywords.length > 0) {
-                    // Stage 7에서 생성된 시리즈 키워드 사용
-                    const seriesTitles = stageData.seriesKeywords
-                        .slice(0, 3)
-                        .map(s => `- ${s.title}`)
-                        .join('\n');
-                    if (seriesTitles) {
-                        seriesContent = seriesTitles + '\n';
-                    }
-                }
+                // 빈칸으로 유지 (내용은 수동으로 입력)
+                const seriesContent = '(위 제목들을 그대로 복사하세요. 링크는 블로그 업로드 후 수동 설정 예정)\n';
 
                 // FAQ 섹션 끝과 참고자료 섹션 사이에 삽입
                 const beforeRef = formatted.substring(0, refIndex);
@@ -1860,6 +1842,8 @@ ${batchAccumulator.draft}
 
 **⚠️ 첫 줄은 반드시 초고의 \`제목\` 1개로 시작! 제목 2개 이상/메타 설명으로 시작하면 규칙 위반!**
 
+**⛔ "📌 같이 보시면 좋은 글" 섹션은 생성하지 마세요!** (수동으로 추가 예정)
+
 ---
 
 ### 입력 데이터
@@ -2092,14 +2076,15 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 now.getDate().toString().padStart(2, '0');
 
             // 해시태그 파일 내용 생성
+            const recommendedHashtags = batchAccumulator.recommendedHashtags || [];
             let hashtagContent = '';
-            if (batchAccumulator.recommendedHashtags.length > 0) {
+            if (recommendedHashtags.length > 0) {
                 hashtagContent = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
                 hashtagContent += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
                 hashtagContent += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
                 hashtagContent += `---\n\n`;
 
-                batchAccumulator.recommendedHashtags.forEach((category: any) => {
+                recommendedHashtags.forEach((category: any) => {
                     const cleanedTags = category.tags.map((tag: string) =>
                         tag.replace(/^#/, '').trim()
                     ).filter((tag: string) => tag.length > 0);
@@ -2107,7 +2092,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                     hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
                 });
 
-                const allTags = batchAccumulator.recommendedHashtags
+                const allTags = recommendedHashtags
                     .flatMap((cat: any) => cat.tags.map((tag: string) => tag.replace(/^#/, '').trim()))
                     .filter((tag: string) => tag.length > 0);
                 hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
@@ -2193,11 +2178,14 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             }
 
             // 3. 이미지 카드 생성 (BlogVisualEditor로 전달)
-            if (onStage7Complete && (batchAccumulator.imageConcepts.length > 0 || batchAccumulator.sectionIllustrations.length > 0)) {
+            const imageConcepts = batchAccumulator.imageConcepts || [];
+            const sectionIllustrations = batchAccumulator.sectionIllustrations || [];
+
+            if (onStage7Complete && (imageConcepts.length > 0 || sectionIllustrations.length > 0)) {
                 const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
                 const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
 
-                const conceptCards = batchAccumulator.imageConcepts.map((c: any) => ({
+                const conceptCards = imageConcepts.map((c: any) => ({
                     title: c.title,
                     keywords: c.keywords,
                     recommendedStyle: c.recommendedStyle,
@@ -2206,7 +2194,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                     patientCharacterPrompt: patientPrompt
                 }));
 
-                const sectionCards = batchAccumulator.sectionIllustrations.map((s: any) => ({
+                const sectionCards = sectionIllustrations.map((s: any) => ({
                     title: `${s.sectionNumber}. ${s.sectionTitle}`,
                     keywords: s.keywords,
                     description: s.manuscriptSummary || s.sectionContent || s.summary,
@@ -2394,11 +2382,11 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                     }
                 }
 
-                // 최종글 파일 내용 생성
-                const formattedDraft = formatForNotion(finalDraftContent);
+                // 최종글 파일 내용 생성 (Notion 포맷 적용 옵션에 따라)
+                const processedDraft = applyNotionFormat ? formatForNotion(finalDraftContent) : finalDraftContent;
                 let mdContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
                 mdContent += '---\n\n';
-                mdContent += formattedDraft;
+                mdContent += processedDraft;
 
                 // File System Access API 사용 시도
                 try {
@@ -2582,6 +2570,16 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                     <EditIcon className="w-3 h-3" />
                                     숏컷모드
                                 </button>
+                                {/* 숏컷모드 Notion 포맷 옵션 */}
+                                <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer" title="체크 시 입력된 원고에 Notion 편집 지침을 적용합니다. 이미 편집된 원고라면 비활성화하세요.">
+                                    <input
+                                        type="checkbox"
+                                        checked={applyNotionFormat}
+                                        onChange={(e) => setApplyNotionFormat(e.target.checked)}
+                                        className="w-3 h-3 rounded border-gray-600 bg-gray-700 text-violet-500 focus:ring-violet-500"
+                                    />
+                                    Notion포맷
+                                </label>
                             </div>
                             <div className="flex gap-2 items-center">
                                 {/* 프로필 선택 */}
