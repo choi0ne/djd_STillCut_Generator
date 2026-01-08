@@ -2069,151 +2069,11 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             setCurrentStage(7);
             loadStageDataToOutput(7);
 
-            // 7단계 완료 후 자동으로 MD 파일 저장 + 이미지 카드 생성
-            // yyyymmdd 폴더명 생성
-            const now = new Date();
-            const folderName = now.getFullYear().toString() +
-                (now.getMonth() + 1).toString().padStart(2, '0') +
-                now.getDate().toString().padStart(2, '0');
+            // ✅ 방안 B: 일괄처리는 7단계 데이터 생성만 담당
+            // MD 파일 저장 및 이미지 카드 전달은 "블로그 이미지 생성" 버튼(handleCompleteStage7)에서만 수행
+            // → 중복 처리 방지
 
-            // 해시태그 파일 내용 생성
-            const recommendedHashtags = batchAccumulator.recommendedHashtags || [];
-            let hashtagContent = '';
-            if (recommendedHashtags.length > 0) {
-                hashtagContent = `# 🏷️ 블로그 게시용 추천 태그\n\n`;
-                hashtagContent += `> 주제: ${stageData.selectedTopic || '미정'}\n`;
-                hashtagContent += `> 생성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
-                hashtagContent += `---\n\n`;
-
-                recommendedHashtags.forEach((category: any) => {
-                    const tags = category.tags || [];
-                    const cleanedTags = tags.map((tag: string) =>
-                        tag.replace(/^#/, '').trim()
-                    ).filter((tag: string) => tag.length > 0);
-                    hashtagContent += `## ${category.category || '기타'}\n\n`;
-                    hashtagContent += cleanedTags.map((tag: string) => `- ${tag}`).join('\n') + '\n\n';
-                });
-
-                const allTags = recommendedHashtags
-                    .flatMap((cat: any) => (cat.tags || []).map((tag: string) => tag.replace(/^#/, '').trim()))
-                    .filter((tag: string) => tag.length > 0);
-                hashtagContent += `---\n\n## 📋 전체 태그 (복사용)\n\n\`\`\`\n${allTags.join(' ')}\n\`\`\`\n`;
-
-                if (batchAccumulator.seriesKeywords && batchAccumulator.seriesKeywords.length > 0) {
-                    hashtagContent += `\n---\n\n## 📌 다음 글 시리즈 키워드\n\n`;
-                    batchAccumulator.seriesKeywords.forEach((kw: any, i: number) => {
-                        hashtagContent += `${i + 1}. **${kw.title}** _(${kw.type})_\n   - ${kw.reason}\n\n`;
-                    });
-                }
-            }
-
-            // 최종글 파일 내용 생성 (formatForNotion 제거 - 6단계에서 이미 적용됨)
-            let finalDraftContent = '';
-            if (batchAccumulator.finalDraft) {
-                finalDraftContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
-                finalDraftContent += '---\n\n';
-                finalDraftContent += batchAccumulator.finalDraft;  // 6단계 결과 그대로 사용
-            }
-
-            // File System Access API 사용 시도 (폴더 선택)
-            try {
-                if ('showDirectoryPicker' in window) {
-                    const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-
-                    // yyyymmdd 폴더 생성
-                    const subDirHandle = await dirHandle.getDirectoryHandle(folderName, { create: true });
-
-                    // 해시태그 파일 저장
-                    if (hashtagContent) {
-                        const hashtagFileHandle = await subDirHandle.getFileHandle('해시태그.md', { create: true });
-                        const hashtagWritable = await hashtagFileHandle.createWritable();
-                        await hashtagWritable.write(hashtagContent);
-                        await hashtagWritable.close();
-                    }
-
-                    // 최종글 파일 저장
-                    if (finalDraftContent) {
-                        const finalFileHandle = await subDirHandle.getFileHandle('최종글.md', { create: true });
-                        const finalWritable = await finalFileHandle.createWritable();
-                        await finalWritable.write(finalDraftContent);
-                        await finalWritable.close();
-                    }
-                } else {
-                    throw new Error('File System Access API not supported');
-                }
-            } catch (fsError: any) {
-                // 사용자가 취소하거나 API 미지원 시 기존 다운로드 방식 사용
-                if (fsError.name !== 'AbortError') {
-                    const timestamp = now.getFullYear().toString() +
-                        (now.getMonth() + 1).toString().padStart(2, '0') +
-                        now.getDate().toString().padStart(2, '0') + '_' +
-                        now.getHours().toString().padStart(2, '0') +
-                        now.getMinutes().toString().padStart(2, '0') +
-                        now.getSeconds().toString().padStart(2, '0');
-
-                    // 해시태그 파일 다운로드
-                    if (hashtagContent) {
-                        const blob = new Blob([hashtagContent], { type: 'text/markdown;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${folderName}_해시태그.md`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }
-
-                    // 최종글 파일 다운로드
-                    if (finalDraftContent) {
-                        const mdBlob = new Blob([finalDraftContent], { type: 'text/markdown;charset=utf-8' });
-                        const mdUrl = URL.createObjectURL(mdBlob);
-                        const mdLink = document.createElement('a');
-                        mdLink.href = mdUrl;
-                        mdLink.download = `${folderName}_최종글.md`;
-                        document.body.appendChild(mdLink);
-                        mdLink.click();
-                        document.body.removeChild(mdLink);
-                        URL.revokeObjectURL(mdUrl);
-                    }
-                }
-            }
-
-            // 3. 이미지 카드 생성 (BlogVisualEditor로 전달)
-            const imageConcepts = batchAccumulator.imageConcepts || [];
-            const sectionIllustrations = batchAccumulator.sectionIllustrations || [];
-
-            if (onStage7Complete && (imageConcepts.length > 0 || sectionIllustrations.length > 0)) {
-                const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
-                const patientPrompt = selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중반, 성별 중립, 오피스 캐주얼)';
-
-                const conceptCards = imageConcepts.map((c: any) => ({
-                    title: c.title || '이미지 컨셉',
-                    keywords: c.keywords || [],
-                    recommendedStyle: c.recommendedStyle || 'default',
-                    recommendedPalette: c.recommendedPalette || [],
-                    negatives: c.negatives || commonNegatives,
-                    patientCharacterPrompt: patientPrompt
-                }));
-
-                const sectionCards = sectionIllustrations.map((s: any) => ({
-                    title: `${s.sectionNumber || '?'}. ${s.sectionTitle || '섹션'}`,
-                    keywords: s.keywords || [],
-                    description: s.manuscriptSummary || s.sectionContent || s.summary || '',
-                    recommendedStyle: 'section-illustration' as const,
-                    recommendedPalette: s.recommendedPalette || [],
-                    negatives: commonNegatives,
-                    patientCharacterPrompt: patientPrompt
-                }));
-
-                onStage7Complete({
-                    topic: stageData.selectedTopic,
-                    finalDraft: batchAccumulator.finalDraft,
-                    concepts: [...conceptCards, ...sectionCards]
-                });
-            }
-
-            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📁 MD 파일 저장 완료\n🖼️ 이미지 카드가 생성되었습니다.');
+            alert('✅ 1~7단계 일괄처리가 완료되었습니다!\n\n📋 7단계 결과를 확인한 후\n👉 "블로그 이미지 생성" 버튼을 눌러\n   - MD 파일 저장\n   - 이미지 카드 생성\n을 진행해주세요.');
         } catch (error: any) {
             setCurrentOutput(`❌ 일괄처리 오류: ${error.message}`);
             alert(`일괄처리 중 오류가 발생했습니다: ${error.message}`);
@@ -2564,25 +2424,30 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                         </>
                                     )}
                                 </button>
-                                <button
-                                    onClick={handleShortcutStart}
-                                    disabled={isBatchProcessing || isLoading || isShortcutProcessing}
-                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="완성된 원고를 직접 입력하여 이미지카드/해시태그만 생성"
-                                >
-                                    <EditIcon className="w-3 h-3" />
-                                    숏컷모드
-                                </button>
-                                {/* 숏컷모드 Notion 포맷 옵션 */}
-                                <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer" title="체크 시 입력된 원고에 Notion 편집 지침을 적용합니다. 이미 편집된 원고라면 비활성화하세요.">
-                                    <input
-                                        type="checkbox"
-                                        checked={applyNotionFormat}
-                                        onChange={(e) => setApplyNotionFormat(e.target.checked)}
-                                        className="w-3 h-3 rounded border-gray-600 bg-gray-700 text-violet-500 focus:ring-violet-500"
-                                    />
-                                    Notion포맷
-                                </label>
+                                {/* 숏컷모드 + Notion 포맷 옵션 그룹 */}
+                                <div className="flex items-center gap-0.5 bg-violet-900/30 rounded-md border border-violet-500/30">
+                                    <button
+                                        onClick={handleShortcutStart}
+                                        disabled={isBatchProcessing || isLoading || isShortcutProcessing}
+                                        className="flex items-center gap-1 px-3 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="완성된 원고를 직접 입력하여 이미지카드/해시태그만 생성"
+                                    >
+                                        <EditIcon className="w-3 h-3" />
+                                        숏컷
+                                    </button>
+                                    <label
+                                        className="flex items-center gap-1 px-2 py-1 text-xs text-violet-300 cursor-pointer hover:bg-violet-800/30 rounded-r-md transition-colors"
+                                        title="체크 시 입력된 원고에 Notion 편집 지침을 적용합니다. 이미 편집된 원고라면 비활성화하세요."
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={applyNotionFormat}
+                                            onChange={(e) => setApplyNotionFormat(e.target.checked)}
+                                            className="w-3 h-3 rounded border-violet-500 bg-violet-900 text-violet-500 focus:ring-violet-500"
+                                        />
+                                        +Notion
+                                    </label>
+                                </div>
                             </div>
                             <div className="flex gap-2 items-center">
                                 {/* 프로필 선택 */}
@@ -2855,7 +2720,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                             }}
                                                             className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-md transition-colors whitespace-nowrap"
                                                         >
-                                                            ▶️ 1-7단계 시작
+                                                            ▶️ 선택
                                                         </button>
                                                     </div>
                                                 </div>
@@ -2886,7 +2751,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                             }}
                                             className="mt-3 w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-medium rounded-md transition-colors"
                                         >
-                                            📦 시리즈 첫 번째 글(메인)부터 시작
+                                            📦 메인 글 선택 후 글쓰기 시작
                                         </button>
                                     </div>
                                 )}

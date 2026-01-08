@@ -95,7 +95,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave, 
                 className="text-xs text-indigo-400 hover:text-indigo-300">생성하기 ↗</a>
             </div>
             <input
-              type="text"
+              type="password"
               value={keys.googleClient}
               onChange={(e) => setKeys({ ...keys, googleClient: e.target.value })}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
