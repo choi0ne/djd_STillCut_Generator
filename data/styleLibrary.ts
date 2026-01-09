@@ -314,30 +314,32 @@ Style: blog thumbnail, VERTICAL portrait layout (2:3 ratio, 800x1200), top 75% w
         id: 'flat-illustration',
         displayName: '플랫 일러스트',
         icon: '🎭',
-        description: '블로그 섹션별 플랫 벡터 일러스트 - 미니멀 캐릭터, 기하학적 형태, 그라데이션 없음',
-        keywords: ['flat', 'vector', 'minimal', 'geometric', 'no-gradient', 'pastel', 'Korean text'],
+        description: '블로그 섹션별 플랫 벡터 일러스트 - 외곽선 없는 미니멀 캐릭터, 파스텔 톤',
+        keywords: ['flat', 'vector', 'minimal', 'no-outline', 'no-gradient', 'pastel', 'Korean'],
         goldStandardExample: {
-            BACKGROUND_PROMPT: `[그림체] 플랫 벡터 일러스트레이션 스타일. 그라데이션 없이 단색 면으로만 구성. 기하학적으로 단순화된 형태. 굵은 외곽선(2-3px) + 내부 플랫 컬러. 귀엽고 미니멀한 캐릭터(간단한 표정, 둥근 형태). 신체 부위나 의학 개념을 아이콘화하여 표현. 
+            BACKGROUND_PROMPT: `[그림체] 깔끔한 플랫 벡터 일러스트레이션. 외곽선 없이 단색 면으로만 구성. 그라데이션 없음. 
+캐릭터 스타일: 
+- 얼굴: 매우 단순화 (작은 점 눈, 코 없음, 단순한 곡선 미소)
+- 머리카락: 검정 또는 진한 갈색, 부드러운 곡선 실루엣
+- 피부: 밝은 살색(#FBE8D3)
+- 의상: 파스텔 컬러 (핑크, 민트, 연보라, 하늘색)
 
 [레이아웃] 
-- 상단에 한글 제목 배너 (리본 스타일 또는 둥근 사각형)
-- 중앙에 메인 일러스트 (캐릭터 또는 상징적 오브젝트)
-- 하단에 간단한 설명 텍스트 또는 아이콘 리스트
-- 여백을 살린 깔끔한 구도
+- 1-4명의 캐릭터 배치
+- 캐릭터 위에 작은 말풍선(생각/대화) 가능
+- 깔끔한 흰색 또는 연한 크림 배경
+- 캐릭터 중심, 충분한 여백
 
-[색상] 파스텔 팔레트 필수:
-- 메인: 연한 민트(#A8E6CF), 연한 핑크(#FFD3B6), 연한 라벤더(#D4A5FF)
-- 배경: 따뜻한 크림/베이지(#FFF8F0) 또는 연한 회색(#F5F5F5)
-- 강조: 살구색(#FFEAA7), 하늘색(#74B9FF)
+[색상] 소프트 파스텔 팔레트:
+- 의상: 연한 핑크(#F8AFA6), 민트(#88D8B0), 연보라(#C3AED6), 하늘색(#89CFF0)
+- 머리카락: 진한 갈색(#3D2314) 또는 검정(#1A1A1A)
+- 배경: 순백색(#FFFFFF) 또는 연한 크림(#FFF9F5)
+- 말풍선: 연한 핑크(#FFE4E1) 또는 연한 회색(#E8E8E8)
 
-[글씨체]
-- 제목: 둥근 고딕체(Rounded Gothic), Bold, 검정 또는 진한 회색
-- 설명: 작은 산세리프체, 1-2줄 이내
+[분위기] Adobe Stock 스타일의 깔끔한 플랫 일러스트. 외곽선 없이 면만으로 표현. 친근하고 따뜻한 느낌. 얼굴은 최대한 단순하게 (점 눈 + 미소). 
 
-[분위기] 깔끔하고 현대적인 플랫 디자인. 그림자 없이 플랫하게. 친근하고 이해하기 쉬운 교육용 일러스트. 어린이 교육 자료 같은 귀여운 스타일.
-
-Style: flat vector illustration, solid colors only (no gradients), geometric simplified shapes, thick outlines, cute minimal characters, pastel color palette, warm cream background, Korean title in rounded gothic font, educational and friendly aesthetic.`,
-            NEGATIVES: ['gradients', 'shadows', '3D effects', 'realistic style', 'complex shading', 'photo-realistic', 'small illegible text', 'cursive fonts', 'overlapping text', 'too much detail', 'busy backgrounds']
+Style: clean flat vector illustration, NO outlines, solid color fills only, simplified face (dot eyes, simple smile, no nose), dark brown or black hair with smooth silhouette, pastel colored clothing (pink, mint, lavender, sky blue), white or cream background, small speech bubbles optional, Adobe Stock aesthetic, friendly and warm feeling.`,
+            NEGATIVES: ['outlines', 'line art', 'gradients', 'shadows', '3D effects', 'realistic style', 'detailed face', 'nose', 'realistic eyes', 'complex shading', 'photo-realistic', 'busy backgrounds', 'thick borders']
         }
     },
     {
