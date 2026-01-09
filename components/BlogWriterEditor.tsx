@@ -210,6 +210,9 @@ const BlogWriterEditor: React.FC<BlogWriterEditorProps> = ({
     // Stage 7 탭 state
     const [stage7Tab, setStage7Tab] = useState<'concepts' | 'sections'>('concepts');
 
+    // 🔴 섹션별 일러스트 스타일 오버라이드 (section-illustration 또는 flat-illustration)
+    const [sectionStyleOverrides, setSectionStyleOverrides] = useState<Record<number, 'section-illustration' | 'flat-illustration'>>({});
+
     // 일괄처리 state
     const [isBatchProcessing, setIsBatchProcessing] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
@@ -1220,9 +1223,16 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
     };
     // 리치 텍스트 복사 (Notion 편집 지침 v2.4 + 네이버 블로그 호환)
     const handleCopyRichText = async () => {
-        // Stage 7에서도 finalDraft를 사용하도록 수정
-        const rawText = stageData.finalDraft || currentOutput;
-        if (!rawText) return;
+        // 🔴 수정: 7단계에서는 stageData.finalDraft 우선 사용 (노션 CSS 적용된 최종글)
+        // 일괄처리 후 currentOutput이 7단계 JSON일 수 있으므로 finalDraft 우선
+        const rawText = currentStage === 7
+            ? stageData.finalDraft  // 7단계: finalDraft만 사용 (노션 CSS 적용 대상)
+            : (stageData.finalDraft || currentOutput);  // 6단계 이하: finalDraft 또는 currentOutput
+
+        if (!rawText) {
+            alert('복사할 최종글이 없습니다. 6단계(탈고)를 먼저 완료해주세요.');
+            return;
+        }
 
         // Notion 편집 지침 v2.4 적용
         const textToCopy = formatForNotion(rawText);
@@ -1354,12 +1364,13 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             }
         }
 
-        // 최종글 파일 내용 생성 (6단계에서 이미 Notion 편집 지침 적용됨 - 중복 처리 방지)
+        // 최종글 파일 내용 생성 (formatForNotion 적용하여 저장)
         let finalDraftContent = '';
         if (stageData.finalDraft) {
             finalDraftContent = `> 작성일: ${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
             finalDraftContent += '---\n\n';
-            finalDraftContent += stageData.finalDraft;  // formatForNotion 제거 - 6단계 결과 그대로 사용
+            // 🔴 수정: formatForNotion 적용하여 저장 (노션 CSS 적용)
+            finalDraftContent += formatForNotion(stageData.finalDraft);
         }
 
         // File System Access API 사용 시도
@@ -1441,13 +1452,14 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
                 patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
             }));
 
-            // 섹션 일러스트 카드 (6개) - section-illustration 스타일 적용
+            // 섹션 일러스트 카드 (6개) - 스타일 오버라이드 적용 (section-illustration 또는 flat-illustration)
             // 원고 기반 프롬프트: manuscriptSummary(서술형 요약)를 description으로 전달
             const sectionCards = stageData.sectionIllustrations.map(s => ({
                 title: `${s.sectionNumber}. ${s.sectionTitle}`,
                 keywords: s.keywords,
                 description: s.manuscriptSummary || s.sectionContent || s.summary, // manuscriptSummary 우선 사용
-                recommendedStyle: 'section-illustration' as const,
+                // 🔴 스타일 오버라이드 적용: sectionStyleOverrides에서 선택된 스타일 사용, 없으면 기본값
+                recommendedStyle: (sectionStyleOverrides[s.sectionNumber] || 'section-illustration') as const,
                 recommendedPalette: s.recommendedPalette,
                 negatives: commonNegatives,  // 공통 NEGATIVES 적용
                 patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
@@ -1462,15 +1474,18 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
     };
 
-    // 섹션 일러스트 개별 생성 (section-illustration 스타일 사용)
-    const handleGenerateSectionIllustration = (section: SectionIllustration) => {
+    // 섹션 일러스트 개별 생성 (스타일 선택 가능: section-illustration 또는 flat-illustration)
+    const handleGenerateSectionIllustration = (section: SectionIllustration, styleOverride?: 'section-illustration' | 'flat-illustration') => {
         if (onStage7Complete) {
+            // 🔴 스타일 우선순위: 파라미터 > sectionStyleOverrides > 기본값(section-illustration)
+            const selectedStyle = styleOverride || sectionStyleOverrides[section.sectionNumber] || 'section-illustration';
+
             // 원고 기반 프롬프트: manuscriptSummary(서술형 요약)를 description으로 전달
             const conceptData = {
                 title: `${section.sectionNumber}. ${section.sectionTitle}`,
                 keywords: section.keywords,
                 description: section.manuscriptSummary || section.sectionContent || section.summary, // manuscriptSummary 우선 사용
-                recommendedStyle: 'section-illustration' as const,
+                recommendedStyle: selectedStyle as const,
                 recommendedPalette: section.recommendedPalette
             };
 
@@ -2834,18 +2849,48 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                         ))}
                                                     </div>
 
-                                                    {/* 팔레트 및 스타일 */}
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex gap-2 text-xs">
-                                                            <span className="text-green-300">🎨 {section.recommendedPalette} 팔레트</span>
-                                                            <span className="text-green-300">📖 section-illustration</span>
+                                                    {/* 팔레트 및 스타일 선택 */}
+                                                    <div className="flex flex-col gap-2">
+                                                        {/* 스타일 선택 토글 */}
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-gray-400">스타일:</span>
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => setSectionStyleOverrides(prev => ({
+                                                                        ...prev,
+                                                                        [section.sectionNumber]: 'section-illustration'
+                                                                    }))}
+                                                                    className={`px-2 py-1 text-xs rounded transition-colors ${(sectionStyleOverrides[section.sectionNumber] || 'section-illustration') === 'section-illustration'
+                                                                        ? 'bg-green-600 text-white'
+                                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                                                        }`}
+                                                                >
+                                                                    📖 섹션 일러스트
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setSectionStyleOverrides(prev => ({
+                                                                        ...prev,
+                                                                        [section.sectionNumber]: 'flat-illustration'
+                                                                    }))}
+                                                                    className={`px-2 py-1 text-xs rounded transition-colors ${sectionStyleOverrides[section.sectionNumber] === 'flat-illustration'
+                                                                        ? 'bg-purple-600 text-white'
+                                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                                                        }`}
+                                                                >
+                                                                    🎭 플랫 일러스트
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleGenerateSectionIllustration(section)}
-                                                            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded transition-colors"
-                                                        >
-                                                            → 이미지 생성
-                                                        </button>
+                                                        {/* 팔레트 표시 및 생성 버튼 */}
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-green-300">🎨 {section.recommendedPalette} 팔레트</span>
+                                                            <button
+                                                                onClick={() => handleGenerateSectionIllustration(section)}
+                                                                className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded transition-colors"
+                                                            >
+                                                                → 이미지 생성
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
@@ -2958,8 +3003,15 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                         placeholder={currentStage === 6 && manualInputMode ? "원고를 직접 입력하거나 붙여넣기 하세요..." : ""}
                                         className="w-full h-full min-h-[300px] bg-gray-800 text-gray-200 text-sm font-mono p-2 rounded border border-yellow-500/50 focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none"
                                     />
-                                ) : (currentStage === 6 || (currentStage === 7 && (currentOutput || stageData.finalDraft))) ? (
+                                ) : (currentStage === 6 || currentStage === 7) ? (
+                                    /* 🔴 수정: 6단계 또는 7단계에서 finalDraft가 있으면 노션 CSS 적용 */
                                     <div className="notion-style-output prose prose-invert max-w-none">
+                                        {/* 7단계 안내 메시지 */}
+                                        {currentStage === 7 && stageData.finalDraft && (
+                                            <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-500/30 rounded-lg">
+                                                <p className="text-yellow-300 text-sm">💡 아래는 6단계에서 완성된 최종글입니다. [서식 복사] 버튼으로 노션/블로그에 바로 붙여넣기 하세요.</p>
+                                            </div>
+                                        )}
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm]}
                                             components={{
@@ -2984,8 +3036,8 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                 hr: () => <hr className="my-6 border-gray-700" />,
                                             }}
                                         >
-                                            {/* Stage 6/7에서 Notion 스타일 적용하여 표시 */}
-                                            {formatForNotion(currentStage === 7 ? stageData.finalDraft : currentOutput)}
+                                            {/* 🔴 수정: 7단계에서는 stageData.finalDraft 우선 사용 (노션 CSS 적용) */}
+                                            {formatForNotion(currentStage === 7 ? (stageData.finalDraft || '') : (currentOutput || stageData.finalDraft || ''))}
                                         </ReactMarkdown>
                                     </div>
                                 ) : (

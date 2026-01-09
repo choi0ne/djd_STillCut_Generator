@@ -311,6 +311,36 @@ Style: blog thumbnail, VERTICAL portrait layout (2:3 ratio, 800x1200), top 75% w
         }
     },
     {
+        id: 'flat-illustration',
+        displayName: '플랫 일러스트',
+        icon: '🎭',
+        description: '블로그 섹션별 플랫 벡터 일러스트 - 미니멀 캐릭터, 기하학적 형태, 그라데이션 없음',
+        keywords: ['flat', 'vector', 'minimal', 'geometric', 'no-gradient', 'pastel', 'Korean text'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 플랫 벡터 일러스트레이션 스타일. 그라데이션 없이 단색 면으로만 구성. 기하학적으로 단순화된 형태. 굵은 외곽선(2-3px) + 내부 플랫 컬러. 귀엽고 미니멀한 캐릭터(간단한 표정, 둥근 형태). 신체 부위나 의학 개념을 아이콘화하여 표현. 
+
+[레이아웃] 
+- 상단에 한글 제목 배너 (리본 스타일 또는 둥근 사각형)
+- 중앙에 메인 일러스트 (캐릭터 또는 상징적 오브젝트)
+- 하단에 간단한 설명 텍스트 또는 아이콘 리스트
+- 여백을 살린 깔끔한 구도
+
+[색상] 파스텔 팔레트 필수:
+- 메인: 연한 민트(#A8E6CF), 연한 핑크(#FFD3B6), 연한 라벤더(#D4A5FF)
+- 배경: 따뜻한 크림/베이지(#FFF8F0) 또는 연한 회색(#F5F5F5)
+- 강조: 살구색(#FFEAA7), 하늘색(#74B9FF)
+
+[글씨체]
+- 제목: 둥근 고딕체(Rounded Gothic), Bold, 검정 또는 진한 회색
+- 설명: 작은 산세리프체, 1-2줄 이내
+
+[분위기] 깔끔하고 현대적인 플랫 디자인. 그림자 없이 플랫하게. 친근하고 이해하기 쉬운 교육용 일러스트. 어린이 교육 자료 같은 귀여운 스타일.
+
+Style: flat vector illustration, solid colors only (no gradients), geometric simplified shapes, thick outlines, cute minimal characters, pastel color palette, warm cream background, Korean title in rounded gothic font, educational and friendly aesthetic.`,
+            NEGATIVES: ['gradients', 'shadows', '3D effects', 'realistic style', 'complex shading', 'photo-realistic', 'small illegible text', 'cursive fonts', 'overlapping text', 'too much detail', 'busy backgrounds']
+        }
+    },
+    {
         id: 'poster',
         displayName: '포스터',
         icon: '🪧',
