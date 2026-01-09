@@ -596,8 +596,38 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
 
                     {/* 2. 스타일 선택 */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">스타일 선택</label>
-                        <div className="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-300">스타일 선택</label>
+                            {/* 빠른 선택 토글 */}
+                            <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">빠른 선택:</span>
+                                <button
+                                    onClick={() => {
+                                        const style = STYLE_LIBRARY.find(s => s.id === 'section-illustration');
+                                        if (style) setSelectedStyle(style);
+                                    }}
+                                    className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'section-illustration'
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        }`}
+                                >
+                                    📖 섹션 일러스트
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const style = STYLE_LIBRARY.find(s => s.id === 'flat-illustration');
+                                        if (style) setSelectedStyle(style);
+                                    }}
+                                    className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'flat-illustration'
+                                            ? 'bg-purple-600 text-white'
+                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        }`}
+                                >
+                                    🎭 플랫 일러스트
+                                </button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto">
                             {STYLE_LIBRARY.map((style) => (
                                 <button
                                     key={style.id}
