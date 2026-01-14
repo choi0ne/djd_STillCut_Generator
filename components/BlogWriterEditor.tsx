@@ -2479,20 +2479,19 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                 <Panel>
                     <div className="flex flex-col gap-4 flex-grow">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleNewPost}
-                                    className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[80px] text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
+                                    className="flex items-center justify-center gap-1 px-2 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
                                     title="새 글 작성 (모든 데이터 초기화)"
                                 >
                                     <PlusIcon className="w-3 h-3" />
-                                    새 글 작성
+                                    새글
                                 </button>
                                 <button
                                     onClick={handleBatchProcess}
                                     disabled={isBatchProcessing || isLoading || !stageData.selectedTopic}
-                                    className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[80px] text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center justify-center gap-1 px-2 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="1~6단계 일괄 실행 (주제 선택 후 사용 가능)"
                                 >
                                     {isBatchProcessing ? (
@@ -2503,16 +2502,16 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                     ) : (
                                         <>
                                             <SparklesIcon className="w-3 h-3" />
-                                            일괄처리
+                                            일괄
                                         </>
                                     )}
                                 </button>
-                                {/* 숏컷모드 + Notion 포맷 옵션 그룹 */}
+                                {/* 숏컷모드 + 노션 포맷 옵션 그룹 */}
                                 <div className="flex items-center gap-0.5 bg-violet-900/30 rounded-md border border-violet-500/30">
                                     <button
                                         onClick={handleShortcutStart}
                                         disabled={isBatchProcessing || isLoading || isShortcutProcessing}
-                                        className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[50px] text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-1 px-2 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         title="완성된 원고를 직접 입력하여 이미지카드/해시태그만 생성"
                                     >
                                         <EditIcon className="w-3 h-3" />
@@ -2528,7 +2527,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                             onChange={(e) => setApplyNotionFormat(e.target.checked)}
                                             className="w-3 h-3 rounded border-violet-500 bg-violet-900 text-violet-500 focus:ring-violet-500"
                                         />
-                                        +Notion
+                                        +노션
                                     </label>
                                 </div>
                             </div>

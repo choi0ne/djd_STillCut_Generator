@@ -102,7 +102,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                             prompt,
                             options: {
                                 model: 'gpt-image-1.5',
-                                size: '1024x1024',
+                                size: '1536x1024',
                                 quality: 'high'
                             }
                         },
@@ -230,7 +230,12 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                     const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
                     // 🔴 한글 블록화 형식으로 프롬프트 직접 생성 (AI 호출 없이)
-                    const directPrompt = `【섹션】 ${sectionTitleKorean}
+                    // 블록 순서: 【사이즈】→【섹션】→【스타일】→【색상 팔레트】→【환자 캐릭터】→【장면 묘사】→【필수 제외】
+                    const directPrompt = `【사이즈】
+1024x558px, 가로형 1.83:1 비율
+블로그 본문 최적화 가로 배너
+
+【섹션】 ${sectionTitleKorean}
 
 【스타일】
 ${styleBlock}
@@ -245,7 +250,8 @@ ${includePatient ? `【환자 캐릭터】
 - 프로필: ${selectedProfile.name}
 - 외형: ${patientPrompt}
 - 감정: ${emotionGuide.emotion}
-- 포즈: ${emotionGuide.pose}` : '【환자 캐릭터】 없음 (데이터/연구 중심 섹션)'}
+- 포즈: ${emotionGuide.pose}` : `【환자 캐릭터】
+없음 (데이터/연구 중심 섹션)`}
 
 【장면 묘사】
 ${concept.description || concept.keywords.join(', ')}
@@ -760,30 +766,42 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                     <button
                                         onClick={() => {
                                             if (directPrompt.trim()) {
-                                                // 🔴 1. 기존 스타일 정보 삭제
                                                 let cleanedPrompt = directPrompt;
 
-                                                // 【스타일】 블록 제거
+                                                // 🔴 1. 【스타일】 블록 전체 삭제 (다음 【 까지)
                                                 cleanedPrompt = cleanedPrompt.replace(/【스타일】[\s\S]*?(?=【|$)/g, '');
 
-                                                // Style: 라인 제거
-                                                cleanedPrompt = cleanedPrompt.replace(/\n*Style:.*$/gm, '');
+                                                // 🔴 2. 【색상 팔레트】 블록 전체 삭제 (다음 【 까지)
+                                                cleanedPrompt = cleanedPrompt.replace(/【색상 팔레트】[\s\S]*?(?=【|$)/g, '');
 
-                                                // Color palette: 라인 제거
-                                                cleanedPrompt = cleanedPrompt.replace(/\n*Color palette:.*$/gm, '');
+                                                // 🔴 3. Style:, Color palette: 줄도 삭제 (혹시 남아있으면)
+                                                const lines = cleanedPrompt.split('\n');
+                                                const filtered = lines.filter(line => {
+                                                    const trimmed = line.trim();
+                                                    if (trimmed.startsWith('Style:')) return false;
+                                                    if (trimmed.startsWith('Color palette:')) return false;
+                                                    return true;
+                                                });
 
+                                                cleanedPrompt = filtered.join('\n');
                                                 // 연속된 빈 줄 정리
                                                 cleanedPrompt = cleanedPrompt.replace(/\n{3,}/g, '\n\n').trim();
 
-                                                // 🔴 2. 선택한 스타일 정보 추가
+                                                // 🔴 4. 선택한 스타일 정보 추가
                                                 const paletteInfo = COLOR_PALETTES[selectedPalette];
 
                                                 if (selectedStyle) {
-                                                    const styleKeywords = selectedStyle.keywords.join(', ');
-                                                    cleanedPrompt += `\n\nStyle: ${selectedStyle.displayName}, ${styleKeywords}.`;
+                                                    // 🔴 블록화된 형식으로 스타일 추가
+                                                    const blockPrompt = STYLE_PROMPT_BLOCKS[selectedStyle.id];
+                                                    const styleContent = (blockPrompt && blockPrompt.trim())
+                                                        ? blockPrompt.trim()
+                                                        : `${selectedStyle.displayName}\n${selectedStyle.keywords.map(k => `- ${k}`).join('\n')}`;
+
+                                                    cleanedPrompt += `\n\n【스타일】\n${styleContent}`;
                                                 }
 
-                                                cleanedPrompt += `\nColor palette: Primary ${paletteInfo.primary}, Secondary ${paletteInfo.secondary}, Accent ${paletteInfo.accent}, Background ${paletteInfo.background}.`;
+                                                // 🔴 블록화된 형식으로 색상 팔레트 추가
+                                                cleanedPrompt += `\n\n【색상 팔레트】\n- 주 색상: ${paletteInfo.primary}\n- 보조 색상: ${paletteInfo.secondary}\n- 강조 색상: ${paletteInfo.accent}\n- 배경 색상: ${paletteInfo.background}`;
 
                                                 setGeneratedPrompt(cleanedPrompt);
                                             }
