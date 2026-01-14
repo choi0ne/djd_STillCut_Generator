@@ -316,16 +316,23 @@ ${directPrompt}
         if (!basePrompt.trim()) return '';
 
         const paletteInfo = COLOR_PALETTES[palette];
-        let enhancedPrompt = basePrompt;
 
-        // 스타일 정보 추가 (있을 경우)
+        // 🔴 기존 Style: 및 Color palette: 정보 제거
+        let cleanedPrompt = basePrompt;
+        cleanedPrompt = cleanedPrompt.replace(/\n*Style:.*$/gm, '');
+        cleanedPrompt = cleanedPrompt.replace(/\n*Color palette:.*$/gm, '');
+        cleanedPrompt = cleanedPrompt.replace(/\n{3,}/g, '\n\n').trim();
+
+        let enhancedPrompt = cleanedPrompt;
+
+        // 🔴 새로 선택한 스타일 정보 추가
         if (style) {
             const styleKeywords = style.keywords.join(', ');
-            enhancedPrompt += ` Style: ${style.displayName}, ${styleKeywords}.`;
+            enhancedPrompt += `\n\nStyle: ${style.displayName}, ${styleKeywords}.`;
         }
 
-        // 색상 팔레트 정보 추가
-        enhancedPrompt += ` Color palette: Primary ${paletteInfo.primary}, Secondary ${paletteInfo.secondary}, Accent ${paletteInfo.accent}, Background ${paletteInfo.background}.`;
+        // 🔴 새로 선택한 색상 팔레트 정보 추가
+        enhancedPrompt += `\nColor palette: Primary ${paletteInfo.primary}, Secondary ${paletteInfo.secondary}, Accent ${paletteInfo.accent}, Background ${paletteInfo.background}.`;
 
         return enhancedPrompt;
     }, []);
@@ -724,41 +731,61 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                         setDirectPrompt(input);
                                     }}
                                     placeholder="직접 프롬프트를 입력하세요... (예: A calm isometric infographic showing mental wellness)"
-                                    rows={3}
-                                    className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+                                    rows={8}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-amber-500/50 rounded-lg text-white text-sm font-mono focus:outline-none focus:ring-1 focus:ring-amber-400 resize-y whitespace-pre-wrap"
                                 />
                                 <div className="flex gap-2 mt-2">
                                     <button
                                         onClick={() => {
                                             if (selectedStyle) {
-                                                // 생성된 프롬프트가 있으면 그것을 기반으로, 없으면 템플릿만 사용
-                                                let baseContent = generatedPrompt || selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
+                                                // 🔴 STYLE_PROMPT_BLOCKS에서 가져오거나, 없거나 비어있으면 goldStandardExample 사용
+                                                const blockPrompt = STYLE_PROMPT_BLOCKS[selectedStyle.id];
+                                                const styleTemplate = (blockPrompt && blockPrompt.trim())
+                                                    ? blockPrompt
+                                                    : selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
 
-                                                // 기존 스타일 키워드 제거 (예: "conceptual metaphor style", "digital painting" 등)
-                                                STYLE_LIBRARY.forEach(style => {
-                                                    const keywords = style.keywords.join('|');
-                                                    const regex = new RegExp(`\\b(${keywords})\\b`, 'gi');
-                                                    baseContent = baseContent.replace(regex, '');
-                                                });
+                                                console.log('스타일 템플릿:', selectedStyle.id, styleTemplate.substring(0, 100));
 
-                                                // 중복 공백 정리
-                                                baseContent = baseContent.replace(/\s+/g, ' ').trim();
-
-                                                // 새 스타일 템플릿으로 교체하여 직접 입력 필드에 표시
-                                                setBaseDirectPrompt(baseContent);
-                                                const enhanced = buildEnhancedPrompt(baseContent, selectedStyle, selectedPalette);
+                                                // 스타일 템플릿을 기반으로 프롬프트 생성
+                                                setBaseDirectPrompt(styleTemplate);
+                                                const enhanced = buildEnhancedPrompt(styleTemplate, selectedStyle, selectedPalette);
                                                 setDirectPrompt(enhanced);
                                             }
                                         }}
                                         disabled={!selectedStyle}
                                         className="flex-1 py-1.5 px-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 text-xs rounded transition-colors"
                                     >
-                                        📋 스타일 템플릿 불러오기
+                                        📥 스타일 템플릿 불러오기
                                     </button>
                                     <button
                                         onClick={() => {
                                             if (directPrompt.trim()) {
-                                                setGeneratedPrompt(directPrompt);
+                                                // 🔴 1. 기존 스타일 정보 삭제
+                                                let cleanedPrompt = directPrompt;
+
+                                                // 【스타일】 블록 제거
+                                                cleanedPrompt = cleanedPrompt.replace(/【스타일】[\s\S]*?(?=【|$)/g, '');
+
+                                                // Style: 라인 제거
+                                                cleanedPrompt = cleanedPrompt.replace(/\n*Style:.*$/gm, '');
+
+                                                // Color palette: 라인 제거
+                                                cleanedPrompt = cleanedPrompt.replace(/\n*Color palette:.*$/gm, '');
+
+                                                // 연속된 빈 줄 정리
+                                                cleanedPrompt = cleanedPrompt.replace(/\n{3,}/g, '\n\n').trim();
+
+                                                // 🔴 2. 선택한 스타일 정보 추가
+                                                const paletteInfo = COLOR_PALETTES[selectedPalette];
+
+                                                if (selectedStyle) {
+                                                    const styleKeywords = selectedStyle.keywords.join(', ');
+                                                    cleanedPrompt += `\n\nStyle: ${selectedStyle.displayName}, ${styleKeywords}.`;
+                                                }
+
+                                                cleanedPrompt += `\nColor palette: Primary ${paletteInfo.primary}, Secondary ${paletteInfo.secondary}, Accent ${paletteInfo.accent}, Background ${paletteInfo.background}.`;
+
+                                                setGeneratedPrompt(cleanedPrompt);
                                             }
                                         }}
                                         disabled={!directPrompt.trim()}
@@ -812,7 +839,7 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                     </button>
                                 </div>
                             </div>
-                            <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs max-h-32 overflow-y-auto">
+                            <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs font-mono max-h-64 overflow-y-auto whitespace-pre-wrap">
                                 {generatedPrompt}
                             </div>
                             <p className="text-xs text-gray-500 mt-1">👁️ 읽기 전용: 수정하려면 위의 '직접 프롬프트 입력'을 사용하세요.</p>
