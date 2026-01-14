@@ -771,6 +771,13 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                                 // 🔴 1. 【스타일】 블록 전체 삭제 (다음 【 까지)
                                                 cleanedPrompt = cleanedPrompt.replace(/【스타일】[\s\S]*?(?=【|$)/g, '');
 
+                                                // 🔴 1.5. 【스타일】 헤더 없이 존재하는 [그림체], [구성], [색상], [배경] 블록도 삭제
+                                                // 각 태그부터 다음 태그 또는 다음 【 블록까지 삭제
+                                                cleanedPrompt = cleanedPrompt.replace(/\[그림체\][\s\S]*?(?=\[구성\]|\[색상\]|\[배경\]|【|$)/g, '');
+                                                cleanedPrompt = cleanedPrompt.replace(/\[구성\][\s\S]*?(?=\[색상\]|\[배경\]|【|$)/g, '');
+                                                cleanedPrompt = cleanedPrompt.replace(/\[색상\][\s\S]*?(?=\[배경\]|【|$)/g, '');
+                                                cleanedPrompt = cleanedPrompt.replace(/\[배경\][\s\S]*?(?=【|$)/g, '');
+
                                                 // 🔴 2. 【색상 팔레트】 블록 전체 삭제 (다음 【 까지)
                                                 cleanedPrompt = cleanedPrompt.replace(/【색상 팔레트】[\s\S]*?(?=【|$)/g, '');
 
