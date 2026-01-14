@@ -131,6 +131,17 @@ const App: React.FC = () => {
                 💬 리뷰 응대
               </button>
               <button
+                onClick={() => setMode('work-calendar')}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'work-calendar' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+              >
+                📅 근무일 달력
+              </button>
+
+              {/* 구분선 */}
+              <div className="my-2 border-t border-white/10"></div>
+
+              <button
                 onClick={() => setMode('prompt')}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'prompt' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
                   }`}
@@ -150,13 +161,6 @@ const App: React.FC = () => {
                   }`}
               >
                 🖼️ 프롬프트 추출
-              </button>
-              <button
-                onClick={() => setMode('work-calendar')}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${mode === 'work-calendar' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5'
-                  }`}
-              >
-                📅 근무일 달력
               </button>
             </div>
 

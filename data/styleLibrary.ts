@@ -404,6 +404,50 @@ Style: clean flat vector illustration, NO outlines, solid color fills only, simp
 [분위기] 깔끔한 흰색 배경. 심플하고 명확한 라인. 누구나 따라할 수 있는 직관적인 가이드. 재활운동, 홈트레이닝, 한의원 처방 운동에 적합. Style: simple line drawing exercise guide, black outline with mint/cyan top and black pants, directional arrows showing movement, foam roller or exercise equipment, Korean description below, clean white background.`,
             NEGATIVES: ['photo-realistic', 'complex shading', 'scary poses', 'too detailed face', 'small illegible text', 'cluttered', '3D style']
         }
+    },
+    {
+        id: 'flowing-swirl-illustration',
+        displayName: '플로잉 스월 일러스트',
+        icon: '🌊',
+        description: '유기적으로 흐르는 곡선과 소용돌이, 자연스러운 확산 표현',
+        keywords: ['flowing', 'swirl', 'organic', 'curves', 'whimsical', 'botanical', 'splatter', 'Korean'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 유기적으로 흐르는 라인아트. 한 점에서 시작해 자연스럽게 퍼져나가는 곡선들. 소용돌이, 물방울, 스플래터 효과. 보타니컬 요소(나뭇잎, 식물)와 추상적 곡선의 결합. 2-3색 제한 (검정, 녹색/청록, 파랑). 가는 선에서 굵은 선으로 변화하는 다이나믹한 표현. [레이아웃] 좌측 또는 중앙 하단에서 시작점. 우측 또는 상단으로 확산. 미니멀한 크림/오프화이트 배경. 하단에 한글 제목 배치. [글씨체] 하단에 한글 제목. 굵은 고딕체 또는 세리프체. 검정색 또는 진한 녹색. [분위기] 위미컬하고 환상적인 느낌. 자연과 움직임의 조화. 호흡기/순환기 관련 주제에 적합. Style: whimsical flowing line art, organic curves starting from one point and spreading outward, swirls and splatters, botanical elements (leaves, plants), 2-3 color palette (black, green/teal, blue), cream background, Korean title at bottom.`,
+            NEGATIVES: ['realistic', 'photo', '3D', 'complex backgrounds', 'too many colors', 'cluttered', 'geometric shapes']
+        }
+    },
+    {
+        id: 'silhouette-anatomy',
+        displayName: '실루엣 해부학',
+        icon: '🫁',
+        description: '인체 실루엣 안에 장기/기관을 표현하는 개념적 의학 일러스트',
+        keywords: ['silhouette', 'anatomy', 'gradient', 'organs', 'lungs', 'conceptual', 'medical', 'Korean'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 인체 측면 또는 정면 실루엣. 단색 그라데이션으로 채움 (파란색, 청록색 계열). 실루엣 내부에 장기/기관 표현 (폐, 기관지, 위, 심장 등). 기관지는 나무 뿌리처럼 아래로 뻗어나가는 형태. 입/코에서 입자, 스플래터, 연기 효과로 증상 표현 (기침, 호흡 등). 파란색/청록색 + 주황색/베이지색 2-3색 조합. [레이아웃] 실루엣이 화면 중앙에 배치. 미니멀한 크림/오프화이트 배경. 하단에 한글 제목과 부제. [글씨체] 하단에 한글 제목. 굵은 세리프체 또는 고딕체. 검정색 또는 진한 회색. 부제는 작은 사이즈. [분위기] 개념적이고 교육적인 의학 일러스트. 추상적이면서 이해하기 쉬움. 호흡기, 소화기, 순환기 주제에 적합. Style: conceptual silhouette anatomy illustration, human profile or front silhouette with gradient fill (blue/teal), organs visible inside (lungs, bronchi), particles/splatter from mouth showing symptoms, cream background, Korean title at bottom.`,
+            NEGATIVES: ['realistic photo', 'too detailed anatomy', 'scary imagery', '3D rendering', 'complex backgrounds', 'multiple figures']
+        }
+    },
+    {
+        id: 'medical-scan-visual',
+        displayName: '의료 스캔 비주얼',
+        icon: '🔍',
+        description: 'CT/MRI/X-ray 스캔 이미지를 활용한 의료 비주얼',
+        keywords: ['CT', 'MRI', 'scan', 'medical imaging', 'diagnostic', 'lung', 'nodule', 'Korean'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 의료 스캔 이미지 스타일 (CT, MRI, X-ray). 원형 또는 타원형 스캔 이미지 프레임. 회색/청록색 톤의 스캔 이미지. 진단 포인트에 화살표 또는 마커 표시. 스캔 이미지 옆에 나침반, 돋보기 등 진단 아이콘 배치 가능. [레이아웃] 스캔 이미지가 중앙 또는 상단에 배치. 다크 그린/네이비 또는 밝은 크림 배경. 하단에 한글 제목과 설명. [글씨체] 제목: 굵은 고딕체, 흰색 또는 검정색. 설명: 작은 산세리프체. 진단 결과 스타일의 텍스트. [분위기] 전문적인 진단/검진 느낌. 환자에게 검사 결과를 설명하는 교육적 자료. 폐, 간, 뇌 등 영상의학 주제에 적합. Style: medical scan visual with CT/MRI style circular image, diagnostic markers and arrows, compass or magnifier icon, dark green or cream background, Korean title explaining the finding.`,
+            NEGATIVES: ['cartoon style', 'unrealistic colors', 'too abstract', 'scary imagery', 'low quality', 'blurry']
+        }
+    },
+    {
+        id: 'blog-thumbnail-minimal',
+        displayName: '블로그썸네일_미니멀',
+        icon: '✍️',
+        description: '가는 검정 라인 드로잉 + 파란색 스플래터/연기 효과, 미니멀한 크림색 배경',
+        keywords: ['minimal', 'line art', 'medical', 'organ', 'splatter', 'smoke', 'cream background', 'Korean'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 미니멀 의학 라인아트 스타일. 가는 검정 외곽선(1-2px)으로 장기/인체 부위를 심플하게 드로잉. 채색 없이 선만으로 형태 표현. 장기 주변 또는 배경에 파란색/청록색 스플래터, 연기, 입자 효과. 스플래터는 수채화 번짐 또는 잉크 스플래시 느낌. 2-3색 제한 (검정 라인 + 파란색/청록색 효과 + 선택적으로 주황/베이지 포인트). [레이아웃] 장기(위장, 폐, 뇌 등) 또는 인체 부분이 중앙에 배치. 스플래터/연기 효과가 장기 주변을 감싸거나 한쪽 방향으로 퍼짐. 미니멀한 크림색/오프화이트 배경(#F5F0E8). 하단에 한글 제목 배치. [글씨체] 제목: 세리프체(명조체) 스타일. 나눔명조 또는 Noto Serif Korean. 검정색(#333333). 메인 제목 크고 굵게, 부제 작고 가볍게. 콜론(:)으로 제목/부제 구분. [분위기] 개념적이고 추상적인 의학 일러스트. 환자 친화적이면서 전문적. 소화기, 호흡기, 신경계 등 장기 관련 주제에 적합. 깔끔하고 세련된 느낌. Style: minimal medical line art, thin black outline drawing of organ (stomach, lungs, brain), blue/teal splatter or smoke effect around it, cream/off-white background, Korean title at bottom in elegant serif font (Nanum Myeongjo style), conceptual and abstract medical illustration.`,
+            NEGATIVES: ['realistic photo', 'too detailed', '3D rendering', 'colorful', 'cluttered', 'cartoon face', 'complex backgrounds', 'thick outlines']
+        }
     }
 ];
 

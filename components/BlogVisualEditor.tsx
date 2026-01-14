@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import Panel from './common/Panel';
 import { STYLE_LIBRARY, COLOR_PALETTES, StyleTemplate } from '../data/styleLibrary';
+import { STYLE_PROMPT_BLOCKS, SECTION_TITLE_KOREAN } from '../data/sectionPromptTemplate';
 import { SparklesIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useImageGenerator } from '../hooks/useImageGenerator';
@@ -50,7 +51,7 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     // 직접 프롬프트 입력 모드
     const [directPrompt, setDirectPrompt] = useState('');
     const [baseDirectPrompt, setBaseDirectPrompt] = useState(''); // 사용자가 입력한 원본 프롬프트
-    const [useDirectPrompt, setUseDirectPrompt] = useState(false);
+    const [useDirectPrompt, setUseDirectPrompt] = useState(true); // 🔴 기본값: 직접 프롬프트 입력 ON
 
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
     const [isEditingPrompt, setIsEditingPrompt] = useState(false);
@@ -190,7 +191,16 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
 
             const sectionType = detectSectionType(concept.title);
             const emotionGuide = PATIENT_EMOTION_GUIDE[sectionType] || { emotion: 'neutral', pose: 'natural standing' };
-            const includePatient = sectionType !== 'proof'; // proof 섹션은 캐릭터 제외
+
+            // 🔴 캐릭터가 필요한 스타일 목록
+            const CHARACTER_STYLES = [
+                'empathetic-character',
+                'empathetic-cutoon',
+                'section-illustration',
+                'flat-illustration'
+            ];
+            // 🔴 스타일 기반 캐릭터 포함 여부 결정
+            const includePatient = CHARACTER_STYLES.includes(selectedStyleForPrompt?.id || '');
 
             // 자동으로 프롬프트 생성
             if (selectedStyleForPrompt && initialContext.topic) {
@@ -206,7 +216,10 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                     }
 
                     const palette = COLOR_PALETTES[selectedPaletteForPrompt];
-                    const basePrompt = selectedStyleForPrompt.goldStandardExample.BACKGROUND_PROMPT;
+
+                    // 🔴 STYLE_PROMPT_BLOCKS에서 한글 블록화 프롬프트 가져오기
+                    const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyleForPrompt.id] || '';
+                    const sectionTitleKorean = SECTION_TITLE_KOREAN[concept.title] || concept.title;
 
                     // 🔴 Stage 7에서 전달된 negatives 우선 사용, 없으면 스타일 라이브러리에서 가져옴
                     const conceptNegatives = concept.negatives || [];
@@ -216,76 +229,51 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                     // 🔴 Stage 7에서 전달된 patientCharacterPrompt 우선 사용
                     const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
-                    const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
-**원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
+                    // 🔴 한글 블록화 형식으로 프롬프트 직접 생성 (AI 호출 없이)
+                    const directPrompt = `【섹션】 ${sectionTitleKorean}
 
-## 🎯 핵심 원칙: 원고 기반 이미지 생성
-**키워드 나열이 아닌, 원고의 실제 내용과 메시지를 시각화해야 합니다.**
-1. 아래 원고 전문을 꼼꼼히 읽으세요
-2. 해당 섹션(${concept.title})의 핵심 메시지를 파악하세요
-3. 그 메시지를 시각적으로 표현하는 이미지 프롬프트를 작성하세요
+【스타일】
+${styleBlock}
 
-## 스타일: ${selectedStyleForPrompt.displayName}
-## 기본 프롬프트 템플릿:
-${basePrompt}
+【색상 팔레트】
+- 주 색상: ${palette.primary}
+- 보조 색상: ${palette.secondary}
+- 강조 색상: ${palette.accent}
+- 배경 색상: ${palette.background}
 
-## 색상 팔레트:
-- Primary: ${palette.primary}
-- Secondary: ${palette.secondary}
-- Accent: ${palette.accent}
-- Background: ${palette.background}
-
-## 🔴 제외할 요소 (NEGATIVES - Stage 7 + 스타일 라이브러리 통합):
-${allNegatives}
-
-## 🎨 환자 캐릭터 (독자 대리인) - 프로필: ${selectedProfile.name}
-**섹션 타입**: ${sectionType}
-**이 섹션에 캐릭터 포함 여부**: ${includePatient ? '✅ 포함' : '❌ 제외 (데이터/연구 중심)'}
-
-${includePatient ? `**캐릭터 기본 외형 (Stage 7에서 전달됨):**
-${patientPrompt}
-
-**이 섹션에서의 감정/포즈 (자동 적용):**
+${includePatient ? `【환자 캐릭터】
+- 프로필: ${selectedProfile.name}
+- 외형: ${patientPrompt}
 - 감정: ${emotionGuide.emotion}
-- 포즈: ${emotionGuide.pose}
-` : '**이 섹션은 데이터/연구 중심이므로 환자 캐릭터를 포함하지 마세요.**'}
+- 포즈: ${emotionGuide.pose}` : '【환자 캐릭터】 없음 (데이터/연구 중심 섹션)'}
 
-**⚠️ 중요 규칙:**
-- 의사/한의사 캐릭터는 절대 이미지에 포함하지 않습니다 (권위는 텍스트에서 확보)
-- 환자 캐릭터는 "설명하는" 역할이 아닌 "반응하는" 역할입니다
-- 독자가 글을 읽을 때 느끼는 감정/상황을 시각적으로 표현합니다
+【장면 묘사】
+${concept.description || concept.keywords.join(', ')}
 
-## 📄 원고 전문 (아래 내용을 기반으로 이미지 프롬프트 생성):
----
+【필수 제외】
+${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
+
+                    // AI 호출하여 장면 묘사 보강 (선택적)
+                    const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다.
+
+## 🎯 핵심 원칙
+아래 프롬프트 템플릿의 【장면 묘사】 부분만 보강해주세요.
+원고 내용을 바탕으로 구체적인 시각적 장면을 한글로 작성하세요.
+
+## 📄 원고 내용:
 ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
----
 
-## 현재 섹션: ${concept.title}
-## 참고 키워드: ${concept.keywords.join(', ')}
+## 현재 섹션: ${concept.title} (${sectionTitleKorean})
+## 스타일: ${selectedStyleForPrompt.displayName}
 
-**프롬프트 작성 지침:**
-1. 원고에서 "${concept.title}" 섹션의 핵심 내용을 찾아 시각화하세요
-2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
-3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
-4. ${includePatient ? `환자 캐릭터 포함: 위 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose})를 반영하세요` : '환자 캐릭터 없이 데이터/다이어그램 중심으로 구성하세요'}
-5. **🔴 필수: 생성되는 프롬프트에 아래 내용을 반드시 포함하세요:**
-   - POSITIVE: 위에 명시된 환자 캐릭터 외형, 감정, 포즈를 프롬프트에 그대로 포함
-   - NEGATIVE: "NO doctor, NO 한의사, NO medical professional, NO white coat, NO medical staff" 문구를 프롬프트 끝에 반드시 추가
+## 현재 프롬프트 템플릿:
+${directPrompt}
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
-**프롬프트 마지막에 반드시 NEGATIVE 요소를 명시하세요.**
-
-**단일 이미지 최적화 지침:**
-- 하나의 명확한 초점(focal point)을 가진 구도 설계
-- 여러 요소가 있다면 시각적 계층(hierarchy)으로 통합
-- 복잡한 개념은 아이콘/심볼로 단순화
-- 배경과 전경의 조화로운 레이어링
-
-**한글 텍스트 렌더링 최적화 지침:**
-- 한글 텍스트는 명확하고 읽기 쉬운 산세리프 폰트로 지정 (clear, legible sans-serif Korean font)
-- 텍스트는 크고 굵게 표시 (large, bold text for high visibility)
-- 가능한 짧고 단순한 단어나 구문 사용 (simple, short phrases preferred)
-- 텍스트 위치를 명확히 지정 (clearly specify text placement: centered, top, bottom, etc.)`;
+## 작업 지시:
+1. 【장면 묘사】 부분을 원고 내용에 맞게 구체적으로 작성하세요
+2. 나머지 섹션(【스타일】, 【색상】 등)은 그대로 유지하세요
+3. **전체 프롬프트를 한글 블록 형식으로 출력하세요**
+4. 영어 프롬프트 금지 - 모든 내용은 한글로 작성`;
 
                     let prompt = '';
                     if (selectedProvider === 'gemini') {
@@ -394,7 +382,16 @@ ${initialContext.finalDraft || concept.description || '원고 내용 없음'}
 
             const sectionType = selectedConcept ? detectSectionType(selectedConcept.title) : 'general';
             const emotionGuide = PATIENT_EMOTION_GUIDE[sectionType] || { emotion: 'neutral', pose: 'natural standing' };
-            const includePatient = sectionType !== 'proof';
+
+            // 🔴 캐릭터가 필요한 스타일 목록
+            const CHARACTER_STYLES = [
+                'empathetic-character',
+                'empathetic-cutoon',
+                'section-illustration',
+                'flat-illustration'
+            ];
+            // 🔴 스타일 기반 캐릭터 포함 여부 결정
+            const includePatient = CHARACTER_STYLES.includes(selectedStyle?.id || '');
 
             const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
 **원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
@@ -607,8 +604,8 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                         if (style) setSelectedStyle(style);
                                     }}
                                     className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'section-illustration'
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                         }`}
                                 >
                                     📖 섹션 일러스트
@@ -619,8 +616,8 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                         if (style) setSelectedStyle(style);
                                     }}
                                     className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'flat-illustration'
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                         }`}
                                 >
                                     🎭 플랫 일러스트

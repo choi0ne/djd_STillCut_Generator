@@ -649,25 +649,32 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
 - title 필드에 반드시 글 제목 포함, keywords에도 제목 키워드 추가
 - 나머지 2-4개는 섹션 콘텐츠에 맞는 다양한 스타일 선택
 
-### 사용 가능한 스타일 라이브러리 (19종)
+### 사용 가능한 스타일 라이브러리 (25종)
 1. **blog-thumbnail: 블로그 썸네일** ⭐ 첫 번째 필수 - 대표 이미지용 (제목 + 상징적 시각) - AI가 다른 용도로 사용 금지
-2. artistic-thumbnail: 예술적 썸네일 - 미니멀/세련된 소셜 미디어 썸네일 (범용)
-3. infographic-chart: 인포그래픽 차트 - 데이터와 통계를 명확하게 제시
-4. empathetic-character: 공감 캐릭터 - 감정, 증상, 자세를 친근하게 표현 (말풍선 없음)
-5. herbal-sketch: 약재 스케치 - 약재, 한약, 약국 도구의 빈티지 일러스트
-6. empathetic-cutoon: 공감 컷툰 - 상황이나 감정을 스토리텔링 방식으로 전달 (말풍선 있음)
-7. hand-drawn-diagram: 손그림 다이어그램 - 사이클, 관계, 간단한 프로세스 설명
-8. medical-illustration: 의학 일러스트레이션 - 해부학적 구조 비교 또는 생리학적 프로세스
-9. conceptual-metaphor: 개념적 은유 - 추상적인 의학 개념을 상징적인 오브제로 시각화
-10. 2d-step-diagram: 2D 스텝 다이어그램 - 환자의 행동 지침, 치료 프로토콜
-11. papercraft-illustration: 페이퍼크래프트 일러스트 - 신체 기관이나 프로세스를 따뜻하게 묘사
-12. minimal-wellness-photo: 미니멀 웰니스 포토 - 약재, 차, 건강 음식을 감성적으로
-13. continuous-line-drawing: 연속적인 한 줄 드로잉 - 세련되고 감성적인 방식으로 표현
-14. conceptual-sketch: 개념적 스케치 - 복잡한 철학적/심리적 개념을 위트 있게 시각화
-15. textured-digital-painting: 텍스처 디지털 페인팅 - 따뜻하고 아날로그적인 회화 질감
-16. precision-medical: 정밀 의학도 - 해부학적 정확도, 색상 코딩, 텍스트 라벨 교과서 스타일
-17. poster: 포스터 - 클리닉 홍보/이벤트/캠페인용 (3단 구조, 네이비 배경)
-18. exercise-guide: 운동법 가이드 - 스트레칭/재활운동 동작 가이드 (라인 드로잉, 화살표)
+2. blog-thumbnail-minimal: 블로그썸네일_미니멀 - 미니멀 라인아트 + 스플래터 효과, 굵은 명조체
+3. artistic-thumbnail: 예술적 썸네일 - 미니멀/세련된 소셜 미디어 썸네일 (범용)
+4. isometric-infographic: 아이소메트릭 인포그래픽 - 3D 벡터 방식으로 시스템/프로세스 시각화
+5. infographic-chart: 인포그래픽 차트 - 데이터와 통계를 명확하게 제시
+6. empathetic-character: 공감 캐릭터 - 감정, 증상, 자세를 친근하게 표현 (말풍선 없음)
+7. herbal-sketch: 약재 스케치 - 약재, 한약, 약국 도구의 빈티지 일러스트
+8. empathetic-cutoon: 공감 컷툰 - 상황이나 감정을 스토리텔링 방식으로 전달 (말풍선 있음)
+9. hand-drawn-diagram: 손그림 다이어그램 - 사이클, 관계, 간단한 프로세스 설명
+10. medical-illustration: 의학 일러스트레이션 - 해부학적 구조 비교 또는 생리학적 프로세스
+11. conceptual-metaphor: 개념적 은유 - 추상적인 의학 개념을 상징적인 오브제로 시각화
+12. 2d-step-diagram: 2D 스텝 다이어그램 - 환자의 행동 지침, 치료 프로토콜
+13. papercraft-illustration: 페이퍼크래프트 일러스트 - 신체 기관이나 프로세스를 따뜻하게 묘사
+14. minimal-wellness-photo: 미니멀 웰니스 포토 - 약재, 차, 건강 음식을 감성적으로
+15. continuous-line-drawing: 연속적인 한 줄 드로잉 - 세련되고 감성적인 방식으로 표현
+16. conceptual-sketch: 개념적 스케치 - 복잡한 철학적/심리적 개념을 위트 있게 시각화
+17. textured-digital-painting: 텍스처 디지털 페인팅 - 따뜻하고 아날로그적인 회화 질감
+18. precision-medical: 정밀 의학도 - 해부학적 정확도, 색상 코딩, 텍스트 라벨 교과서 스타일
+19. section-illustration: 섹션 일러스트 - 파스텔 배너 + 귀여운 캐릭터 + 말풍선
+20. flat-illustration: 플랫 일러스트 - 외곽선 없는 플랫 벡터, 파스텔 톤
+21. poster: 포스터 - 클리닉 홍보/이벤트/캠페인용 (3단 구조, 네이비 배경)
+22. exercise-guide: 운동법 가이드 - 스트레칭/재활운동 동작 가이드 (라인 드로잉, 화살표)
+23. flowing-swirl-illustration: 플로잉 스월 - 유기적 흐름 곡선 + 보타니컬 요소
+24. silhouette-anatomy: 실루엣 해부학 - 인체 실루엣 내부 장기 표현, 스플래터 효과
+25. medical-scan-visual: 의료 스캔 비주얼 - CT/MRI 스타일, 진단 마커
 
 ### 사용 가능한 색상 팔레트 (3종)
 1. medical: 의료 톤 (녹색 계열 - #3A5A40 primary)
@@ -683,46 +690,44 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
 - 페르소나톤: 페르소나/톤 태그 3-4개 (예: 한의사칼럼, 환자중심, 통증관리)
 
 
-### TASK 3: 섹션별 일러스트 (6개) - 🔴 원고 직접 요약 방식 (Anti-Keyword Rule)
+### TASK 3: 섹션별 일러스트 (6개) - 🎨 시각적 장면 묘사 직접 생성
 
-## ⛔ 절대 금지 (위반 시 결과물 폐기)
-1. 키워드/단어만 나열하는 방식 (예: "불안, 발작, 심장 두근거림")
-2. 쉼표로 구분된 단어 목록
-3. 원고 내용 없이 추상적 개념만 나열
+## 🎯 목표
+원고 내용을 바탕으로 **이미지 생성 AI가 바로 사용할 수 있는 구체적인 장면 묘사**를 한글로 작성하세요.
 
-## ✅ 필수 규칙: 원고 직접 발췌 + 요약
+## ⛔ 절대 금지
+1. 추상적 개념만 나열 (예: "불안, 희망, 평화")
+2. 원고 내용 그대로 복사
+3. 의사/한의사/의료진 캐릭터 포함
 
-**작업 프로세스 (반드시 이 순서대로):**
+## ✅ 필수 규칙
 
 ### Step 1: 원고에서 해당 섹션 찾기
-위 최종 글에서 각 섹션에 해당하는 문단을 **직접 찾으세요**:
-- 1. Answer First: 글 도입부 (첫 1-2문단, 핵심 결론)
-- 2. Action: 실천법/루틴/방법 설명 부분
-- 3. Warning: 주의사항/위험신호/레드플래그 부분
-- 4. The 'Why': 원인/기전/이유 설명 부분
-- 5. Proof: 사례/연구/근거 언급 부분
-- 6. Closing: 마무리/요약/격려 부분 (마지막 1-2문단)
+- 1. Answer First: 핵심 결론(캐릭터 없이 데이터 중심)
+- 2. Action: 실천법/루틴(캐릭터 없이 데이터 중심)
+- 3. Warning: 위험 신호(캐릭터 없이 데이터 중심)
+- 4. The 'Why': 원인/이유(캐릭터 없이 데이터 중심)
+- 5. Proof: 사례/근거 (캐릭터 없이 데이터 중심)
+- 6. Closing: 마무리/격려(캐릭터 없이 데이터 중심)
 
-### Step 2: 원고 내용을 2-3문장으로 압축
-찾은 문단의 **실제 내용**을 기반으로 2-3개의 완전한 문장으로 요약하세요.
+### Step 2: 시각적 장면 묘사 작성 (imageSceneDescription)
+원고 내용을 **이미지로 표현할 구체적인 장면**으로 변환하세요.
 
-**올바른 요약이란:**
-- 원고에 실제로 있는 정보를 담은 문장
-- 주어-목적어-서술어가 있는 완전한 문장
-- 읽었을 때 "아, 이 글은 이런 내용이구나"하고 이해되는 문장
-- 100자 이상 250자 이하
+**반드시 포함할 요소:**
+1. 배경 색상/분위기 (예: "밝은 하늘색 배경", "따뜻한 베이지톤")
+2. 인물 묘사 (Proof 섹션 제외) - 30대 성인, 캐주얼 복장, 표정/포즈
+3. 주요 시각 요소 (예: "잔잔한 파도 무늬", "체크리스트 아이콘")
+4. 이미지 내 텍스트 (예: "상단에 '안심하세요' 텍스트")
 
-### Step 3: 시각적 키워드 추출
-요약 문장에서 **이미지로 표현 가능한 구체적 사물/행동/표정**을 3-5개 추출하세요.
+**장면 묘사 길이:** 80-150자 (한글)
 
 ## 출력 형식 (각 섹션)
 \`\`\`json
 {
   "sectionNumber": 1,
   "sectionTitle": "Answer First",
-  "manuscriptSummary": "[원고 내용을 2-3문장으로 요약한 서술형 문장. 100-250자. 원고에 실제로 있는 정보 기반]",
-  "summary": "[1문장 핵심 요약. 30-50자. 이미지 제목 용도]",
-  "keywords": ["[시각적 표현 가능한 구체적 요소 3-5개]"],
+  "sectionTitleKorean": "핵심 결론",
+  "imageSceneDescription": "[구체적인 시각적 장면 묘사. 배경+인물+시각요소+텍스트 포함. 80-150자]",
   "recommendedPalette": "medical | calm | warm"
 }
 \`\`\`
@@ -731,32 +736,50 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
 ## ❌ 잘못된 예시 (절대 금지):
 \`\`\`json
 {
-  "manuscriptSummary": "불안, 발작, 심장 두근거림, 호흡 곤란, 식은땀",
-  "summary": "공황장애 증상"
+  "imageSceneDescription": "공황장애는 갑작스럽게 찾아오는 불안 발작입니다."
 }
 \`\`\`
-**왜 잘못되었나:** 키워드 나열일 뿐, 문장이 아님. 원고 내용 전달 안 됨.
+**왜 잘못되었나:** 원고 내용 그대로임. 시각적 장면이 아님.
 
 ## ✅ 올바른 예시:
 \`\`\`json
 {
   "sectionNumber": 1,
   "sectionTitle": "Answer First",
-  "manuscriptSummary": "공황장애는 예고 없이 찾아오는 극심한 불안 발작입니다. 갑자기 심장이 터질 듯 뛰고, 숨을 쉴 수 없을 것 같은 공포가 밀려옵니다. 하지만 이 증상은 심장마비가 아니며, 약물과 생활관리를 병행하면 충분히 조절할 수 있습니다.",
-  "summary": "공황장애는 무섭지만 관리 가능한 질환입니다",
-  "keywords": ["떨리는 손을 가슴에 댄 사람", "심호흡하는 모습", "안도하는 표정", "평온한 일상 복귀"],
+  "sectionTitleKorean": "핵심 결론",
+  "imageSceneDescription": "밝은 하늘색 배경, 가슴에 손을 얹고 눈을 감은 30대 여성이 깊게 심호흡하는 모습, 주변에 잔잔한 파도 무늬와 부드러운 구름, 하단에 '관리할 수 있습니다' 텍스트",
   "recommendedPalette": "calm"
 }
 \`\`\`
-**왜 올바른가:** 원고에서 발췌한 실제 정보가 완전한 문장으로 요약됨.
+**왜 올바른가:** 배경+인물+시각요소+텍스트가 구체적으로 묘사됨. 이미지 AI가 바로 그릴 수 있음.
+
+## ✅ 섹션별 예시:
+
+**1. Answer First (핵심 결론):**
+"밝은 하늘색 배경, 가슴에 손을 얹고 안도하는 표정의 30대 여성, 주변에 부드러운 하트 아이콘, 상단에 '핵심 결론' 텍스트"
+
+**2. Action (즉각 실천):**
+"따뜻한 베이지색 배경, 스트레칭하는 30대 남성, 옆에 1-2-3 숫자 아이콘과 체크마크, 상단에 '지금 바로 실천' 텍스트"
+
+**3. Warning (위험 신호):**
+"연한 주황색 배경, 손을 들어 '잠깐' 제스처를 취하는 30대 여성, 옆에 경고 삼각형 아이콘, 상단에 '이런 증상은 주의' 텍스트"
+
+**4. The 'Why' (상세 원인):**
+"연한 보라색 배경, 턱을 괴고 생각하는 표정의 30대 남성, 주변에 물음표와 전구 아이콘, 상단에 '왜 그럴까요?' 텍스트"
+
+**5. Proof (사례와 근거) - 캐릭터 없음:**
+"깔끔한 흰색 배경, 중앙에 막대 그래프와 상승 화살표, 주변에 체크마크 아이콘들, 하단에 '연구 결과' 텍스트"
+
+**6. Closing (마무리):**
+"따뜻한 노을빛 배경, 편안하게 미소 짓는 30대 여성, 주변에 하트와 별 아이콘, 하단에 '함께해요' 텍스트"
 
 ---
 ## 자가 검증 (출력 전 반드시 확인):
-✓ manuscriptSummary가 쉼표로 구분된 단어 나열이 아닌가?
-✓ manuscriptSummary에 주어와 서술어가 있는가?
-✓ manuscriptSummary가 100자 이상인가?
-✓ manuscriptSummary를 읽으면 원고 내용이 전달되는가?
-✓ keywords가 "슬픔", "희망" 같은 추상 개념이 아닌 구체적 시각 요소인가?
+✓ imageSceneDescription이 80자 이상인가?
+✓ 배경 색상/분위기가 명시되어 있는가?
+✓ 인물의 표정과 포즈가 구체적인가? (Proof 제외)
+✓ 이미지 내 텍스트가 포함되어 있는가?
+✓ 의사/한의사 캐릭터가 없는가?
 
 ### TASK 4: 시리즈 키워드 (다음 글 후보)
 
@@ -1497,17 +1520,74 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
     };
 
-    // 프로필 관리 핸들러
-    const handleSaveProfile = (profile: BlogProfile) => {
+    // 프로필 관리 핸들러 + AI 캐릭터 자동 생성
+    const handleSaveProfile = async (profile: BlogProfile) => {
+        // 🔴 patientCharacterPrompt가 없으면 AI로 자동 생성
+        let finalProfile = { ...profile };
+
+        if (!profile.patientCharacterPrompt && profile.audience) {
+            try {
+                const characterPrompt = generateCharacterPromptFromAudience(profile.audience, profile.clinic_focus);
+                finalProfile.patientCharacterPrompt = characterPrompt;
+            } catch (error) {
+                console.error('캐릭터 프롬프트 자동 생성 실패:', error);
+                // 기본 캐릭터 사용
+                finalProfile.patientCharacterPrompt = `Korean adult patient matching "${profile.audience}".
+Minimalist cartoon style, clean thick outlines, flat pastel colors.
+Warm cream background (#F5F0E8).
+No doctor or medical professional in the image.`;
+            }
+        }
+
         const existingIndex = profiles.findIndex(p => p.id === profile.id);
         if (existingIndex >= 0) {
             const updatedProfiles = [...profiles];
-            updatedProfiles[existingIndex] = profile;
+            updatedProfiles[existingIndex] = finalProfile;
             setProfiles(updatedProfiles);
         } else {
-            setProfiles([...profiles, profile]);
-            setSelectedProfileId(profile.id);
+            setProfiles([...profiles, finalProfile]);
+            setSelectedProfileId(finalProfile.id);
         }
+    };
+
+    // 🔴 audience 정보로 캐릭터 프롬프트 자동 생성
+    const generateCharacterPromptFromAudience = (audience: string, clinicFocus: string[]): string => {
+        // 연령대 추출
+        let ageRange = 'mid-30s';
+        if (audience.includes('20') || audience.includes('이십')) ageRange = 'mid-20s';
+        else if (audience.includes('30') || audience.includes('삼십')) ageRange = 'mid-30s';
+        else if (audience.includes('40') || audience.includes('사십')) ageRange = 'mid-40s';
+        else if (audience.includes('50') || audience.includes('오십')) ageRange = 'early 50s';
+        else if (audience.includes('60') || audience.includes('육십')) ageRange = 'early 60s';
+
+        // 성별 추출
+        let gender = 'gender-neutral';
+        let clothing = 'beige cardigan over white collared shirt';
+        let hairStyle = 'Short neat black hair';
+
+        if (audience.includes('여성') || audience.includes('여자') || audience.includes('산모') || audience.includes('임산부')) {
+            gender = 'woman';
+            clothing = 'cozy mint-green or soft pink knit sweater';
+            hairStyle = 'Shoulder-length wavy black hair';
+        } else if (audience.includes('남성') || audience.includes('남자')) {
+            gender = 'man';
+            clothing = 'navy blue polo shirt and comfortable pants';
+            hairStyle = 'Short black hair with hints of gray';
+        }
+
+        // 통증 관련 포즈
+        let painPose = '';
+        const focusStr = clinicFocus.join(' ');
+        if (focusStr.includes('요통') || focusStr.includes('허리')) painPose = '\nMay be shown holding lower back to indicate pain.';
+        else if (focusStr.includes('목') || focusStr.includes('어깨')) painPose = '\nMay be shown holding neck or shoulder to indicate pain.';
+        else if (focusStr.includes('두통') || focusStr.includes('머리')) painPose = '\nMay be shown holding head, showing slight discomfort.';
+
+        return `Korean ${gender} in their ${ageRange}.
+${hairStyle}, slightly tired but hopeful eyes, soft smile.
+Wearing ${clothing}.${painPose}
+Minimalist cartoon style, clean thick outlines, flat pastel colors.
+Warm cream background (#F5F0E8).
+No doctor or medical professional in the image.`;
     };
 
     const handleDeleteProfile = (profileId: string) => {
@@ -2403,7 +2483,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                 <h3 className="text-lg font-semibold text-gray-300">워크플로 진행</h3>
                                 <button
                                     onClick={handleNewPost}
-                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
+                                    className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[80px] text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
                                     title="새 글 작성 (모든 데이터 초기화)"
                                 >
                                     <PlusIcon className="w-3 h-3" />
@@ -2412,7 +2492,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                 <button
                                     onClick={handleBatchProcess}
                                     disabled={isBatchProcessing || isLoading || !stageData.selectedTopic}
-                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[80px] text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="1~6단계 일괄 실행 (주제 선택 후 사용 가능)"
                                 >
                                     {isBatchProcessing ? (
@@ -2432,7 +2512,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                     <button
                                         onClick={handleShortcutStart}
                                         disabled={isBatchProcessing || isLoading || isShortcutProcessing}
-                                        className="flex items-center gap-1 px-3 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-1 px-3 py-1.5 min-w-[50px] text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         title="완성된 원고를 직접 입력하여 이미지카드/해시태그만 생성"
                                     >
                                         <EditIcon className="w-3 h-3" />
@@ -2838,11 +2918,10 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                         });
                                                         setSectionStyleOverrides(newOverrides);
                                                     }}
-                                                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                                                        Object.values(sectionStyleOverrides).every(v => v === 'section-illustration') || Object.keys(sectionStyleOverrides).length === 0
-                                                            ? 'bg-green-600 text-white'
-                                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                    }`}
+                                                    className={`px-2 py-1 text-xs rounded transition-colors ${Object.values(sectionStyleOverrides).every(v => v === 'section-illustration') || Object.keys(sectionStyleOverrides).length === 0
+                                                        ? 'bg-green-600 text-white'
+                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                                        }`}
                                                 >
                                                     📖 섹션 일러스트
                                                 </button>
@@ -2854,11 +2933,10 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                         });
                                                         setSectionStyleOverrides(newOverrides);
                                                     }}
-                                                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                                                        Object.values(sectionStyleOverrides).length > 0 && Object.values(sectionStyleOverrides).every(v => v === 'flat-illustration')
-                                                            ? 'bg-purple-600 text-white'
-                                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                    }`}
+                                                    className={`px-2 py-1 text-xs rounded transition-colors ${Object.values(sectionStyleOverrides).length > 0 && Object.values(sectionStyleOverrides).every(v => v === 'flat-illustration')
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                                        }`}
                                                 >
                                                     🎭 플랫 일러스트
                                                 </button>
