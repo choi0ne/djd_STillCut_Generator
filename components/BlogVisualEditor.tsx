@@ -247,7 +247,9 @@ ${styleBlock}
 
                     // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
                     const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
+                    const THUMBNAIL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail'];
                     const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyleForPrompt.id);
+                    const isThumbnailStyle = THUMBNAIL_STYLES.includes(selectedStyleForPrompt.id);
 
                     // 🔴 스타일에 따른 사이즈 블록
                     const sizeBlock = isVerticalStyle
@@ -258,23 +260,52 @@ ${styleBlock}
 1024x558px, 가로형 1.83:1 비율
 블로그 본문 최적화 가로 배너`;
 
-                    // 2. 고정 블록 (변경 불가) - 아래 창
+                    // 🔴 썸네일 스타일별 폰트 설정
+                    const getThumbnailFont = (styleId: string) => {
+                        switch (styleId) {
+                            case 'blog-thumbnail':
+                                return '도현체(Do Hyeon) ExtraBold';
+                            case 'blog-thumbnail-minimal':
+                            case 'artistic-thumbnail':
+                                return '나눔명조(Nanum Myeongjo) ExtraBold';
+                            default:
+                                return '도현체(Do Hyeon) ExtraBold';
+                        }
+                    };
+
+                    // 🔴 썸네일 스타일일 경우 제목 블록 추가
+                    const titleBlock = isThumbnailStyle ? `【제목】
+- 텍스트: "${initialContext?.topic || concept.title}"
+- 폰트: ${getThumbnailFont(selectedStyleForPrompt.id)}
+- 크기: Extra Bold, 화면 폭의 80%
+- 색상: 검정색(#333333)
+- 배치: 하단 25% 영역 (크림색/아이보리 배경 박스)
+- 긴 제목은 2줄로 배치 (콜론으로 구분)
+
+【레이아웃】
+- 상단 75%: 메인 비주얼 (페이퍼크래프트 일러스트)
+- 하단 25%: 제목 텍스트 영역 (크림색 배경)` : '';
+
+                    // 2. 고정 블록 - 아래 창
                     const newFixedBlock = `${sizeBlock}
+${isThumbnailStyle ? `
+${titleBlock}` : `
+【섹션】 ${sectionTitleKorean}`}
 
-【섹션】 ${sectionTitleKorean}
-
-${includePatient ? `【환자 캐릭터】
+${includePatient && !isThumbnailStyle ? `【환자 캐릭터】
 - 프로필: ${selectedProfile.name}
 - 외형: ${patientPrompt}
 - 감정: ${emotionGuide.emotion}
 - 포즈: ${emotionGuide.pose}` : `【환자 캐릭터】
-없음 (데이터/연구 중심 섹션)`}
+없음 (${isThumbnailStyle ? '썸네일 스타일' : '데이터/연구 중심 섹션'})`}
 
 【장면 묘사】
-${concept.description || concept.keywords.join(', ')}
+${isThumbnailStyle
+                            ? `주제를 상징하는 핵심 시각 요소. 인물/캐릭터 없이 오브제와 상징적 이미지로 표현.`
+                            : (concept.description || concept.keywords.join(', '))}
 
 【필수 제외】
-${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
+${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat${isThumbnailStyle ? ', NO characters, NO people, NO faces' : ''}`;
 
                     // 🔴 분리된 블록을 state에 저장 (사용자가 수정하지 않은 경우에만)
                     setStylePromptBlock(newStyleBlock);
@@ -482,7 +513,9 @@ ${styleBlock}
 
             // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
             const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
+            const THUMBNAIL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail'];
             const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyle.id);
+            const isThumbnailStyle = THUMBNAIL_STYLES.includes(selectedStyle.id);
 
             // 🔴 스타일에 따른 사이즈 블록
             const sizeBlock = isVerticalStyle
@@ -493,23 +526,52 @@ ${styleBlock}
 1024x558px, 가로형 1.83:1 비율
 블로그 본문 최적화 가로 배너`;
 
-            // 🔴 고정 블록 생성 (변경 불가)
+            // 🔴 썸네일 스타일별 폰트 설정
+            const getThumbnailFont = (styleId: string) => {
+                switch (styleId) {
+                    case 'blog-thumbnail':
+                        return '도현체(Do Hyeon) ExtraBold';
+                    case 'blog-thumbnail-minimal':
+                    case 'artistic-thumbnail':
+                        return '나눔명조(Nanum Myeongjo) ExtraBold';
+                    default:
+                        return '도현체(Do Hyeon) ExtraBold';
+                }
+            };
+
+            // 🔴 썸네일 스타일일 경우 제목 블록 추가
+            const titleBlock = isThumbnailStyle ? `【제목】
+- 텍스트: "${topic}"
+- 폰트: ${getThumbnailFont(selectedStyle.id)}
+- 크기: Extra Bold, 화면 폭의 80%
+- 색상: 검정색(#333333)
+- 배치: 하단 25% 영역 (크림색/아이보리 배경 박스)
+- 긴 제목은 2줄로 배치 (콜론으로 구분)
+
+【레이아웃】
+- 상단 75%: 메인 비주얼 (페이퍼크래프트 일러스트)
+- 하단 25%: 제목 텍스트 영역 (크림색 배경)` : '';
+
+            // 🔴 고정 블록 생성
             const newFixedBlock = `${sizeBlock}
+${isThumbnailStyle ? `
+${titleBlock}` : `
+【섹션】 ${topic}`}
 
-【섹션】 ${topic}
-
-${includePatient ? `【환자 캐릭터】
+${includePatient && !isThumbnailStyle ? `【환자 캐릭터】
 - 프로필: ${selectedProfile.name}
 - 외형: ${patientPrompt}
 - 감정: ${emotionGuide.emotion}
 - 포즈: ${emotionGuide.pose}` : `【환자 캐릭터】
-없음 (데이터/연구 중심 섹션)`}
+없음 (${isThumbnailStyle ? '썸네일 스타일' : '데이터/연구 중심 섹션'})`}
 
 【장면 묘사】
-${content || topic}
+${isThumbnailStyle
+                    ? `주제를 상징하는 핵심 시각 요소. 인물/캐릭터 없이 오브제와 상징적 이미지로 표현.`
+                    : (content || topic)}
 
 【필수 제외】
-${negatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
+${negatives}, NO doctor, NO 한의사, NO medical professional, NO white coat${isThumbnailStyle ? ', NO characters, NO people, NO faces' : ''}`;
 
             // 🔴 분리된 블록을 state에 저장 (사용자가 수정하지 않은 경우에만)
             setStylePromptBlock(newStyleBlock);
