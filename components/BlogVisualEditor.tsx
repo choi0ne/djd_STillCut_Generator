@@ -48,6 +48,10 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     const [selectedPalette, setSelectedPalette] = useState<'medical' | 'calm' | 'warm'>('medical');
     const [generatedPrompt, setGeneratedPrompt] = useState('');
 
+    // 🔴 프롬프트 분리: 스타일 블록 (변경 가능) + 고정 블록 (변경 불가)
+    const [stylePromptBlock, setStylePromptBlock] = useState(''); // 【스타일】, 【색상 팔레트】
+    const [fixedPromptBlock, setFixedPromptBlock] = useState(''); // 【사이즈】, 【섹션】, 【환자 캐릭터】, 【장면 묘사】, 【필수 제외】
+
     // 직접 프롬프트 입력 모드
     const [directPrompt, setDirectPrompt] = useState('');
     const [baseDirectPrompt, setBaseDirectPrompt] = useState(''); // 사용자가 입력한 원본 프롬프트
@@ -229,22 +233,34 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
                     // 🔴 Stage 7에서 전달된 patientCharacterPrompt 우선 사용
                     const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
-                    // 🔴 한글 블록화 형식으로 프롬프트 직접 생성 (AI 호출 없이)
-                    // 블록 순서: 【사이즈】→【섹션】→【스타일】→【색상 팔레트】→【환자 캐릭터】→【장면 묘사】→【필수 제외】
-                    const directPrompt = `【사이즈】
-1024x558px, 가로형 1.83:1 비율
-블로그 본문 최적화 가로 배너
-
-【섹션】 ${sectionTitleKorean}
-
-【스타일】
+                    // 🔴 프롬프트를 두 블록으로 분리:
+                    // 1. 스타일 블록 (스타일 선택으로 변경 가능) - 위 창
+                    const newStyleBlock = `【스타일】
 ${styleBlock}
 
 【색상 팔레트】
 - 주 색상: ${palette.primary}
 - 보조 색상: ${palette.secondary}
 - 강조 색상: ${palette.accent}
-- 배경 색상: ${palette.background}
+- 배경 색상: ${palette.background}`;
+
+                    // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
+                    const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'poster'];
+                    const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyleForPrompt.id);
+
+                    // 🔴 스타일에 따른 사이즈 블록
+                    const sizeBlock = isVerticalStyle
+                        ? `【사이즈】
+800x1200px, 세로형 2:3 비율
+블로그 썸네일/포스터 최적화`
+                        : `【사이즈】
+1024x558px, 가로형 1.83:1 비율
+블로그 본문 최적화 가로 배너`;
+
+                    // 2. 고정 블록 (변경 불가) - 아래 창
+                    const newFixedBlock = `${sizeBlock}
+
+【섹션】 ${sectionTitleKorean}
 
 ${includePatient ? `【환자 캐릭터】
 - 프로필: ${selectedProfile.name}
@@ -258,6 +274,16 @@ ${concept.description || concept.keywords.join(', ')}
 
 【필수 제외】
 ${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
+
+                    // 🔴 분리된 블록을 state에 저장
+                    setStylePromptBlock(newStyleBlock);
+                    setFixedPromptBlock(newFixedBlock);
+
+                    // 🔴 합쳐진 전체 프롬프트도 저장 (이미지 생성 및 표시용)
+                    const combinedPrompt = `${newFixedBlock}
+
+${newStyleBlock}`;
+                    setGeneratedPrompt(combinedPrompt);
 
                     // AI 호출하여 장면 묘사 보강 (선택적)
                     const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다.
@@ -351,9 +377,40 @@ ${directPrompt}
         }
     }, [selectedStyle, selectedPalette, useDirectPrompt, baseDirectPrompt, buildEnhancedPrompt]);
 
-    // 직접 프롬프트로 이미지 생성 (생성된 프롬프트 사용)
+    // 🔴 스타일/팔레트 변경 시 스타일 블록만 업데이트 (고정 블록은 유지)
+    useEffect(() => {
+        // 고정 블록이 있을 때만 스타일 블록 업데이트
+        if (fixedPromptBlock && selectedStyle) {
+            const palette = COLOR_PALETTES[selectedPalette];
+            const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyle.id] || '';
+
+            const newStyleBlock = `【스타일】
+${styleBlock}
+
+【색상 팔레트】
+- 주 색상: ${palette.primary}
+- 보조 색상: ${palette.secondary}
+- 강조 색상: ${palette.accent}
+- 배경 색상: ${palette.background}`;
+
+            setStylePromptBlock(newStyleBlock);
+
+            // 합쳐진 전체 프롬프트 업데이트
+            const combinedPrompt = `${fixedPromptBlock}
+
+${newStyleBlock}`;
+            setGeneratedPrompt(combinedPrompt);
+        }
+    }, [selectedStyle, selectedPalette, fixedPromptBlock]);
+
+    // 직접 프롬프트로 이미지 생성 (생성된 프롬프트 사용 - 위 창 + 아래 창 합침)
     const handleGenerateWithDirectPrompt = async () => {
-        if (!generatedPrompt.trim()) return;
+        // 🔴 스타일 블록 + 고정 블록을 합쳐서 이미지 생성
+        const finalPrompt = fixedPromptBlock && stylePromptBlock
+            ? `${fixedPromptBlock}\n\n${stylePromptBlock}`
+            : generatedPrompt;
+
+        if (!finalPrompt.trim()) return;
 
         const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
         if (!apiKey) {
@@ -362,7 +419,7 @@ ${directPrompt}
         }
 
         // 생성된 프롬프트로 이미지 생성
-        generateImage(null, generatedPrompt);
+        generateImage(null, finalPrompt);
     };
 
     // 이미지 생성 (프롬프트 자동 생성 포함)
@@ -377,7 +434,6 @@ ${directPrompt}
         // 프롬프트 자동 생성
         try {
             const palette = COLOR_PALETTES[selectedPalette];
-            const basePrompt = selectedStyle.goldStandardExample.BACKGROUND_PROMPT;
             const negatives = selectedStyle.goldStandardExample.NEGATIVES.join(', ');
 
             // ✨ 선택된 컨셉이 있으면 섹션 타입 감지
@@ -406,108 +462,64 @@ ${directPrompt}
             // 🔴 스타일 기반 캐릭터 포함 여부 결정
             const includePatient = CHARACTER_STYLES.includes(selectedStyle?.id || '');
 
-            const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다. 
-**원고 전문을 읽고 핵심 내용을 파악한 뒤**, 주어진 스타일 템플릿을 활용하여 이미지 생성 프롬프트를 작성하세요.
+            // 🔴 STYLE_PROMPT_BLOCKS에서 한글 블록화 프롬프트 가져오기
+            const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyle.id] || '';
+            const patientPrompt = selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
-## 🎯 핵심 원칙: 원고 기반 이미지 생성
-**키워드 나열이 아닌, 원고의 실제 내용과 메시지를 시각화해야 합니다.**
-1. 아래 원고/내용을 꼼꼼히 읽으세요
-2. 핵심 메시지를 파악하세요
-3. 그 메시지를 시각적으로 표현하는 이미지 프롬프트를 작성하세요
+            // 🔴 스타일 블록 생성 (변경 가능)
+            const newStyleBlock = `【스타일】
+${styleBlock}
 
-## 스타일: ${selectedStyle.displayName}
-## 기본 프롬프트 템플릿:
-${basePrompt}
+【색상 팔레트】
+- 주 색상: ${palette.primary}
+- 보조 색상: ${palette.secondary}
+- 강조 색상: ${palette.accent}
+- 배경 색상: ${palette.background}`;
 
-## 색상 팔레트:
-- Primary: ${palette.primary}
-- Secondary: ${palette.secondary}
-- Accent: ${palette.accent}
-- Background: ${palette.background}
+            // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
+            const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'poster'];
+            const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyle.id);
 
-## 제외할 요소 (NEGATIVES):
-${negatives}
+            // 🔴 스타일에 따른 사이즈 블록
+            const sizeBlock = isVerticalStyle
+                ? `【사이즈】
+800x1200px, 세로형 2:3 비율
+블로그 썸네일/포스터 최적화`
+                : `【사이즈】
+1024x558px, 가로형 1.83:1 비율
+블로그 본문 최적화 가로 배너`;
 
-## 🎨 환자 캐릭터 (독자 대리인) - 프로필: ${selectedProfile.name}
-**섹션 타입**: ${sectionType}
-**캐릭터 포함 여부**: ${includePatient ? '✅ 포함' : '❌ 제외'}
+            // 🔴 고정 블록 생성 (변경 불가)
+            const newFixedBlock = `${sizeBlock}
 
-${includePatient ? `**캐릭터 기본 외형:**
-${selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm']}
+【섹션】 ${topic}
 
-**이 섹션에서의 감정/포즈:**
+${includePatient ? `【환자 캐릭터】
+- 프로필: ${selectedProfile.name}
+- 외형: ${patientPrompt}
 - 감정: ${emotionGuide.emotion}
-- 포즈: ${emotionGuide.pose}
-` : '**데이터/연구 중심 섹션 - 환자 캐릭터 없이 구성하세요.**'}
+- 포즈: ${emotionGuide.pose}` : `【환자 캐릭터】
+없음 (데이터/연구 중심 섹션)`}
 
-**⚠️ 중요 규칙:**
-- 의사/한의사 캐릭터는 절대 이미지에 포함하지 않습니다 (권위는 텍스트에서 확보)
-- 환자 캐릭터는 "설명하는" 역할이 아닌 "반응하는" 역할입니다
-- 독자가 글을 읽을 때 느끼는 감정/상황을 시각적으로 표현합니다
+【장면 묘사】
+${content || topic}
 
-## 📄 원고/내용 (아래 내용을 기반으로 이미지 프롬프트 생성):
----
-${initialContext?.finalDraft || content || '원고 내용 없음'}
----
+【필수 제외】
+${negatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
 
-## 주제: ${topic}
-${content ? `## 추가 키워드/내용: ${content}` : ''}
+            // 🔴 분리된 블록을 state에 저장
+            setStylePromptBlock(newStyleBlock);
+            setFixedPromptBlock(newFixedBlock);
 
-**프롬프트 작성 지침:**
-1. 원고의 핵심 메시지를 찾아 시각화하세요
-2. 원고의 구체적인 표현과 메시지를 이미지로 표현하세요
-3. 단순 키워드 나열이 아닌, 의미 있는 장면을 묘사하세요
-4. ${includePatient ? `환자 캐릭터 포함: 감정(${emotionGuide.emotion})과 포즈(${emotionGuide.pose}) 반영` : '환자 캐릭터 없이 데이터/다이어그램 중심 구성'}
-5. **🔴 필수: 생성되는 프롬프트에 아래 내용을 반드시 포함하세요:**
-   - POSITIVE: 위에 명시된 환자 캐릭터 외형, 감정, 포즈를 프롬프트에 그대로 포함
-   - NEGATIVE: "NO doctor, NO 한의사, NO medical professional, NO white coat, NO medical staff" 문구를 프롬프트 끝에 반드시 추가
+            // 🔴 합쳐진 전체 프롬프트 저장
+            const combinedPrompt = `${newFixedBlock}
 
-위 정보를 바탕으로 완성된 이미지 생성 프롬프트를 한 문단으로 작성하세요. 영어로 작성하고, 이미지 내에 표시될 텍스트는 한글로 지정하세요.
-**프롬프트 마지막에 반드시 NEGATIVE 요소를 명시하세요.**
-
-**단일 이미지 최적화 지침:**
-- 하나의 명확한 초점(focal point)을 가진 구도 설계
-- 여러 요소가 있다면 시각적 계층(hierarchy)으로 통합
-- 복잡한 개념은 아이콘/심볼로 단순화
-- 배경과 전경의 조화로운 레이어링
-
-**한글 텍스트 렌더링 최적화 지침:**
-- 한글 텍스트는 명확하고 읽기 쉬운 산세리프 폰트로 지정 (clear, legible sans-serif Korean font)
-- 텍스트는 크고 굵게 표시 (large, bold text for high visibility)
-- 가능한 짧고 단순한 단어나 구문 사용 (simple, short phrases preferred)
-- 텍스트 위치를 명확히 지정 (clearly specify text placement: centered, top, bottom, etc.)`;
-
-            let prompt = '';
-            if (selectedProvider === 'gemini') {
-                const { GoogleGenAI } = await import('@google/genai');
-                const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-                const response = await ai.models.generateContent({
-                    model: 'gemini-3-pro-preview',
-                    contents: { parts: [{ text: systemPrompt }] }
-                });
-                prompt = response.text || '';
-            } else {
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${openaiApiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-5.2',
-                        messages: [{ role: 'user', content: systemPrompt }],
-                        max_tokens: 2000
-                    })
-                });
-                const data = await response.json();
-                prompt = data.choices?.[0]?.message?.content || '';
-            }
-
-            setGeneratedPrompt(prompt);
+${newStyleBlock}`;
+            setGeneratedPrompt(combinedPrompt);
 
             // 생성된 프롬프트로 바로 이미지 생성
-            if (prompt && !prompt.startsWith('❌')) {
-                generateImage(null, prompt);
+            if (combinedPrompt && !combinedPrompt.startsWith('❌')) {
+                generateImage(null, combinedPrompt);
             }
         } catch (error: any) {
             setGeneratedPrompt(`❌ 오류: ${error.message}`);
@@ -766,51 +778,37 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                                     <button
                                         onClick={() => {
                                             if (directPrompt.trim()) {
-                                                let cleanedPrompt = directPrompt;
-
-                                                // 🔴 1. 【스타일】 블록 전체 삭제 (다음 【 까지)
-                                                cleanedPrompt = cleanedPrompt.replace(/【스타일】[\s\S]*?(?=【|$)/g, '');
-
-                                                // 🔴 1.5. 【스타일】 헤더 없이 존재하는 [그림체], [구성], [색상], [배경] 블록도 삭제
-                                                // 각 태그부터 다음 태그 또는 다음 【 블록까지 삭제
-                                                cleanedPrompt = cleanedPrompt.replace(/\[그림체\][\s\S]*?(?=\[구성\]|\[색상\]|\[배경\]|【|$)/g, '');
-                                                cleanedPrompt = cleanedPrompt.replace(/\[구성\][\s\S]*?(?=\[색상\]|\[배경\]|【|$)/g, '');
-                                                cleanedPrompt = cleanedPrompt.replace(/\[색상\][\s\S]*?(?=\[배경\]|【|$)/g, '');
-                                                cleanedPrompt = cleanedPrompt.replace(/\[배경\][\s\S]*?(?=【|$)/g, '');
-
-                                                // 🔴 2. 【색상 팔레트】 블록 전체 삭제 (다음 【 까지)
-                                                cleanedPrompt = cleanedPrompt.replace(/【색상 팔레트】[\s\S]*?(?=【|$)/g, '');
-
-                                                // 🔴 3. Style:, Color palette: 줄도 삭제 (혹시 남아있으면)
-                                                const lines = cleanedPrompt.split('\n');
-                                                const filtered = lines.filter(line => {
-                                                    const trimmed = line.trim();
-                                                    if (trimmed.startsWith('Style:')) return false;
-                                                    if (trimmed.startsWith('Color palette:')) return false;
-                                                    return true;
-                                                });
-
-                                                cleanedPrompt = filtered.join('\n');
-                                                // 연속된 빈 줄 정리
-                                                cleanedPrompt = cleanedPrompt.replace(/\n{3,}/g, '\n\n').trim();
-
-                                                // 🔴 4. 선택한 스타일 정보 추가
+                                                // 🔴 직접 프롬프트에서 스타일 블록만 추출하여 위 창에 적용
                                                 const paletteInfo = COLOR_PALETTES[selectedPalette];
 
+                                                // 선택한 스타일 정보로 새 스타일 블록 생성
+                                                let newStyleBlock = '';
                                                 if (selectedStyle) {
-                                                    // 🔴 블록화된 형식으로 스타일 추가
                                                     const blockPrompt = STYLE_PROMPT_BLOCKS[selectedStyle.id];
                                                     const styleContent = (blockPrompt && blockPrompt.trim())
                                                         ? blockPrompt.trim()
                                                         : `${selectedStyle.displayName}\n${selectedStyle.keywords.map(k => `- ${k}`).join('\n')}`;
 
-                                                    cleanedPrompt += `\n\n【스타일】\n${styleContent}`;
+                                                    newStyleBlock = `【스타일】
+${styleContent}
+
+【색상 팔레트】
+- 주 색상: ${paletteInfo.primary}
+- 보조 색상: ${paletteInfo.secondary}
+- 강조 색상: ${paletteInfo.accent}
+- 배경 색상: ${paletteInfo.background}`;
                                                 }
 
-                                                // 🔴 블록화된 형식으로 색상 팔레트 추가
-                                                cleanedPrompt += `\n\n【색상 팔레트】\n- 주 색상: ${paletteInfo.primary}\n- 보조 색상: ${paletteInfo.secondary}\n- 강조 색상: ${paletteInfo.accent}\n- 배경 색상: ${paletteInfo.background}`;
+                                                // 🔴 스타일 블록만 업데이트 (고정 블록은 유지)
+                                                setStylePromptBlock(newStyleBlock);
 
-                                                setGeneratedPrompt(cleanedPrompt);
+                                                // 합쳐진 전체 프롬프트 업데이트
+                                                if (fixedPromptBlock) {
+                                                    const combinedPrompt = `${fixedPromptBlock}\n\n${newStyleBlock}`;
+                                                    setGeneratedPrompt(combinedPrompt);
+                                                } else {
+                                                    setGeneratedPrompt(newStyleBlock);
+                                                }
                                             }
                                         }}
                                         disabled={!directPrompt.trim()}
@@ -832,42 +830,101 @@ ${content ? `## 추가 키워드/내용: ${content}` : ''}
                         )}
                     </div>
 
-                    {/* 생성된 프롬프트 편집 */}
-                    {generatedPrompt && !generatedPrompt.startsWith('❌') && (
-                        <div className="bg-gray-800/50 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-medium text-gray-400">📝 생성된 프롬프트:</p>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                await navigator.clipboard.writeText(generatedPrompt);
-                                                setCopiedPrompt(true);
-                                                setTimeout(() => setCopiedPrompt(false), 2000);
-                                            } catch (err) {
-                                                console.error('복사 실패:', err);
-                                            }
-                                        }}
-                                        className="text-xs text-gray-500 hover:text-green-400 transition-colors"
-                                        title="클립보드에 복사"
-                                    >
-                                        {copiedPrompt ? '✅ 복사됨!' : '📋 복사'}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setGeneratedPrompt('');
-                                        }}
-                                        className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-                                        title="프롬프트 초기화"
-                                    >
-                                        🗑️ 초기화
-                                    </button>
+                    {/* 🔴 생성된 프롬프트 - 두 개의 창으로 분리 */}
+                    {(stylePromptBlock || fixedPromptBlock) && (
+                        <div className="space-y-3">
+                            {/* 위 창: 스타일 블록 (스타일 선택으로 변경 가능) */}
+                            {stylePromptBlock && (
+                                <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">🎨</span>
+                                            <p className="text-xs font-medium text-purple-300">스타일 블록 (변경 가능)</p>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(stylePromptBlock);
+                                                    setCopiedPrompt(true);
+                                                    setTimeout(() => setCopiedPrompt(false), 2000);
+                                                } catch (err) {
+                                                    console.error('복사 실패:', err);
+                                                }
+                                            }}
+                                            className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                                            title="스타일 블록만 복사"
+                                        >
+                                            {copiedPrompt ? '✅ 복사됨!' : '📋 복사'}
+                                        </button>
+                                    </div>
+                                    <div className="w-full px-3 py-2 bg-purple-900/20 border border-purple-500/20 rounded-lg text-purple-100 text-xs font-mono max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                        {stylePromptBlock}
+                                    </div>
+                                    <p className="text-xs text-purple-400/70 mt-1">💡 위에서 스타일/색상 팔레트를 변경하면 이 블록이 자동 업데이트됩니다.</p>
                                 </div>
+                            )}
+
+                            {/* 아래 창: 고정 블록 (변경 불가) */}
+                            {fixedPromptBlock && (
+                                <div className="bg-gray-800/50 border border-gray-600/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">📌</span>
+                                            <p className="text-xs font-medium text-gray-400">고정 블록 (변경 불가)</p>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(fixedPromptBlock);
+                                                    setCopiedPrompt(true);
+                                                    setTimeout(() => setCopiedPrompt(false), 2000);
+                                                } catch (err) {
+                                                    console.error('복사 실패:', err);
+                                                }
+                                            }}
+                                            className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+                                            title="고정 블록만 복사"
+                                        >
+                                            📋 복사
+                                        </button>
+                                    </div>
+                                    <div className="w-full px-3 py-2 bg-gray-700/30 border border-gray-600/30 rounded-lg text-gray-300 text-xs font-mono max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                        {fixedPromptBlock}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">🔒 이 블록은 컨셉 카드 선택 시에만 변경됩니다.</p>
+                                </div>
+                            )}
+
+                            {/* 전체 프롬프트 복사 + 초기화 버튼 */}
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const fullPrompt = `${fixedPromptBlock}\n\n${stylePromptBlock}`;
+                                            await navigator.clipboard.writeText(fullPrompt);
+                                            setCopiedPrompt(true);
+                                            setTimeout(() => setCopiedPrompt(false), 2000);
+                                        } catch (err) {
+                                            console.error('복사 실패:', err);
+                                        }
+                                    }}
+                                    className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+                                    title="전체 프롬프트 복사 (고정 블록 + 스타일 블록)"
+                                >
+                                    📋 전체 복사
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setStylePromptBlock('');
+                                        setFixedPromptBlock('');
+                                        setGeneratedPrompt('');
+                                    }}
+                                    className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                                    title="프롬프트 초기화"
+                                >
+                                    🗑️ 초기화
+                                </button>
                             </div>
-                            <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-xs font-mono max-h-64 overflow-y-auto whitespace-pre-wrap">
-                                {generatedPrompt}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">👁️ 읽기 전용: 수정하려면 위의 '직접 프롬프트 입력'을 사용하세요.</p>
                         </div>
                     )}
 
