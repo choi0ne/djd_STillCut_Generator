@@ -403,26 +403,25 @@ Style: Minimalist Semi-Abstract, Stylized Medical Illustration, Warm Earth Tones
     // ----- 22. 블로그템플릿_미니멀 -----
     'blog-thumbnail-minimal': `
 [그림체]
-- 정사각형 블로그 썸네일 (1:1 비율, 800x800px)
+- 세로형 블로그 썸네일 (2:3 비율, 800x1200px)
 - Line Art with Ink Splash / Splatter Art 스타일
 - 가는 검정 외곽선(1-2px)으로 주제 관련 장기/인체 부위 드로잉
 - Ink Bleed Effect - 잉크 번짐/스플래터 효과
 - 문제가 있는 부위에 어두운 파란색/검정 스플래터, 연기, 입자
-- Minimal Medical Illustration 느낌
 
 [구성]
-- 장기/인체 부위 라인아트 중앙 배치
-- 문제 부위를 감싸는 어두운 Watercolor Splatter 효과
-- 한글 제목이 이미지 안에 자연스럽게 통합
-- 폰트: 나눔명조 ExtraBold, 검정색(#333333)
+- 상단 75%: 장기/인체 부위 라인아트 + 잉크 스플래시 효과
+- 하단 25%: 제목 텍스트 영역 (메인 배경과 동일한 크림색)
+- 폰트: 도현체(Do Hyeon) ExtraBold, 검정색(#333333)
 
 [색상]
 - 2-3색 제한 (검정 라인 + 어두운 파란색/네이비)
 
 [배경]
-- 크림색/오프화이트 (#F5F0E8)
+- 전체 배경: 크림색/오프화이트 (#F5F0E8)
+- 푸터 배경: 메인 배경과 동일 (#F5F0E8)
 
-Style: Line Art with Ink Splash, Splatter Art, Minimal Medical Illustration, Ink Bleed Effect
+Style: Line Art with Ink Splash, Splatter Art, Minimal Medical Illustration
 `,
 
     // ----- 23. 플로잉 스월 일러스트 -----
