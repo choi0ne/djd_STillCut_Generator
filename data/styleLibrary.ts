@@ -12,6 +12,86 @@ export interface StyleTemplate {
 }
 
 export const STYLE_LIBRARY: StyleTemplate[] = [
+    // ========== 🎯 썸네일 3종 (맨 앞 배치) ==========
+    {
+        id: 'blog-thumbnail',
+        displayName: '블로그 썸네일',
+        icon: '📰',
+        description: '⚠️ 첫 번째 컨셉 전용 - 블로그 대표 이미지 (제목 필수)',
+        keywords: ['blog', 'header', 'title', 'Korean', 'Do Hyeon', 'first-concept-only', 'papercraft'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[크기/비율] ⭐ 세로형 2:3 비율. 해상도: 800x1200. 
+
+[레이아웃] ⭐ 상하 분할 구조 필수 (그림 3 : 글 1):
+- 상단 75%: 페이퍼크래프트 일러스트 영역 (레이어드 종이 컷아웃 효과)
+- 하단 25%: 텍스트 영역 (제목 + 부제) - 연한 크림색/아이보리 배경 박스
+
+[일러스트 영역 - 페이퍼크래프트 스타일] 
+- 레이어드 페이퍼크래프트 3D 일러스트
+- 종이를 오려 붙인 듯한 질감과 층층이 쌓인 레이어 표현
+- 부드러운 그림자로 입체감 연출
+- 따뜻한 파스텔 컬러 팔레트 (연한 핑크, 민트, 베이지, 살색, 연노랑)
+- 신체 기관이나 의학 개념을 귀엽고 친근하게 단순화
+- 손으로 만든 듯한 핸드메이드 느낌
+- 배경에 간단한 레이어드 요소 (구름, 하트, 별 등) 추가 가능
+
+[글씨체] ⭐ 도현체(Do Hyeon) 스타일 - 굵고 둥근 한글 고딕체 필수.
+- 메인 제목: Extra Bold, 검정색(#333333), 화면 폭의 80% 차지
+- 제목이 길면 2줄로 배치 (콜론으로 구분)
+- 예시: "40대 여성 만성 소화불량:" / "단순한 위장 문제가 아닙니다."
+- 글자 간격 약간 넓게, 줄 간격 1.2~1.4
+
+[분위기] 완전 흰색 또는 연한 크림색 배경(#FFFFFF ~ #FFF8F0). 따뜻하고 포근한 느낌. 환자에게 친근하고 무섭지 않은 의학 개념 전달. 어린이 교육 자료 같은 귀여운 스타일이면서 전문적 신뢰감. 
+
+Style: blog thumbnail, VERTICAL portrait layout (2:3 ratio, 800x1200), top 75% whimsical papercraft 3D illustration with layered paper cutout effect and soft shadows, warm pastel colors (pink, mint, beige), friendly medical visualization of the topic, bottom 25% Korean title in Do Hyeon style bold gothic font on light cream background box, professional yet friendly healthcare blog header.`,
+            NEGATIVES: ['horizontal layout', 'landscape', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area', 'cold colors', 'scary imagery', 'mechanical/gear style']
+        }
+    },
+    {
+        id: 'blog-thumbnail-minimal',
+        displayName: '블로그썸네일_미니멀',
+        icon: '✍️',
+        description: '가는 검정 라인 드로잉 + 파란색 스플래터/연기 효과, 미니멀한 크림색 배경',
+        keywords: ['minimal', 'line art', 'medical', 'organ', 'splatter', 'smoke', 'cream background', 'Korean'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[그림체] 미니멀 의학 라인아트 스타일. 가는 검정 외곽선(1-2px)으로 장기/인체 부위를 심플하게 드로잉. 채색 없이 선만으로 형태 표현. 장기 주변 또는 배경에 파란색/청록색 스플래터, 연기, 입자 효과. 스플래터는 수채화 번짐 또는 잉크 스플래시 느낌. 2-3색 제한 (검정 라인 + 파란색/청록색 효과 + 선택적으로 주황/베이지 포인트). [레이아웃] 장기(위장, 폐, 뇌 등) 또는 인체 부분이 중앙에 배치. 스플래터/연기 효과가 장기 주변을 감싸거나 한쪽 방향으로 퍼짐. 미니멀한 크림색/오프화이트 배경(#F5F0E8). 하단에 한글 제목 배치. [글씨체] 제목: 세리프체(명조체) 스타일. 나눔명조 또는 Noto Serif Korean. 검정색(#333333). 메인 제목 크고 굵게, 부제 작고 가볍게. 콜론(:)으로 제목/부제 구분. [분위기] 개념적이고 추상적인 의학 일러스트. 환자 친화적이면서 전문적. 소화기, 호흡기, 신경계 등 장기 관련 주제에 적합. 깔끔하고 세련된 느낌. Style: minimal medical line art, thin black outline drawing of organ (stomach, lungs, brain), blue/teal splatter or smoke effect around it, cream/off-white background, Korean title at bottom in elegant serif font (Nanum Myeongjo style), conceptual and abstract medical illustration.`,
+            NEGATIVES: ['realistic photo', 'too detailed', '3D rendering', 'colorful', 'cluttered', 'cartoon face', 'complex backgrounds', 'thick outlines']
+        }
+    },
+    {
+        id: 'artistic-thumbnail',
+        displayName: '블로그 썸네일_예술적',
+        icon: '🎨',
+        description: '세로형 블로그 썸네일 - 미니멀 반추상 일러스트, 상징적 시각화',
+        keywords: ['minimalist', 'symbolic', 'semi-abstract', 'vector', 'elegant', 'thumbnail', 'vertical'],
+        goldStandardExample: {
+            BACKGROUND_PROMPT: `[크기/비율] ⭐ 세로형 2:3 비율. 해상도: 800x1200px.
+
+[그림체]
+- 미니멀하고 세련된 반추상 일러스트
+- 깔끔한 벡터 스타일 또는 부드러운 텍스처
+- 단순화된 형태, 과도한 디테일 없이
+- 깊은 질감의 컬러 필드와 깔끔한 선의 조합
+- 인물/캐릭터 없음 (상징적 오브제만)
+
+[구성]
+- 상단 70%: 주제를 상징하는 핵심 시각 요소 1-2개 (중앙 배치)
+- 하단 30%: 제목 텍스트 영역 (굵은 고딕체)
+- 여백을 충분히 살린 미니멀 구도
+
+[색상]
+- 제한된 2-3색 팔레트
+- 따뜻한 톤 권장 (#D4A373, #CCD5AE, #FAEDCD)
+
+[배경]
+- 단색 또는 부드러운 그라데이션
+- 연한 크림색/오프화이트 (#FEFAE0)
+
+Style: minimalist semi-abstract illustration, VERTICAL portrait layout (2:3 ratio, 800x1200), symbolic representation, clean vector lines, deep textural color fields, elegant, NO characters, NO people.`,
+            NEGATIVES: ['horizontal layout', 'landscape', 'cluttered', 'too many elements', 'photo-realistic', 'complex backgrounds', 'busy design', 'characters', 'people', 'faces']
+        }
+    },
+    // ========== 기타 스타일 ==========
     {
         id: 'isometric-infographic',
         displayName: '아이소메트릭 인포그래픽',
@@ -65,51 +145,6 @@ export const STYLE_LIBRARY: StyleTemplate[] = [
         goldStandardExample: {
             BACKGROUND_PROMPT: `[그림체] 깔끔한 2D 캐릭터 일러스트. 단순화된 얼굴 표정(눈썹, 입 모양으로 감정 표현). 굵은 검정 외곽선(2-3px), 내부는 플랫 컬러로 채움. 따뜻한 피부톤, 차분한 의상 컬러(파란색, 베이지 계열). [레이아웃] 싱글 패널 구성. 캐릭터가 화면 좌측 2/3 차지. 우측 상단에 말풍선 또는 생각풍선 배치. 배경은 심플하게(침대, 의자 등 최소 소품). [글씨체] 말풍선 안에 둥근 고딕체(Rounded Gothic). 굵기 Medium. 2-3줄 이내 짧은 대사. 느낌표나 말줄임표로 감정 강조. [분위기] 따뜻한 크림/베이지 배경(#F5F0E8). 부드러운 그림자 없이 플랫하게. 공감되는 일상 상황 묘사. Style: warm empathetic cartoon, clean line art, flat colors, speech bubble with rounded Korean text.`,
             NEGATIVES: ['realistic style', 'complex shading', '3D effects', 'small illegible text', 'cluttered background']
-        }
-    },
-    {
-        id: 'artistic-thumbnail',
-        displayName: '예술적 썸네일',
-        icon: '🎨',
-        description: '소셜 미디어 또는 블로그 포스트 썸네일 (범용)',
-        keywords: ['minimalist', 'symbolic', 'semi-abstract', 'vector', 'elegant', 'thumbnail'],
-        goldStandardExample: {
-            BACKGROUND_PROMPT: `[그림체] 미니멀하고 세련된 반추상 일러스트. 주제를 상징하는 핵심 시각 요소 1-2개. 깔끔한 벡터 스타일 또는 부드러운 텍스처. 단순화된 형태, 과도한 디테일 없이. 깊은 질감의 컬러 필드와 깔끔한 선의 조합. [레이아웃] 상징적 요소가 화면 중앙에 배치. 여백을 충분히 살린 미니멀 구도. [글씨체] 텍스트 없음 또는 최소한의 라벨. [분위기] 우아하고 세련된 느낌. 미니멀 아트 스타일. Style: minimalist semi-abstract illustration, symbolic representation, clean vector lines, deep textural color fields, elegant.`,
-            NEGATIVES: ['cluttered', 'too many elements', 'photo-realistic', 'complex backgrounds', 'busy design']
-        }
-    },
-    {
-        id: 'blog-thumbnail',
-        displayName: '블로그 썸네일',
-        icon: '📰',
-        description: '⚠️ 첫 번째 컨셉 전용 - 블로그 대표 이미지 (제목 필수)',
-        keywords: ['blog', 'header', 'title', 'Korean', 'Do Hyeon', 'first-concept-only', 'papercraft'],
-        goldStandardExample: {
-            BACKGROUND_PROMPT: `[크기/비율] ⭐ 세로형 2:3 비율. 해상도: 800x1200. 
-
-[레이아웃] ⭐ 상하 분할 구조 필수 (그림 3 : 글 1):
-- 상단 75%: 페이퍼크래프트 일러스트 영역 (레이어드 종이 컷아웃 효과)
-- 하단 25%: 텍스트 영역 (제목 + 부제) - 연한 크림색/아이보리 배경 박스
-
-[일러스트 영역 - 페이퍼크래프트 스타일] 
-- 레이어드 페이퍼크래프트 3D 일러스트
-- 종이를 오려 붙인 듯한 질감과 층층이 쌓인 레이어 표현
-- 부드러운 그림자로 입체감 연출
-- 따뜻한 파스텔 컬러 팔레트 (연한 핑크, 민트, 베이지, 살색, 연노랑)
-- 신체 기관이나 의학 개념을 귀엽고 친근하게 단순화
-- 손으로 만든 듯한 핸드메이드 느낌
-- 배경에 간단한 레이어드 요소 (구름, 하트, 별 등) 추가 가능
-
-[글씨체] ⭐ 도현체(Do Hyeon) 스타일 - 굵고 둥근 한글 고딕체 필수.
-- 메인 제목: Extra Bold, 검정색(#333333), 화면 폭의 80% 차지
-- 제목이 길면 2줄로 배치 (콜론으로 구분)
-- 예시: "40대 여성 만성 소화불량:" / "단순한 위장 문제가 아닙니다."
-- 글자 간격 약간 넓게, 줄 간격 1.2~1.4
-
-[분위기] 완전 흰색 또는 연한 크림색 배경(#FFFFFF ~ #FFF8F0). 따뜻하고 포근한 느낌. 환자에게 친근하고 무섭지 않은 의학 개념 전달. 어린이 교육 자료 같은 귀여운 스타일이면서 전문적 신뢰감. 
-
-Style: blog thumbnail, VERTICAL portrait layout (2:3 ratio, 800x1200), top 75% whimsical papercraft 3D illustration with layered paper cutout effect and soft shadows, warm pastel colors (pink, mint, beige), friendly medical visualization of the topic, bottom 25% Korean title in Do Hyeon style bold gothic font on light cream background box, professional yet friendly healthcare blog header.`,
-            NEGATIVES: ['horizontal layout', 'landscape', 'text on top of illustration', 'thin fonts', 'small illegible text', 'cursive fonts', 'cluttered', 'too many elements', 'complex backgrounds', 'photo-realistic', 'no title text', 'title in illustration area', 'cold colors', 'scary imagery', 'mechanical/gear style']
         }
     },
     {
@@ -436,17 +471,6 @@ Style: clean flat vector illustration, NO outlines, solid color fills only, simp
         goldStandardExample: {
             BACKGROUND_PROMPT: `[그림체] 의료 스캔 이미지 스타일 (CT, MRI, X-ray). 원형 또는 타원형 스캔 이미지 프레임. 회색/청록색 톤의 스캔 이미지. 진단 포인트에 화살표 또는 마커 표시. 스캔 이미지 옆에 나침반, 돋보기 등 진단 아이콘 배치 가능. [레이아웃] 스캔 이미지가 중앙 또는 상단에 배치. 다크 그린/네이비 또는 밝은 크림 배경. 하단에 한글 제목과 설명. [글씨체] 제목: 굵은 고딕체, 흰색 또는 검정색. 설명: 작은 산세리프체. 진단 결과 스타일의 텍스트. [분위기] 전문적인 진단/검진 느낌. 환자에게 검사 결과를 설명하는 교육적 자료. 폐, 간, 뇌 등 영상의학 주제에 적합. Style: medical scan visual with CT/MRI style circular image, diagnostic markers and arrows, compass or magnifier icon, dark green or cream background, Korean title explaining the finding.`,
             NEGATIVES: ['cartoon style', 'unrealistic colors', 'too abstract', 'scary imagery', 'low quality', 'blurry']
-        }
-    },
-    {
-        id: 'blog-thumbnail-minimal',
-        displayName: '블로그썸네일_미니멀',
-        icon: '✍️',
-        description: '가는 검정 라인 드로잉 + 파란색 스플래터/연기 효과, 미니멀한 크림색 배경',
-        keywords: ['minimal', 'line art', 'medical', 'organ', 'splatter', 'smoke', 'cream background', 'Korean'],
-        goldStandardExample: {
-            BACKGROUND_PROMPT: `[그림체] 미니멀 의학 라인아트 스타일. 가는 검정 외곽선(1-2px)으로 장기/인체 부위를 심플하게 드로잉. 채색 없이 선만으로 형태 표현. 장기 주변 또는 배경에 파란색/청록색 스플래터, 연기, 입자 효과. 스플래터는 수채화 번짐 또는 잉크 스플래시 느낌. 2-3색 제한 (검정 라인 + 파란색/청록색 효과 + 선택적으로 주황/베이지 포인트). [레이아웃] 장기(위장, 폐, 뇌 등) 또는 인체 부분이 중앙에 배치. 스플래터/연기 효과가 장기 주변을 감싸거나 한쪽 방향으로 퍼짐. 미니멀한 크림색/오프화이트 배경(#F5F0E8). 하단에 한글 제목 배치. [글씨체] 제목: 세리프체(명조체) 스타일. 나눔명조 또는 Noto Serif Korean. 검정색(#333333). 메인 제목 크고 굵게, 부제 작고 가볍게. 콜론(:)으로 제목/부제 구분. [분위기] 개념적이고 추상적인 의학 일러스트. 환자 친화적이면서 전문적. 소화기, 호흡기, 신경계 등 장기 관련 주제에 적합. 깔끔하고 세련된 느낌. Style: minimal medical line art, thin black outline drawing of organ (stomach, lungs, brain), blue/teal splatter or smoke effect around it, cream/off-white background, Korean title at bottom in elegant serif font (Nanum Myeongjo style), conceptual and abstract medical illustration.`,
-            NEGATIVES: ['realistic photo', 'too detailed', '3D rendering', 'colorful', 'cluttered', 'cartoon face', 'complex backgrounds', 'thick outlines']
         }
     }
 ];

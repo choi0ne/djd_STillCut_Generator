@@ -245,7 +245,7 @@ ${styleBlock}
 - 배경 색상: ${palette.background}`;
 
                     // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
-                    const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'poster'];
+                    const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
                     const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyleForPrompt.id);
 
                     // 🔴 스타일에 따른 사이즈 블록
@@ -477,7 +477,7 @@ ${styleBlock}
 - 배경 색상: ${palette.background}`;
 
             // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
-            const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'poster'];
+            const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
             const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyle.id);
 
             // 🔴 스타일에 따른 사이즈 블록
@@ -864,13 +864,13 @@ ${styleContent}
                                 </div>
                             )}
 
-                            {/* 아래 창: 고정 블록 (변경 불가) */}
+                            {/* 아래 창: 고정 블록 (변경 가능) */}
                             {fixedPromptBlock && (
-                                <div className="bg-gray-800/50 border border-gray-600/50 rounded-lg p-3">
+                                <div className="bg-gradient-to-r from-pink-900/20 to-rose-900/20 border border-pink-500/30 rounded-lg p-3">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                             <span className="text-lg">📌</span>
-                                            <p className="text-xs font-medium text-gray-400">고정 블록 (변경 불가)</p>
+                                            <p className="text-xs font-medium text-pink-300">고정 블록 (수정 가능)</p>
                                         </div>
                                         <button
                                             onClick={async () => {
@@ -882,16 +882,24 @@ ${styleContent}
                                                     console.error('복사 실패:', err);
                                                 }
                                             }}
-                                            className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+                                            className="text-xs text-pink-400 hover:text-pink-300 transition-colors"
                                             title="고정 블록만 복사"
                                         >
                                             📋 복사
                                         </button>
                                     </div>
-                                    <div className="w-full px-3 py-2 bg-gray-700/30 border border-gray-600/30 rounded-lg text-gray-300 text-xs font-mono max-h-40 overflow-y-auto whitespace-pre-wrap">
-                                        {fixedPromptBlock}
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">🔒 이 블록은 컨셉 카드 선택 시에만 변경됩니다.</p>
+                                    <textarea
+                                        value={fixedPromptBlock}
+                                        onChange={(e) => {
+                                            setFixedPromptBlock(e.target.value);
+                                            // 스타일 블록과 합쳐서 전체 프롬프트 업데이트
+                                            const combinedPrompt = `${e.target.value}\n\n${stylePromptBlock}`;
+                                            setGeneratedPrompt(combinedPrompt);
+                                        }}
+                                        rows={8}
+                                        className="w-full px-3 py-2 bg-pink-900/20 border border-pink-500/20 rounded-lg text-pink-100 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-pink-400"
+                                    />
+                                    <p className="text-xs text-pink-400/70 mt-1">✏️ 사이즈, 섹션, 환자 캐릭터, 장면 묘사 등을 직접 수정할 수 있습니다.</p>
                                 </div>
                             )}
 
