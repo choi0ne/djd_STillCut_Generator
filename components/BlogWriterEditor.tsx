@@ -1458,7 +1458,8 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
         }
 
         // 추천 이미지 컨셉 + 섹션 일러스트 카드 모두 합쳐서 전달
-        if (onStage7Complete && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0)) {
+        // 🔴 수정: imageConcepts/sectionIllustrations가 없어도 기본 컨텍스트 전달 (빈 화면 방지)
+        if (onStage7Complete) {
             // 🔴 공통 NEGATIVES (모든 이미지에 적용)
             const commonNegatives = ['doctor', '한의사', 'medical professional', 'white coat', 'physician', '진료 장면', 'medical staff'];
 
@@ -1489,6 +1490,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
             }));
 
             // 모두 합쳐서 전달 (원고 전문 포함)
+            // 🔴 concepts가 비어있어도 topic과 finalDraft는 전달하여 BlogVisualEditor에서 수동 입력 가능
             onStage7Complete({
                 topic: stageData.selectedTopic,
                 finalDraft: stageData.finalDraft,

@@ -210,33 +210,24 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
             // 자동으로 프롬프트 생성
             if (selectedStyleForPrompt && initialContext.topic) {
                 setIsGeneratingPrompt(true);
-                setGeneratedPrompt('🔄 프롬프트 자동 생성 중...');
 
-                try {
-                    const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
-                    if (!apiKey) {
-                        setGeneratedPrompt('⚠️ API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.');
-                        setIsGeneratingPrompt(false);
-                        return;
-                    }
+                const palette = COLOR_PALETTES[selectedPaletteForPrompt];
 
-                    const palette = COLOR_PALETTES[selectedPaletteForPrompt];
+                // 🔴 STYLE_PROMPT_BLOCKS에서 한글 블록화 프롬프트 가져오기
+                const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyleForPrompt.id] || '';
+                const sectionTitleKorean = SECTION_TITLE_KOREAN[concept.title] || concept.title;
 
-                    // 🔴 STYLE_PROMPT_BLOCKS에서 한글 블록화 프롬프트 가져오기
-                    const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyleForPrompt.id] || '';
-                    const sectionTitleKorean = SECTION_TITLE_KOREAN[concept.title] || concept.title;
+                // 🔴 Stage 7에서 전달된 negatives 우선 사용, 없으면 스타일 라이브러리에서 가져옴
+                const conceptNegatives = concept.negatives || [];
+                const styleNegatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES || [];
+                const allNegatives = [...new Set([...conceptNegatives, ...styleNegatives])].join(', ');
 
-                    // 🔴 Stage 7에서 전달된 negatives 우선 사용, 없으면 스타일 라이브러리에서 가져옴
-                    const conceptNegatives = concept.negatives || [];
-                    const styleNegatives = selectedStyleForPrompt.goldStandardExample.NEGATIVES || [];
-                    const allNegatives = [...new Set([...conceptNegatives, ...styleNegatives])].join(', ');
+                // 🔴 Stage 7에서 전달된 patientCharacterPrompt 우선 사용
+                const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
 
-                    // 🔴 Stage 7에서 전달된 patientCharacterPrompt 우선 사용
-                    const patientPrompt = concept.patientCharacterPrompt || selectedProfile.patientCharacterPrompt || PATIENT_PRESETS['default-tkm'];
-
-                    // 🔴 프롬프트를 두 블록으로 분리:
-                    // 1. 스타일 블록 (스타일 선택으로 변경 가능) - 위 창
-                    const newStyleBlock = `【스타일】
+                // 🔴 프롬프트를 두 블록으로 분리:
+                // 1. 스타일 블록 (스타일 선택으로 변경 가능) - 위 창
+                const newStyleBlock = `【스타일】
 ${styleBlock}
 
 【색상 팔레트】
@@ -245,36 +236,36 @@ ${styleBlock}
 - 강조 색상: ${palette.accent}
 - 배경 색상: ${palette.background}`;
 
-                    // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
-                    const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
-                    const THUMBNAIL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail'];
-                    const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyleForPrompt.id);
-                    const isThumbnailStyle = THUMBNAIL_STYLES.includes(selectedStyleForPrompt.id);
+                // 🔴 세로형 스타일 목록 (블로그 썸네일 계열)
+                const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
+                const THUMBNAIL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail'];
+                const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyleForPrompt.id);
+                const isThumbnailStyle = THUMBNAIL_STYLES.includes(selectedStyleForPrompt.id);
 
-                    // 🔴 스타일에 따른 사이즈 블록
-                    const sizeBlock = isVerticalStyle
-                        ? `【사이즈】
+                // 🔴 스타일에 따른 사이즈 블록
+                const sizeBlock = isVerticalStyle
+                    ? `【사이즈】
 800x1200px, 세로형 2:3 비율
 블로그 썸네일/포스터 최적화`
-                        : `【사이즈】
+                    : `【사이즈】
 1024x558px, 가로형 1.83:1 비율
 블로그 본문 최적화 가로 배너`;
 
-                    // 🔴 썸네일 스타일별 폰트 설정
-                    const getThumbnailFont = (styleId: string) => {
-                        switch (styleId) {
-                            case 'blog-thumbnail':
-                                return '도현체(Do Hyeon) ExtraBold';
-                            case 'blog-thumbnail-minimal':
-                            case 'artistic-thumbnail':
-                                return '나눔명조(Nanum Myeongjo) ExtraBold';
-                            default:
-                                return '도현체(Do Hyeon) ExtraBold';
-                        }
-                    };
+                // 🔴 썸네일 스타일별 폰트 설정
+                const getThumbnailFont = (styleId: string) => {
+                    switch (styleId) {
+                        case 'blog-thumbnail':
+                            return '도현체(Do Hyeon) ExtraBold';
+                        case 'blog-thumbnail-minimal':
+                        case 'artistic-thumbnail':
+                            return '나눔명조(Nanum Myeongjo) ExtraBold';
+                        default:
+                            return '도현체(Do Hyeon) ExtraBold';
+                    }
+                };
 
-                    // 🔴 썸네일 스타일일 경우 제목 블록 추가
-                    const titleBlock = isThumbnailStyle ? `【제목】
+                // 🔴 썸네일 스타일일 경우 제목 블록 추가
+                const titleBlock = isThumbnailStyle ? `【제목】
 - 텍스트: "${initialContext?.topic || concept.title}"
 - 폰트: ${getThumbnailFont(selectedStyleForPrompt.id)}
 - 크기: Extra Bold, 화면 폭의 80%
@@ -286,8 +277,8 @@ ${styleBlock}
 - 상단 75%: 메인 비주얼 (페이퍼크래프트 일러스트)
 - 하단 25%: 제목 텍스트 영역 (크림색 배경)` : '';
 
-                    // 2. 고정 블록 - 아래 창
-                    const newFixedBlock = `${sizeBlock}
+                // 2. 고정 블록 - 아래 창
+                const newFixedBlock = `${sizeBlock}
 ${isThumbnailStyle ? `
 ${titleBlock}` : `
 【섹션】 ${sectionTitleKorean}`}
@@ -301,24 +292,32 @@ ${includePatient && !isThumbnailStyle ? `【환자 캐릭터】
 
 【장면 묘사】
 ${isThumbnailStyle
-                            ? `주제를 상징하는 핵심 시각 요소. 인물/캐릭터 없이 오브제와 상징적 이미지로 표현.`
-                            : (concept.description || concept.keywords.join(', '))}
+                        ? `주제를 상징하는 핵심 시각 요소. 인물/캐릭터 없이 오브제와 상징적 이미지로 표현.`
+                        : (concept.description || concept.keywords.join(', '))}
 
 【필수 제외】
 ${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat${isThumbnailStyle ? ', NO characters, NO people, NO faces' : ''}`;
 
-                    // 🔴 분리된 블록을 state에 저장 (사용자가 수정하지 않은 경우에만)
-                    setStylePromptBlock(newStyleBlock);
-                    if (!isFixedBlockEdited) {
-                        setFixedPromptBlock(newFixedBlock);
-                    }
+                // 🔴 블록을 API 키 체크 전에 먼저 설정! (항상 표시되도록)
+                setStylePromptBlock(newStyleBlock);
+                if (!isFixedBlockEdited) {
+                    setFixedPromptBlock(newFixedBlock);
+                }
 
-                    // 🔴 합쳐진 전체 프롬프트도 저장 (수정된 경우 기존 fixedPromptBlock 사용)
-                    const finalFixedBlock = isFixedBlockEdited ? fixedPromptBlock : newFixedBlock;
-                    const combinedPrompt = `${finalFixedBlock}
+                // 🔴 합쳐진 전체 프롬프트도 저장
+                const finalFixedBlock = isFixedBlockEdited ? fixedPromptBlock : newFixedBlock;
+                const combinedPrompt = `${finalFixedBlock}
 
 ${newStyleBlock}`;
-                    setGeneratedPrompt(combinedPrompt);
+                setGeneratedPrompt(combinedPrompt);
+
+                // 🔴 API 키 체크는 블록 설정 후에!
+                try {
+                    const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
+                    if (!apiKey) {
+                        setIsGeneratingPrompt(false);
+                        return; // 블록은 이미 설정됨, AI 보강만 스킵
+                    }
 
                     // AI 호출하여 장면 묘사 보강 (선택적)
                     const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다.
@@ -412,10 +411,9 @@ ${directPrompt}
         }
     }, [selectedStyle, selectedPalette, useDirectPrompt, baseDirectPrompt, buildEnhancedPrompt]);
 
-    // 🔴 스타일/팔레트 변경 시 스타일 블록만 업데이트 (고정 블록은 유지)
+    // 🔴 스타일/팔레트 변경 시 스타일 블록 업데이트 + 고정 블록이 없으면 자동 생성
     useEffect(() => {
-        // 고정 블록이 있을 때만 스타일 블록 업데이트
-        if (fixedPromptBlock && selectedStyle) {
+        if (selectedStyle) {
             const palette = COLOR_PALETTES[selectedPalette];
             const styleBlock = STYLE_PROMPT_BLOCKS[selectedStyle.id] || '';
 
@@ -430,13 +428,48 @@ ${styleBlock}
 
             setStylePromptBlock(newStyleBlock);
 
+            // 🔴 고정 블록이 없으면 기본 고정 블록 생성
+            let currentFixedBlock = fixedPromptBlock;
+            if (!currentFixedBlock) {
+                // 세로형 스타일 목록 (블로그 썸네일 계열)
+                const VERTICAL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail', 'poster'];
+                const THUMBNAIL_STYLES = ['blog-thumbnail', 'blog-thumbnail-minimal', 'artistic-thumbnail'];
+                const isVerticalStyle = VERTICAL_STYLES.includes(selectedStyle.id);
+                const isThumbnailStyle = THUMBNAIL_STYLES.includes(selectedStyle.id);
+
+                const sizeBlock = isVerticalStyle
+                    ? `【사이즈】
+800x1200px, 세로형 2:3 비율
+블로그 썸네일/포스터 최적화`
+                    : `【사이즈】
+1024x558px, 가로형 1.83:1 비율
+블로그 본문 최적화 가로 배너`;
+
+                const currentTopic = topic || '(주제를 입력하세요)';
+
+                currentFixedBlock = `${sizeBlock}
+
+【섹션】 ${currentTopic}
+
+【환자 캐릭터】
+없음 (${isThumbnailStyle ? '썸네일 스타일' : '일반 스타일'})
+
+【장면 묘사】
+${content || '(장면 묘사를 입력하세요)'}
+
+【필수 제외】
+NO doctor, NO 한의사, NO medical professional, NO white coat${isThumbnailStyle ? ', NO characters, NO people, NO faces' : ''}`;
+
+                setFixedPromptBlock(currentFixedBlock);
+            }
+
             // 합쳐진 전체 프롬프트 업데이트
-            const combinedPrompt = `${fixedPromptBlock}
+            const combinedPrompt = `${currentFixedBlock}
 
 ${newStyleBlock}`;
             setGeneratedPrompt(combinedPrompt);
         }
-    }, [selectedStyle, selectedPalette, fixedPromptBlock]);
+    }, [selectedStyle, selectedPalette, fixedPromptBlock, topic, content]);
 
     // 직접 프롬프트로 이미지 생성 (생성된 프롬프트 사용 - 위 창 + 아래 창 합침)
     const handleGenerateWithDirectPrompt = async () => {
