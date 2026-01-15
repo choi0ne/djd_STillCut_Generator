@@ -498,3 +498,37 @@ export const COLOR_PALETTES = {
         text: '#3D405B'
     }
 };
+
+// 🔴 스타일 표시 순서 (UI에서 이 순서대로 표시)
+export const STYLE_DISPLAY_ORDER: string[] = [
+    'blog-thumbnail',
+    'blog-thumbnail-minimal',
+    'artistic-thumbnail',
+    'section-illustration',
+    'flat-illustration',
+    'papercraft-illustration',
+    'flowing-swirl-illustration',
+    '2d-step-diagram',
+    'hand-drawn-diagram',
+    'textured-digital-painting',
+    'conceptual-metaphor',
+    'conceptual-sketch',
+    'continuous-line-drawing',
+    'minimal-wellness-photo',
+    'isometric-infographic',
+    'infographic-chart',
+    'empathetic-character',
+    'empathetic-cutoon',
+    'medical-illustration',
+    'precision-medical',
+    'medical-scan-visual',
+    'silhouette-anatomy',
+    'exercise-guide',
+    'herbal-sketch',
+    'poster'
+];
+
+// 🔴 정렬된 스타일 라이브러리 (표시 순서대로)
+export const SORTED_STYLE_LIBRARY = STYLE_DISPLAY_ORDER
+    .map(id => STYLE_LIBRARY.find(s => s.id === id))
+    .filter((s): s is StyleTemplate => s !== undefined);

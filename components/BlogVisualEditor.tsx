@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import Panel from './common/Panel';
-import { STYLE_LIBRARY, COLOR_PALETTES, StyleTemplate } from '../data/styleLibrary';
+import { STYLE_LIBRARY, SORTED_STYLE_LIBRARY, COLOR_PALETTES, StyleTemplate } from '../data/styleLibrary';
 import { STYLE_PROMPT_BLOCKS, SECTION_TITLE_KOREAN } from '../data/sectionPromptTemplate';
 import { SparklesIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -132,7 +132,9 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
             setTopic(initialContext.topic);
             if (initialContext.concepts.length > 0) {
                 // 초기 상태만 설정 (프롬프트 생성은 별도 useEffect에서 처리)
-                setContent(initialContext.concepts[0].keywords.join(', '));
+                const firstConcept = initialContext.concepts[0];
+                // 🔴 keywords가 undefined일 경우 빈 배열로 fallback
+                setContent((firstConcept.keywords || []).join(', '));
                 setSelectedConceptIndex(0);
                 setAutoSelectPending(true);  // 🔴 자동 선택 트리거 플래그 활성화
             }
@@ -163,16 +165,25 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
             // description = manuscriptSummary (원고 기반 서술형 요약)
             setTopic(initialContext.topic);
             // 원고 요약이 있으면 주 입력으로 사용, 없으면 키워드로 fallback
-            const manuscriptContent = concept.description || concept.keywords.join(', ');
+            const manuscriptContent = concept.description || (concept.keywords || []).join(', ');
             setContent(manuscriptContent);
 
             // AI 추천 스타일 자동 적용 (사용자가 나중에 변경 가능)
+            // 🔴 스타일이 없으면 기본값(section-illustration)으로 fallback
             let selectedStyleForPrompt: StyleTemplate | null = null;
             if (concept.recommendedStyle) {
                 const style = STYLE_LIBRARY.find(s => s.id === concept.recommendedStyle);
                 if (style) {
                     setSelectedStyle(style);
                     selectedStyleForPrompt = style;
+                }
+            }
+            // 🔴 스타일이 없으면 기본 스타일 적용 (프롬프트 생성 보장)
+            if (!selectedStyleForPrompt) {
+                const defaultStyle = STYLE_LIBRARY.find(s => s.id === 'flat-illustration');
+                if (defaultStyle) {
+                    setSelectedStyle(defaultStyle);
+                    selectedStyleForPrompt = defaultStyle;
                 }
             }
 
@@ -311,68 +322,9 @@ ${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat
 ${newStyleBlock}`;
                 setGeneratedPrompt(combinedPrompt);
 
-                // 🔴 API 키 체크는 블록 설정 후에!
-                try {
-                    const apiKey = selectedProvider === 'gemini' ? geminiApiKey : openaiApiKey;
-                    if (!apiKey) {
-                        setIsGeneratingPrompt(false);
-                        return; // 블록은 이미 설정됨, AI 보강만 스킵
-                    }
-
-                    // AI 호출하여 장면 묘사 보강 (선택적)
-                    const systemPrompt = `당신은 블로그 시각 자료 프롬프트 전문가입니다.
-
-## 🎯 핵심 원칙
-아래 프롬프트 템플릿의 【장면 묘사】 부분만 보강해주세요.
-원고 내용을 바탕으로 구체적인 시각적 장면을 한글로 작성하세요.
-
-## 📄 원고 내용:
-${initialContext.finalDraft || concept.description || '원고 내용 없음'}
-
-## 현재 섹션: ${concept.title} (${sectionTitleKorean})
-## 스타일: ${selectedStyleForPrompt.displayName}
-
-## 현재 프롬프트 템플릿:
-${directPrompt}
-
-## 작업 지시:
-1. 【장면 묘사】 부분을 원고 내용에 맞게 구체적으로 작성하세요
-2. 나머지 섹션(【스타일】, 【색상】 등)은 그대로 유지하세요
-3. **전체 프롬프트를 한글 블록 형식으로 출력하세요**
-4. 영어 프롬프트 금지 - 모든 내용은 한글로 작성`;
-
-                    let prompt = '';
-                    if (selectedProvider === 'gemini') {
-                        const { GoogleGenAI } = await import('@google/genai');
-                        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-                        const response = await ai.models.generateContent({
-                            model: 'gemini-3-pro-preview',
-                            contents: { parts: [{ text: systemPrompt }] }
-                        });
-                        prompt = response.text || '';
-                    } else {
-                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${openaiApiKey}`
-                            },
-                            body: JSON.stringify({
-                                model: 'gpt-5.2',
-                                messages: [{ role: 'user', content: systemPrompt }],
-                                max_tokens: 2000
-                            })
-                        });
-                        const data = await response.json();
-                        prompt = data.choices?.[0]?.message?.content || '';
-                    }
-
-                    setGeneratedPrompt(prompt);
-                } catch (error: any) {
-                    setGeneratedPrompt(`❌ 프롬프트 생성 오류: ${error.message}`);
-                } finally {
-                    setIsGeneratingPrompt(false);
-                }
+                // 🔴 Stage 7 데이터를 그대로 사용 (AI 추가 호출 제거 - 화면 멈춤 방지)
+                // AI 보강 호출 제거: Stage 7에서 이미 상세 프롬프트가 생성됨
+                setIsGeneratingPrompt(false);
             }
         }
     };
@@ -722,37 +674,9 @@ ${newStyleBlock}`;
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="block text-sm font-medium text-gray-300">스타일 선택</label>
-                            {/* 빠른 선택 토글 */}
-                            <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">빠른 선택:</span>
-                                <button
-                                    onClick={() => {
-                                        const style = STYLE_LIBRARY.find(s => s.id === 'section-illustration');
-                                        if (style) setSelectedStyle(style);
-                                    }}
-                                    className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'section-illustration'
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                        }`}
-                                >
-                                    📖 섹션 일러스트
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const style = STYLE_LIBRARY.find(s => s.id === 'flat-illustration');
-                                        if (style) setSelectedStyle(style);
-                                    }}
-                                    className={`px-2 py-1 text-xs rounded transition-colors ${selectedStyle?.id === 'flat-illustration'
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                        }`}
-                                >
-                                    🎭 플랫 일러스트
-                                </button>
-                            </div>
                         </div>
                         <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto">
-                            {STYLE_LIBRARY.map((style) => (
+                            {SORTED_STYLE_LIBRARY.map((style) => (
                                 <button
                                     key={style.id}
                                     onClick={() => setSelectedStyle(style)}

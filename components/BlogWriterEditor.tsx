@@ -727,7 +727,9 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
   "sectionNumber": 1,
   "sectionTitle": "Answer First",
   "sectionTitleKorean": "핵심 결론",
+  "keywords": ["핵심키워드1", "핵심키워드2", "핵심키워드3"],
   "imageSceneDescription": "[구체적인 시각적 장면 묘사. 배경+인물+시각요소+텍스트 포함. 80-150자]",
+  "manuscriptSummary": "[원고 내용 2-3문장 요약. 100-200자]",
   "recommendedPalette": "medical | calm | warm"
 }
 \`\`\`
@@ -1468,25 +1470,24 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
 
             // 추천 이미지 컨셉 (3-5개) - negatives와 patientPrompt 포함
             const conceptCards = stageData.imageConcepts.map(c => ({
-                title: c.title,
-                keywords: c.keywords,
+                title: c.title || '',
+                keywords: c.keywords || [],  // 🔴 undefined 방지
                 recommendedStyle: c.recommendedStyle,
                 recommendedPalette: c.recommendedPalette,
-                negatives: (c as any).negatives || commonNegatives,  // Stage 7에서 생성된 negatives 또는 공통값
-                patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
+                negatives: (c as any).negatives || commonNegatives,
+                patientCharacterPrompt: patientPrompt
             }));
 
             // 섹션 일러스트 카드 (6개) - 스타일 오버라이드 적용 (section-illustration 또는 flat-illustration)
             // 원고 기반 프롬프트: manuscriptSummary(서술형 요약)를 description으로 전달
             const sectionCards = stageData.sectionIllustrations.map(s => ({
-                title: `${s.sectionNumber}. ${s.sectionTitle}`,
-                keywords: s.keywords,
-                description: s.manuscriptSummary || s.sectionContent || s.summary, // manuscriptSummary 우선 사용
-                // 🔴 스타일 오버라이드 적용: sectionStyleOverrides에서 선택된 스타일 사용, 없으면 기본값
-                recommendedStyle: (sectionStyleOverrides[s.sectionNumber] || 'section-illustration') as const,
-                recommendedPalette: s.recommendedPalette,
-                negatives: commonNegatives,  // 공통 NEGATIVES 적용
-                patientCharacterPrompt: patientPrompt  // 프로필 기반 환자 캐릭터
+                title: `${s.sectionNumber || 0}. ${s.sectionTitle || ''}`,
+                keywords: s.keywords || [],  // 🔴 undefined 방지
+                description: s.manuscriptSummary || s.sectionContent || s.summary || '',
+                recommendedStyle: 'flat-illustration' as const,
+                recommendedPalette: s.recommendedPalette || 'medical',
+                negatives: commonNegatives,
+                patientCharacterPrompt: patientPrompt
             }));
 
             // 모두 합쳐서 전달 (원고 전문 포함)
@@ -1503,7 +1504,7 @@ ${selectedProfile.patientCharacterPrompt || '기본 환자 캐릭터 (30대 중�
     const handleGenerateSectionIllustration = (section: SectionIllustration, styleOverride?: 'section-illustration' | 'flat-illustration') => {
         if (onStage7Complete) {
             // 🔴 스타일 우선순위: 파라미터 > sectionStyleOverrides > 기본값(section-illustration)
-            const selectedStyle = styleOverride || sectionStyleOverrides[section.sectionNumber] || 'section-illustration';
+            const selectedStyle = 'flat-illustration';
 
             // 원고 기반 프롬프트: manuscriptSummary(서술형 요약)를 description으로 전달
             const conceptData = {
@@ -2906,42 +2907,9 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                 {/* Tab Content: Section Illustrations */}
                                 {stage7Tab === 'sections' && stageData.sectionIllustrations.length > 0 && (
                                     <div className="space-y-2">
-                                        {/* 전체 스타일 선택 토글 */}
+                                        {/* 섹션별 일러스트 헤더 (스타일 선택 삭제됨 - 기본값: flat-illustration) */}
                                         <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-2 mb-2">
-                                            <p className="text-sm text-gray-400">섹션별 일러스트 ({stageData.sectionIllustrations.length}개):</p>
-                                            <div className="flex items-center gap-1">
-                                                <span className="text-xs text-gray-500 mr-2">전체 적용:</span>
-                                                <button
-                                                    onClick={() => {
-                                                        const newOverrides: Record<number, 'section-illustration' | 'flat-illustration'> = {};
-                                                        stageData.sectionIllustrations.forEach(s => {
-                                                            newOverrides[s.sectionNumber] = 'section-illustration';
-                                                        });
-                                                        setSectionStyleOverrides(newOverrides);
-                                                    }}
-                                                    className={`px-2 py-1 text-xs rounded transition-colors ${Object.values(sectionStyleOverrides).every(v => v === 'section-illustration') || Object.keys(sectionStyleOverrides).length === 0
-                                                        ? 'bg-green-600 text-white'
-                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                        }`}
-                                                >
-                                                    📖 섹션 일러스트
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        const newOverrides: Record<number, 'section-illustration' | 'flat-illustration'> = {};
-                                                        stageData.sectionIllustrations.forEach(s => {
-                                                            newOverrides[s.sectionNumber] = 'flat-illustration';
-                                                        });
-                                                        setSectionStyleOverrides(newOverrides);
-                                                    }}
-                                                    className={`px-2 py-1 text-xs rounded transition-colors ${Object.values(sectionStyleOverrides).length > 0 && Object.values(sectionStyleOverrides).every(v => v === 'flat-illustration')
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                        }`}
-                                                >
-                                                    🎭 플랫 일러스트
-                                                </button>
-                                            </div>
+                                            <p className="text-sm text-gray-400">섹션별 일러스트 ({stageData.sectionIllustrations.length}개) - 🎭 플랫 일러스트</p>
                                         </div>
                                         <div className="space-y-3 max-h-96 overflow-y-auto">
                                             {stageData.sectionIllustrations.map((section, idx) => (
@@ -2966,48 +2934,15 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                                                         ))}
                                                     </div>
 
-                                                    {/* 팔레트 및 스타일 선택 */}
-                                                    <div className="flex flex-col gap-2">
-                                                        {/* 스타일 선택 토글 */}
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs text-gray-400">스타일:</span>
-                                                            <div className="flex gap-1">
-                                                                <button
-                                                                    onClick={() => setSectionStyleOverrides(prev => ({
-                                                                        ...prev,
-                                                                        [section.sectionNumber]: 'section-illustration'
-                                                                    }))}
-                                                                    className={`px-2 py-1 text-xs rounded transition-colors ${(sectionStyleOverrides[section.sectionNumber] || 'section-illustration') === 'section-illustration'
-                                                                        ? 'bg-green-600 text-white'
-                                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                                        }`}
-                                                                >
-                                                                    📖 섹션 일러스트
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setSectionStyleOverrides(prev => ({
-                                                                        ...prev,
-                                                                        [section.sectionNumber]: 'flat-illustration'
-                                                                    }))}
-                                                                    className={`px-2 py-1 text-xs rounded transition-colors ${sectionStyleOverrides[section.sectionNumber] === 'flat-illustration'
-                                                                        ? 'bg-purple-600 text-white'
-                                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                                        }`}
-                                                                >
-                                                                    🎭 플랫 일러스트
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        {/* 팔레트 표시 및 생성 버튼 */}
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-xs text-green-300">🎨 {section.recommendedPalette} 팔레트</span>
-                                                            <button
-                                                                onClick={() => handleGenerateSectionIllustration(section)}
-                                                                className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded transition-colors"
-                                                            >
-                                                                → 이미지 생성
-                                                            </button>
-                                                        </div>
+                                                    {/* 팔레트 표시 및 생성 버튼 */}
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs text-green-300">🎨 {section.recommendedPalette} 팔레트</span>
+                                                        <button
+                                                            onClick={() => handleGenerateSectionIllustration(section)}
+                                                            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded transition-colors"
+                                                        >
+                                                            → 이미지 생성
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -3049,7 +2984,7 @@ ${getStagePrompt(7).split('최종 글:')[1] || ''}`;
                             >
                                 다음 →
                             </button>
-                            {currentStage === 7 && (stageData.imageConcepts.length > 0 || stageData.sectionIllustrations.length > 0) && (
+                            {currentStage === 7 && (
                                 <div className="flex flex-col items-end gap-1">
                                     <span className="text-xs text-yellow-400">💡 서식 복사 먼저 하세요!</span>
                                     <button
