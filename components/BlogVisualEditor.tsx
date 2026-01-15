@@ -282,8 +282,9 @@ ${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat
                         setFixedPromptBlock(newFixedBlock);
                     }
 
-                    // 🔴 합쳐진 전체 프롬프트도 저장 (이미지 생성 및 표시용)
-                    const combinedPrompt = `${newFixedBlock}
+                    // 🔴 합쳐진 전체 프롬프트도 저장 (수정된 경우 기존 fixedPromptBlock 사용)
+                    const finalFixedBlock = isFixedBlockEdited ? fixedPromptBlock : newFixedBlock;
+                    const combinedPrompt = `${finalFixedBlock}
 
 ${newStyleBlock}`;
                     setGeneratedPrompt(combinedPrompt);
@@ -510,12 +511,15 @@ ${content || topic}
 【필수 제외】
 ${negatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
 
-            // 🔴 분리된 블록을 state에 저장
+            // 🔴 분리된 블록을 state에 저장 (사용자가 수정하지 않은 경우에만)
             setStylePromptBlock(newStyleBlock);
-            setFixedPromptBlock(newFixedBlock);
+            if (!isFixedBlockEdited) {
+                setFixedPromptBlock(newFixedBlock);
+            }
 
-            // 🔴 합쳐진 전체 프롬프트 저장
-            const combinedPrompt = `${newFixedBlock}
+            // 🔴 합쳐진 전체 프롬프트 저장 (수정된 경우 기존 fixedPromptBlock 사용)
+            const finalFixedBlock = isFixedBlockEdited ? fixedPromptBlock : newFixedBlock;
+            const combinedPrompt = `${finalFixedBlock}
 
 ${newStyleBlock}`;
             setGeneratedPrompt(combinedPrompt);
