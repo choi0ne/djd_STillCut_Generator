@@ -51,11 +51,12 @@ const BlogVisualEditor: React.FC<BlogVisualEditorProps> = ({
     // 🔴 프롬프트 분리: 스타일 블록 (변경 가능) + 고정 블록 (변경 불가)
     const [stylePromptBlock, setStylePromptBlock] = useState(''); // 【스타일】, 【색상 팔레트】
     const [fixedPromptBlock, setFixedPromptBlock] = useState(''); // 【사이즈】, 【섹션】, 【환자 캐릭터】, 【장면 묘사】, 【필수 제외】
+    const [isFixedBlockEdited, setIsFixedBlockEdited] = useState(false); // 🔴 사용자가 고정 블록을 수정했는지 추적
 
     // 직접 프롬프트 입력 모드
     const [directPrompt, setDirectPrompt] = useState('');
     const [baseDirectPrompt, setBaseDirectPrompt] = useState(''); // 사용자가 입력한 원본 프롬프트
-    const [useDirectPrompt, setUseDirectPrompt] = useState(true); // 🔴 기본값: 직접 프롬프트 입력 ON
+    const [useDirectPrompt, setUseDirectPrompt] = useState(false); // 🔴 기본값: 직접 프롬프트 입력 OFF
 
     const [selectedConceptIndex, setSelectedConceptIndex] = useState<number | null>(null);
     const [isEditingPrompt, setIsEditingPrompt] = useState(false);
@@ -275,9 +276,11 @@ ${concept.description || concept.keywords.join(', ')}
 【필수 제외】
 ${allNegatives}, NO doctor, NO 한의사, NO medical professional, NO white coat`;
 
-                    // 🔴 분리된 블록을 state에 저장
+                    // 🔴 분리된 블록을 state에 저장 (사용자가 수정하지 않은 경우에만)
                     setStylePromptBlock(newStyleBlock);
-                    setFixedPromptBlock(newFixedBlock);
+                    if (!isFixedBlockEdited) {
+                        setFixedPromptBlock(newFixedBlock);
+                    }
 
                     // 🔴 합쳐진 전체 프롬프트도 저장 (이미지 생성 및 표시용)
                     const combinedPrompt = `${newFixedBlock}
@@ -892,6 +895,7 @@ ${styleContent}
                                         value={fixedPromptBlock}
                                         onChange={(e) => {
                                             setFixedPromptBlock(e.target.value);
+                                            setIsFixedBlockEdited(true); // 🔴 수정 시 고정 플래그 설정
                                             // 스타일 블록과 합쳐서 전체 프롬프트 업데이트
                                             const combinedPrompt = `${e.target.value}\n\n${stylePromptBlock}`;
                                             setGeneratedPrompt(combinedPrompt);
@@ -899,7 +903,20 @@ ${styleContent}
                                         rows={8}
                                         className="w-full px-3 py-2 bg-pink-900/20 border border-pink-500/20 rounded-lg text-pink-100 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-pink-400"
                                     />
-                                    <p className="text-xs text-pink-400/70 mt-1">✏️ 사이즈, 섹션, 환자 캐릭터, 장면 묘사 등을 직접 수정할 수 있습니다.</p>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-pink-400/70">✏️ 사이즈, 섹션, 환자 캐릭터, 장면 묘사 등을 직접 수정할 수 있습니다.</p>
+                                        <button
+                                            onClick={() => {
+                                                // 스타일 블록과 합쳐서 전체 프롬프트 저장
+                                                const combinedPrompt = `${fixedPromptBlock}\n\n${stylePromptBlock}`;
+                                                setGeneratedPrompt(combinedPrompt);
+                                                alert('✅ 프롬프트가 저장되었습니다!');
+                                            }}
+                                            className="px-3 py-1 bg-pink-600 hover:bg-pink-500 text-white text-xs rounded transition-colors"
+                                        >
+                                            💾 저장
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
